@@ -1,0 +1,70 @@
+{
+  "id": "4b62c500-5c58-4ca9-a206-befc697fa8f5",
+  "workflowId": "7b1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+  "workflowName": "gated",
+  "status": "failed",
+  "jobs": [
+    {
+      "name": "main",
+      "status": "failed",
+      "steps": [
+        {
+          "name": "prepare",
+          "status": "succeeded",
+          "startedAt": "2026-11-07T06:15:20.782Z",
+          "completedAt": "2026-11-07T06:15:20.786Z",
+          "duration": 4,
+          "assertResult": {
+            "passed": true,
+            "expr": "true",
+            "message": "always passes",
+            "severity": "low"
+          }
+        },
+        {
+          "name": "side-check",
+          "status": "succeeded",
+          "startedAt": "2026-11-07T06:15:20.788Z",
+          "completedAt": "2026-11-07T06:15:20.789Z",
+          "duration": 1,
+          "assertResult": {
+            "passed": true,
+            "expr": "true",
+            "message": "always passes",
+            "severity": "low"
+          }
+        },
+        {
+          "name": "signoff",
+          "status": "failed",
+          "error": "nope",
+          "startedAt": "2026-11-07T06:15:20.788Z",
+          "completedAt": "2026-11-07T06:15:23.191Z",
+          "duration": 2403,
+          "approval": {
+            "status": "rejected",
+            "rejectedBy": "dev",
+            "rejectedAt": "2026-11-07T06:15:23.191Z",
+            "reason": "nope"
+          }
+        },
+        {
+          "name": "finish",
+          "status": "skipped",
+          "completedAt": "2026-11-07T06:15:23.192Z",
+          "skipReason": {
+            "kind": "dependency"
+          }
+        }
+      ],
+      "startedAt": "2026-11-07T06:15:20.781Z",
+      "completedAt": "2026-11-07T06:15:23.192Z",
+      "duration": 2411
+    }
+  ],
+  "startedAt": "2026-11-07T06:15:20.778Z",
+  "completedAt": "2026-11-07T06:15:23.192Z",
+  "duration": 2414,
+  "path": "/tmp/e2e-repo/.swamp/workflow-runs/7b1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d/workflow-run-4b62c500-5c58-4ca9-a206-befc697fa8f5.yaml",
+  "initiatedBy": "user:coffeepy"
+}

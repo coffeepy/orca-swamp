@@ -1,0 +1,81 @@
+{
+  "id": "7b1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+  "name": "gated",
+  "description": "Two trivial asserts around a manual approval gate.",
+  "version": 1,
+  "tags": {},
+  "jobs": [
+    {
+      "name": "main",
+      "dependsOn": [],
+      "steps": [
+        {
+          "name": "prepare",
+          "dependsOn": [],
+          "task": {
+            "type": "assert",
+            "expr": "true",
+            "message": "always passes",
+            "severity": "low"
+          }
+        },
+        {
+          "name": "side-check",
+          "dependsOn": [
+            {
+              "step": "prepare",
+              "condition": {
+                "type": "succeeded"
+              }
+            }
+          ],
+          "task": {
+            "type": "assert",
+            "expr": "true",
+            "message": "always passes",
+            "severity": "low"
+          }
+        },
+        {
+          "name": "signoff",
+          "dependsOn": [
+            {
+              "step": "prepare",
+              "condition": {
+                "type": "succeeded"
+              }
+            }
+          ],
+          "task": {
+            "type": "manual_approval",
+            "prompt": "Approve to run the finish step."
+          }
+        },
+        {
+          "name": "finish",
+          "dependsOn": [
+            {
+              "step": "signoff",
+              "condition": {
+                "type": "succeeded"
+              }
+            },
+            {
+              "step": "side-check",
+              "condition": {
+                "type": "succeeded"
+              }
+            }
+          ],
+          "task": {
+            "type": "assert",
+            "expr": "true",
+            "message": "always passes",
+            "severity": "low"
+          }
+        }
+      ]
+    }
+  ],
+  "path": "/tmp/e2e-repo/workflows/workflow-gated.yaml"
+}

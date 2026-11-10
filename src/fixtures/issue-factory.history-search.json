@@ -1,0 +1,28 @@
+{
+  "query": "",
+  "results": [
+    {
+      "runId": "ee6e9038-d4ef-432a-815e-7ab33a57f58f",
+      "workflowId": "3183ce29-9427-402e-842d-ef9faf7a86fb",
+      "workflowName": "issue-factory",
+      "status": "succeeded",
+      "startedAt": "2026-10-26T19:25:08.936Z",
+      "completedAt": "2026-10-26T19:25:12.899Z",
+      "duration": 3963,
+      "tags": {
+        "app": "swipenews",
+        "team": "platform"
+      },
+      "inputs": {
+        "issueId": "ISSUE-101",
+        "mode": "fast",
+        "risk": ""
+      },
+      "triggerSource": "manual",
+      "stepProgress": {
+        "completed": 8,
+        "total": 8
+      }
+    }
+  ]
+}

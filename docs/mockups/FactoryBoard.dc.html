@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>StageCraft factory board</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#9bd36a}a:hover{color:#c3ea9a}
+button,select{font:inherit}
+</style>
+</helmet>
+<div style="width: 400px; height: 960px; box-sizing: border-box; background: {{t.panel}}; color: {{t.text}}; font-family: Inter, system-ui, sans-serif; font-size: 13px; display: flex; flex-direction: column; overflow: hidden">
+
+  <div style="padding: 14px 16px 10px; display: flex; align-items: center; gap: 10px">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{t.accent}}" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 22V9"></path><rect x="10" y="3" width="4" height="7" rx="2"></rect><path d="M7 22c0-5-2-8-4-10"></path><path d="M17 22c0-5 2-8 4-10"></path></svg>
+    <div style="flex: 1">
+      <div style="font-weight: 600; font-size: 14px">Swamp</div>
+      <div style="color: {{t.muted}}; font-size: 12px">swipenews-factory</div>
+    </div>
+  </div>
+  <div role="tablist" style="margin: 0 16px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: {{t.raised}}; border-radius: 8px; padding: 3px">
+    <button role="tab" aria-selected="false" style="border: none; border-radius: 6px; padding: 7px; background: none; color: {{t.muted}}">Workflows</button>
+    <button role="tab" aria-selected="true" style="border: none; border-radius: 6px; padding: 7px; background: {{t.panel}}; color: {{t.text}}; font-weight: 500">Factories <span style="color: {{t.gold}}">· 2</span></button>
+  </div>
+
+  <div style="padding: 14px 16px 0; display: flex; flex-direction: column; gap: 10px">
+    <div style="display: flex; gap: 8px; align-items: center">
+      <label style="flex: 1; display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: {{t.muted}}">Factory
+        <select style="padding: 7px 8px; border-radius: 8px; border: 1px solid {{t.border}}; background: {{t.raised}}; color: {{t.text}}"><option>team · plan → review → build → ship</option></select>
+      </label>
+      <button style="align-self: flex-end; min-height: 34px; padding: 0 10px; border-radius: 8px; border: 1px solid {{t.border}}; background: none; color: {{t.text}}; display: flex; align-items: center; gap: 6px">
+        Studio
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M18 14v6H4V6h6"></path></svg>
+      </button>
+    </div>
+
+    <!-- flow strip: stage counts -->
+    <div role="img" aria-label="Work items per stage" style="display: flex; gap: 3px">
+      <sc-for list="{{stages}}" as="s" hint-placeholder-count="6">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; align-items: center">
+          <div style="width: 100%; height: 6px; border-radius: 3px; background: {{s.bar}}"></div>
+          <span style="font-size: 10.5px; color: {{t.muted}}">{{s.count}}</span>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; gap: 6px; flex-wrap: wrap">
+      <button aria-pressed="true" style="padding: 5px 10px; border-radius: 14px; border: 1px solid {{t.accent}}; background: {{t.accentBg}}; color: {{t.text}}; font-size: 12px">All · 9</button>
+      <button aria-pressed="false" style="padding: 5px 10px; border-radius: 14px; border: 1px solid {{t.gold}}; background: none; color: {{t.gold}}; font-size: 12px">Needs a person · 2</button>
+      <button aria-pressed="false" style="padding: 5px 10px; border-radius: 14px; border: 1px solid {{t.border}}; background: none; color: {{t.muted}}; font-size: 12px">Parked · 1</button>
+    </div>
+  </div>
+
+  <!-- stage lanes -->
+  <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 14px; overflow: hidden">
+    <sc-for list="{{stages}}" as="s" hint-placeholder-count="6">
+      <section style="display: flex; flex-direction: column; gap: 6px">
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px">
+          <span style="font-weight: 600; font-family: 'JetBrains Mono', monospace">{{s.id}}</span>
+          <span style="color: {{t.muted}}">{{s.mode}}</span>
+          <span style="margin-left: auto; color: {{t.muted}}">{{s.count}}</span>
+        </div>
+        <sc-for list="{{s.items}}" as="w" hint-placeholder-count="1">
+          <div style="border: 1px solid {{w.border}}; background: {{w.bg}}; border-radius: 8px; padding: 9px 10px; display: flex; flex-direction: column; gap: 4px">
+            <div style="display: flex; gap: 8px; align-items: center">
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{t.muted}}">{{w.key}}</span>
+              <span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{w.title}}</span>
+            </div>
+            <div style="display: flex; gap: 10px; font-size: 11.5px; color: {{t.muted}}">
+              <span style="color: {{w.flagColor}}">{{w.flag}}</span>
+              <span style="margin-left: auto">{{w.age}}</span>
+            </div>
+          </div>
+        </sc-for>
+      </section>
+    </sc-for>
+    <div style="font-size: 12px; color: {{t.muted}}">done · 5 shipped this week ›</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["swamp","orca"],"default":"swamp"},"$preview":{"width":400,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const swamp = { panel:'#111c15', raised:'#16241b', border:'#25392c', text:'#e2ead6', muted:'#97ab92', dim:'#2f4536', accent:'#9bd36a', accentBg:'#1d3018', gold:'#e3b341', goldBg:'#231f0e', warm:'#d9a35b' };
+    const orca = { panel:'#1b1b1b', raised:'#232323', border:'#303030', text:'#e6e6e6', muted:'#9d9d9d', dim:'#3a3a3a', accent:'#9d9d9d', accentBg:'#2a2a2a', gold:'#e3b341', goldBg:'#262010', warm:'#d98a5b' };
+    const t = (this.props.theme ?? 'swamp') === 'orca' ? orca : swamp;
+    const card = (key, title, kind, flag, age) => ({
+      key, title, flag, age,
+      border: kind === 'person' ? t.gold : t.border,
+      bg: kind === 'person' ? t.goldBg : t.raised,
+      flagColor: kind === 'person' ? t.gold : (kind === 'warn' ? t.warm : t.muted)
+    });
+    const stages = [
+      { id:'not started', mode:'tickets', items:[ card('team-14','Swipe history export','', 'feature · filed 2d ago',''), card('team-15','Crash on empty feed','', 'bug · filed 5h ago','') ] },
+      { id:'planning', mode:'interactive', items:[ card('team-12','Undo last swipe','', 'cycle 2 · plan reworked','40m') ] },
+      { id:'plan-review', mode:'dispatch', items:[ card('team-11','High-risk content filter','person', '◆ plan-approval · waiting 3h','3h') ] },
+      { id:'implementing', mode:'interactive', items:[ card('team-9','Rate-limit feed API','', 'agent working','1h'), card('team-8','Dark mode tokens','warm', 'parked · dispatch cap','6h') ] },
+      { id:'testing', mode:'workflow', items:[] },
+      { id:'code-review', mode:'dispatch', items:[ card('team-7','Fix stale cache headers','person', '◆ ship-approval · waiting 20m','25m') ] }
+    ].map(s => ({ ...s, count: s.items.length, bar: s.items.some(i => i.border === t.gold) ? t.gold : (s.items.length ? t.accent : t.dim) }));
+    return { t, stages };
+  }
+}
+</script>
+</body>
+</html>

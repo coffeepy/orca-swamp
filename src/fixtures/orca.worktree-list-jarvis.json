@@ -1,0 +1,163 @@
+{
+  "id": "171df7f9-7da9-4303-b467-26779235010d",
+  "ok": true,
+  "result": {
+    "worktrees": [
+      {
+        "id": "4857ff64-21b6-44ad-9248-721e53d21067::/home/dev/orca/workspaces/shop/factory-v3",
+        "identity": {
+          "key": "wt2:local:7b9caa3b-83c9-41e7-ad21-2fbbbe830dfb",
+          "executionHostId": "local",
+          "instanceId": "7b9caa3b-83c9-41e7-ad21-2fbbbe830dfb"
+        },
+        "instanceId": "7b9caa3b-83c9-41e7-ad21-2fbbbe830dfb",
+        "repoId": "4857ff64-21b6-44ad-9248-721e53d21067",
+        "hostId": "local",
+        "path": "/home/dev/orca/workspaces/shop/factory-v3",
+        "head": "1bfad790535005c27cac0406ae058e077bf41bb7",
+        "branch": "refs/heads/factory-v3",
+        "isBare": false,
+        "isMainWorktree": false,
+        "displayName": "factory-v3",
+        "displayNameMode": "automatic",
+        "comment": "",
+        "linkedIssue": null,
+        "linkedPR": null,
+        "linkedLinearIssue": null,
+        "linkedLinearIssueWorkspaceId": null,
+        "linkedLinearIssueOrganizationUrlKey": null,
+        "linkedGitLabMR": null,
+        "linkedGitLabIssue": null,
+        "linkedBitbucketPR": null,
+        "linkedAzureDevOpsPR": null,
+        "linkedGiteaPR": null,
+        "linkedWorkItem": null,
+        "linkedTaskSourceContext": null,
+        "isArchived": false,
+        "isUnread": false,
+        "isPinned": false,
+        "sortOrder": 1794007583340,
+        "lastActivityAt": 0,
+        "workspaceStatus": "in-progress",
+        "parentWorktreeId": null,
+        "childWorktreeIds": [],
+        "lineage": null,
+        "git": {
+          "path": "/home/dev/orca/workspaces/shop/factory-v3",
+          "head": "1bfad790535005c27cac0406ae058e077bf41bb7",
+          "branch": "refs/heads/factory-v3",
+          "isBare": false,
+          "isMainWorktree": false
+        },
+        "linkedItems": []
+      },
+      {
+        "id": "70df28cd-8346-4108-a33a-dd80db2a9756::/home/dev/orca-swamp-playground",
+        "identity": {
+          "key": "wt2:local:4c3c6be0-4fa7-4d12-bc84-b56985b6e509",
+          "executionHostId": "local",
+          "instanceId": "4c3c6be0-4fa7-4d12-bc84-b56985b6e509"
+        },
+        "instanceId": "4c3c6be0-4fa7-4d12-bc84-b56985b6e509",
+        "repoId": "70df28cd-8346-4108-a33a-dd80db2a9756",
+        "hostId": "local",
+        "path": "/home/dev/orca-swamp-playground",
+        "head": "12f2e17bd5d3d2de7eece5a8eedb47fe23de35bc",
+        "branch": "refs/heads/master",
+        "isBare": false,
+        "isMainWorktree": true,
+        "displayName": "master",
+        "displayNameMode": "automatic",
+        "comment": "",
+        "linkedIssue": null,
+        "linkedPR": null,
+        "linkedLinearIssue": null,
+        "linkedLinearIssueWorkspaceId": null,
+        "linkedLinearIssueOrganizationUrlKey": null,
+        "linkedGitLabMR": null,
+        "linkedGitLabIssue": null,
+        "linkedBitbucketPR": null,
+        "linkedAzureDevOpsPR": null,
+        "linkedGiteaPR": null,
+        "linkedWorkItem": null,
+        "linkedTaskSourceContext": null,
+        "isArchived": false,
+        "isUnread": false,
+        "isPinned": false,
+        "sortOrder": 1794099553535,
+        "lastActivityAt": 0,
+        "workspaceStatus": "in-progress",
+        "parentWorktreeId": null,
+        "childWorktreeIds": [],
+        "lineage": null,
+        "git": {
+          "path": "/home/dev/orca-swamp-playground",
+          "head": "12f2e17bd5d3d2de7eece5a8eedb47fe23de35bc",
+          "branch": "refs/heads/master",
+          "isBare": false,
+          "isMainWorktree": true
+        },
+        "linkedItems": []
+      },
+      {
+        "id": "28a0d66d-dd9d-46bb-b732-632d3616e4e6::/home/dev/work/webapp",
+        "identity": {
+          "key": "wt2:local:a1533433-a74a-45c9-816c-cb7eb874b3ce",
+          "executionHostId": "local",
+          "instanceId": "a1533433-a74a-45c9-816c-cb7eb874b3ce"
+        },
+        "instanceId": "a1533433-a74a-45c9-816c-cb7eb874b3ce",
+        "repoId": "28a0d66d-dd9d-46bb-b732-632d3616e4e6",
+        "hostId": "local",
+        "path": "/home/dev/work/webapp",
+        "head": "2e07f27a9565bf4b5e05b8e339afc0a0a004c19f",
+        "branch": "refs/heads/feature-assets-inventory",
+        "isBare": false,
+        "isMainWorktree": true,
+        "displayName": "feature-assets-inventory",
+        "displayNameMode": "automatic",
+        "comment": "",
+        "linkedIssue": null,
+        "linkedPR": null,
+        "linkedLinearIssue": null,
+        "linkedLinearIssueWorkspaceId": null,
+        "linkedLinearIssueOrganizationUrlKey": null,
+        "linkedGitLabMR": null,
+        "linkedGitLabIssue": null,
+        "linkedBitbucketPR": null,
+        "linkedAzureDevOpsPR": null,
+        "linkedGiteaPR": null,
+        "linkedWorkItem": null,
+        "linkedTaskSourceContext": null,
+        "isArchived": false,
+        "isUnread": false,
+        "isPinned": false,
+        "sortOrder": 1793046474576,
+        "lastActivityAt": 1793922372142,
+        "workspaceStatus": "in-progress",
+        "parentWorktreeId": null,
+        "childWorktreeIds": [],
+        "lineage": null,
+        "git": {
+          "path": "/home/dev/work/webapp",
+          "head": "2e07f27a9565bf4b5e05b8e339afc0a0a004c19f",
+          "branch": "refs/heads/feature-assets-inventory",
+          "isBare": false,
+          "isMainWorktree": true
+        },
+        "linkedItems": []
+      }
+    ],
+    "hostScope": {
+      "hostIds": [
+        "local"
+      ],
+      "omittedHostIds": []
+    },
+    "totalCount": 3,
+    "truncated": false
+  },
+  "_meta": {
+    "runtimeId": "f9bd0f3a-f137-4da5-ba86-f3289673c215"
+  }
+}

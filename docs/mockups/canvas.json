@@ -1,0 +1,120 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-06T18:00:00Z"
+ },
+ "title": "Swamp in Orca",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 900,
+   "title": "In context: Swamp panel in Orca's right sidebar"
+  },
+  "WorkflowList.dc.html": {
+   "x": 0,
+   "y": 1500,
+   "w": 400,
+   "h": 960,
+   "title": "1 \u00b7 Workflows list"
+  },
+  "WorkflowRun.dc.html": {
+   "x": 480,
+   "y": 1500,
+   "w": 400,
+   "h": 960,
+   "title": "2 \u00b7 Run: waiting on approval"
+  },
+  "ParallelRun.dc.html": {
+   "x": 960,
+   "y": 1500,
+   "w": 400,
+   "h": 960,
+   "title": "3 \u00b7 Run: parallel steps + failure"
+  },
+  "FactoryBoard.dc.html": {
+   "x": 1440,
+   "y": 1500,
+   "w": 400,
+   "h": 960,
+   "title": "4 \u00b7 StageCraft board"
+  },
+  "WorkItem.dc.html": {
+   "x": 1920,
+   "y": 1500,
+   "w": 400,
+   "h": 960,
+   "title": "5 \u00b7 StageCraft work item (idea)"
+  },
+  "Ambient.dc.html": {
+   "x": 0,
+   "y": 2800,
+   "w": 1240,
+   "h": 300,
+   "title": "6 \u00b7 Outside the panel: status bar + notification"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "WorkflowList.dc.html",
+  "WorkflowRun.dc.html",
+  "ParallelRun.dc.html",
+  "FactoryBoard.dc.html",
+  "WorkItem.dc.html",
+  "Ambient.dc.html"
+ ],
+ "notes": {
+  "t1": {
+   "x": 0,
+   "y": -300,
+   "text": "Swamp in Orca \u2014 in context",
+   "kind": "title1",
+   "maxW": 1440
+  },
+  "s1": {
+   "x": 1520,
+   "y": 0,
+   "w": 420,
+   "fill": "green",
+   "text": "How it works\n\n\u2022 One sidebar panel, two tabs: Workflows and Factories.\n\u2022 A plugin worker (Node) runs `swamp \u2026 --json` in the focused workspace. The panel has no network access.\n\u2022 Scope v1: view + approve/reject. No editing.\n\u2022 Repo = the swamp repo of the current Orca workspace.\n\u2022 Theme: the plugin ships an optional 'Swamp' Orca color theme. Switch Orca / Swamp in each artboard's Tweaks.",
+   "size": "m"
+  },
+  "s2": {
+   "x": 1520,
+   "y": 520,
+   "w": 420,
+   "fill": "blue",
+   "text": "Open questions\n\n1. Vertical pipeline vs DAG graph for the stage view?\n2. Should the status bar show waiting gates across ALL workspaces?\n3. Auto-refresh: poll every few seconds, or only while a run is active?",
+   "size": "m"
+  },
+  "t2": {
+   "x": 0,
+   "y": 1250,
+   "text": "Panel screens (400 px sidebar)",
+   "kind": "title1",
+   "maxW": 2320
+  },
+  "t3": {
+   "x": 0,
+   "y": 2560,
+   "text": "Ambient signals",
+   "kind": "title1",
+   "maxW": 1240
+  },
+  "s3": {
+   "x": 2400,
+   "y": 1500,
+   "w": 440,
+   "fill": "green",
+   "size": "m",
+   "text": "Build status (2026-11-07)\n\nCode: ~/develop/orca-swamp (plugin v0.1.0, dev-loaded)\n\nBUILT\n\u2022 1 Workflows list\n\u2022 2 Run: stage view, logs, Approve / Reject + auto-resume\n\u2022 3 Parallel steps side by side, failed step + logs\n\nNOT BUILT\n\u2022 3 'Send failure to agent terminal' and 'Copy retry command'\n\u2022 4 StageCraft board (Factories tab)\n\u2022 5 StageCraft work item\n\u2022 6 Status bar item, notification, palette commands\n\u2022 Optional Swamp app theme\n\nKNOWN GAPS\n\u2022 Panel uses Orca preset tones, not the swamp palette\n\u2022 Approve button is grey, not gold\n\u2022 Not yet tested live in Orca"
+  }
+ },
+ "designSystems": []
+}

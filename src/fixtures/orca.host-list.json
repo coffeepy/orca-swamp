@@ -1,0 +1,40 @@
+{
+  "id": "local",
+  "ok": true,
+  "result": {
+    "hosts": [
+      {
+        "kind": "local",
+        "name": "this machine",
+        "id": "local",
+        "selector": "--host local",
+        "machineName": "Dev's Mac",
+        "platform": "darwin"
+      },
+      {
+        "kind": "ssh",
+        "name": "orb",
+        "id": "ssh-1792428780344-c0rkp8",
+        "selector": "--host ssh:ssh-1792428780344-c0rkp8",
+        "connected": false
+      },
+      {
+        "kind": "ssh",
+        "name": "jarvis",
+        "id": "ssh-1792428780344-44ywpw",
+        "selector": "--host ssh:ssh-1792428780344-44ywpw",
+        "connected": true,
+        "connectionStatus": "connected"
+      },
+      {
+        "kind": "environment",
+        "name": "jarvis",
+        "id": "5265ddee-dbf9-4e8c-b5ba-26d33664b860",
+        "selector": "--environment jarvis"
+      }
+    ]
+  },
+  "_meta": {
+    "runtimeId": "local"
+  }
+}

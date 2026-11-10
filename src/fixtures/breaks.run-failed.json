@@ -1,0 +1,94 @@
+{
+  "id": "54f9fdbe-ab05-481d-8ee2-02032885af81",
+  "workflowId": "2c4e6a8b-1d3f-4a5b-9c7d-0e1f2a3b4c5d",
+  "workflowName": "breaks",
+  "status": "failed",
+  "jobs": [
+    {
+      "name": "main",
+      "status": "failed",
+      "steps": [
+        {
+          "name": "start",
+          "status": "succeeded",
+          "startedAt": "2026-11-07T06:15:17.065Z",
+          "completedAt": "2026-11-07T06:15:17.073Z",
+          "duration": 8,
+          "assertResult": {
+            "passed": true,
+            "expr": "true",
+            "message": "ok",
+            "severity": "low"
+          }
+        },
+        {
+          "name": "left",
+          "status": "succeeded",
+          "startedAt": "2026-11-07T06:15:17.076Z",
+          "completedAt": "2026-11-07T06:15:17.077Z",
+          "duration": 1,
+          "assertResult": {
+            "passed": true,
+            "expr": "true",
+            "message": "ok",
+            "severity": "low"
+          }
+        },
+        {
+          "name": "right",
+          "status": "failed",
+          "error": "right side must hold",
+          "startedAt": "2026-11-07T06:15:17.076Z",
+          "completedAt": "2026-11-07T06:15:17.077Z",
+          "duration": 1,
+          "assertResult": {
+            "passed": false,
+            "expr": "1 == 2",
+            "message": "right side must hold",
+            "severity": "high"
+          }
+        },
+        {
+          "name": "join",
+          "status": "skipped",
+          "completedAt": "2026-11-07T06:15:17.087Z",
+          "skipReason": {
+            "kind": "dependency"
+          }
+        }
+      ],
+      "startedAt": "2026-11-07T06:15:17.064Z",
+      "completedAt": "2026-11-07T06:15:17.089Z",
+      "duration": 25
+    }
+  ],
+  "startedAt": "2026-11-07T06:15:17.057Z",
+  "completedAt": "2026-11-07T06:15:17.092Z",
+  "duration": 35,
+  "path": "/tmp/e2e-repo/.swamp/workflow-runs/2c4e6a8b-1d3f-4a5b-9c7d-0e1f2a3b4c5d/workflow-run-54f9fdbe-ab05-481d-8ee2-02032885af81.yaml",
+  "workflowDataArtifacts": [
+    {
+      "dataId": "e41e32cd-385d-4572-8346-a60f6155702c",
+      "name": "report-swamp-workflow-summary",
+      "version": 1,
+      "tags": {
+        "type": "report",
+        "reportName": "@swamp/workflow-summary",
+        "reportScope": "workflow",
+        "modelName": "breaks"
+      }
+    },
+    {
+      "dataId": "4af8c6c9-d3ec-4d64-9a11-1524266221eb",
+      "name": "report-swamp-workflow-summary-json",
+      "version": 1,
+      "tags": {
+        "type": "report",
+        "reportName": "@swamp/workflow-summary",
+        "reportScope": "workflow",
+        "modelName": "breaks"
+      }
+    }
+  ],
+  "initiatedBy": "user:coffeepy"
+}

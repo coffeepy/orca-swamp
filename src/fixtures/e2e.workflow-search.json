@@ -1,0 +1,21 @@
+{
+  "query": "",
+  "results": [
+    {
+      "id": "2c4e6a8b-1d3f-4a5b-9c7d-0e1f2a3b4c5d",
+      "name": "breaks",
+      "description": "Parallel asserts where one fails.",
+      "jobCount": 1,
+      "stepCount": 4,
+      "hasInputs": false
+    },
+    {
+      "id": "7b1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+      "name": "gated",
+      "description": "Two trivial asserts around a manual approval gate.",
+      "jobCount": 1,
+      "stepCount": 4,
+      "hasInputs": false
+    }
+  ]
+}

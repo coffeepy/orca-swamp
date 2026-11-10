@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Swamp run with parallel steps and a failure</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#9bd36a}a:hover{color:#c3ea9a}
+button{font:inherit}
+</style>
+</helmet>
+<div style="width: 400px; height: 960px; box-sizing: border-box; background: {{t.panel}}; color: {{t.text}}; font-family: Inter, system-ui, sans-serif; font-size: 13px; display: flex; flex-direction: column; padding: 14px 16px; gap: 12px; overflow: hidden">
+
+  <div style="display: flex; align-items: center; gap: 8px">
+    <button aria-label="Back to workflows" style="background: none; border: none; color: {{t.muted}}; padding: 4px; min-width: 28px; min-height: 28px">‹</button>
+    <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600">pr-audit-factory</span>
+    <span style="margin-left: auto; font-size: 12px; padding: 2px 8px; border-radius: 10px; color: {{t.fail}}; border: 1px solid {{t.fail}}">Failed · 2/4</span>
+  </div>
+  <div style="font-size: 12px; color: {{t.muted}}">Run 7d02 · AUDIT-MAIN · 22m ago · 6.1s</div>
+
+  <!-- intake -->
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 0">
+    <div style="width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid {{t.border}}; border-radius: 10px; background: {{t.raised}}">
+      <svg width="16" height="16" viewBox="0 0 18 18" role="img" aria-label="Succeeded"><circle cx="9" cy="9" r="8" fill="{{t.ok}}"></circle><path d="M5.5 9.2l2.3 2.3 4.7-4.8" fill="none" stroke="{{t.panel}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px">intake</span>
+      <span style="margin-left: auto; font-size: 12px; color: {{t.muted}}">0.3s</span>
+    </div>
+    <svg width="200" height="26" viewBox="0 0 200 26" aria-hidden="true"><path d="M100 0v8M100 8H48v18M100 8h52v18" fill="none" stroke="{{t.ok}}" stroke-width="2"></path></svg>
+    <div style="font-size: 11px; color: {{t.muted}}; margin: -2px 0 4px; letter-spacing: 0.04em">PARALLEL</div>
+
+    <!-- parallel row -->
+    <div style="width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <div style="padding: 10px 12px; border: 1px solid {{t.fail}}; border-radius: 10px; background: {{t.failBg}}; display: flex; flex-direction: column; gap: 4px">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <svg width="16" height="16" viewBox="0 0 18 18" role="img" aria-label="Failed"><circle cx="9" cy="9" r="8" fill="{{t.fail}}"></circle><path d="M6.2 6.2l5.6 5.6M11.8 6.2l-5.6 5.6" stroke="{{t.panel}}" stroke-width="2" stroke-linecap="round"></path></svg>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px">quality</span>
+        </div>
+        <span style="font-size: 12px; color: {{t.muted}}">typecheck failed · 3.2s</span>
+      </div>
+      <div style="padding: 10px 12px; border: 1px solid {{t.border}}; border-radius: 10px; background: {{t.raised}}; display: flex; flex-direction: column; gap: 4px">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <svg width="16" height="16" viewBox="0 0 18 18" role="img" aria-label="Succeeded"><circle cx="9" cy="9" r="8" fill="{{t.ok}}"></circle><path d="M5.5 9.2l2.3 2.3 4.7-4.8" fill="none" stroke="{{t.panel}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px">adversary</span>
+        </div>
+        <span style="font-size: 12px; color: {{t.muted}}">0 blocking · 2.6s</span>
+      </div>
+    </div>
+    <svg width="200" height="26" viewBox="0 0 200 26" aria-hidden="true"><path d="M48 0v18H100M152 0v18H100M100 18v8" fill="none" stroke="{{t.border}}" stroke-width="2" stroke-dasharray="4 3"></path></svg>
+    <div style="width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px dashed {{t.border}}; border-radius: 10px; color: {{t.muted}}">
+      <svg width="16" height="16" viewBox="0 0 18 18" role="img" aria-label="Skipped"><circle cx="9" cy="9" r="7" fill="none" stroke="{{t.dim}}" stroke-width="2"></circle><path d="M5 9h8" stroke="{{t.dim}}" stroke-width="2"></path></svg>
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px">report</span>
+      <span style="margin-left: auto; font-size: 12px">skipped</span>
+    </div>
+  </div>
+
+  <!-- failure detail -->
+  <section style="border: 1px solid {{t.border}}; border-radius: 10px; overflow: hidden; background: {{t.deep}}">
+    <div style="padding: 10px 12px; border-bottom: 1px solid {{t.border}}; display: flex; align-items: center; gap: 8px">
+      <span style="font-weight: 600">quality</span><span style="color: {{t.muted}}; font-size: 12px">· logs</span>
+    </div>
+    <pre style="margin: 0; padding: 10px 12px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; line-height: 1.6; color: {{t.muted}}; white-space: pre-wrap">fmt ........ <span style="color: {{t.ok}}">ok</span>
+lint ....... <span style="color: {{t.ok}}">ok</span>
+typecheck .. <span style="color: {{t.fail}}">FAIL</span>
+  src/engine.ts:142:9
+  TS2345 Argument of type 'string | undefined'
+  is not assignable to 'string'.
+unit tests . <span style="color: {{t.dim}}">not run</span></pre>
+  </section>
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <button style="min-height: 38px; border-radius: 8px; border: none; background: {{t.accent}}; color: {{t.onAccent}}; font-weight: 600">Send failure to agent terminal</button>
+    <button style="min-height: 36px; border-radius: 8px; border: 1px solid {{t.border}}; background: none; color: {{t.text}}">Copy retry command</button>
+    <div style="font-size: 11.5px; color: {{t.muted}}; line-height: 1.5">Retry runs <span style="font-family: 'JetBrains Mono', monospace">swamp workflow resume pr-audit-factory --run 7d02 --from quality</span>. The panel does not retry by itself in v1.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["swamp","orca"],"default":"swamp"},"$preview":{"width":400,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const swamp = { panel:'#111c15', raised:'#16241b', deep:'#0b130e', border:'#25392c', text:'#e2ead6', muted:'#97ab92', dim:'#5d7362', accent:'#9bd36a', onAccent:'#0e1a08', ok:'#7cc95a', fail:'#f2775f', failBg:'#2a1612' };
+    const orca = { panel:'#1b1b1b', raised:'#232323', deep:'#151515', border:'#303030', text:'#e6e6e6', muted:'#9d9d9d', dim:'#626262', accent:'#e6e6e6', onAccent:'#141414', ok:'#3fb950', fail:'#f85149', failBg:'#2a1716' };
+    const t = (this.props.theme ?? 'swamp') === 'orca' ? orca : swamp;
+    return { t };
+  }
+}
+</script>
+</body>
+</html>

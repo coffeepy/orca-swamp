@@ -1,0 +1,83 @@
+{
+  "id": "2c4e6a8b-1d3f-4a5b-9c7d-0e1f2a3b4c5d",
+  "name": "breaks",
+  "description": "Parallel asserts where one fails.",
+  "version": 1,
+  "tags": {},
+  "jobs": [
+    {
+      "name": "main",
+      "dependsOn": [],
+      "steps": [
+        {
+          "name": "start",
+          "dependsOn": [],
+          "task": {
+            "type": "assert",
+            "expr": "true",
+            "message": "ok",
+            "severity": "low"
+          }
+        },
+        {
+          "name": "left",
+          "dependsOn": [
+            {
+              "step": "start",
+              "condition": {
+                "type": "succeeded"
+              }
+            }
+          ],
+          "task": {
+            "type": "assert",
+            "expr": "true",
+            "message": "ok",
+            "severity": "low"
+          }
+        },
+        {
+          "name": "right",
+          "dependsOn": [
+            {
+              "step": "start",
+              "condition": {
+                "type": "succeeded"
+              }
+            }
+          ],
+          "task": {
+            "type": "assert",
+            "expr": "1 == 2",
+            "message": "right side must hold",
+            "severity": "high"
+          }
+        },
+        {
+          "name": "join",
+          "dependsOn": [
+            {
+              "step": "left",
+              "condition": {
+                "type": "succeeded"
+              }
+            },
+            {
+              "step": "right",
+              "condition": {
+                "type": "succeeded"
+              }
+            }
+          ],
+          "task": {
+            "type": "assert",
+            "expr": "true",
+            "message": "ok",
+            "severity": "low"
+          }
+        }
+      ]
+    }
+  ],
+  "path": "/tmp/e2e-repo/workflows/workflow-breaks.yaml"
+}

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Swamp status bar and notification</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#9bd36a}a:hover{color:#c3ea9a}
+button{font:inherit}
+</style>
+</helmet>
+<div style="width: 1240px; height: 300px; box-sizing: border-box; padding: 28px; background: {{t.bg}}; color: {{t.text}}; font-family: Inter, system-ui, sans-serif; font-size: 13px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px">
+
+  <!-- status bar variants -->
+  <div style="display: flex; flex-direction: column; gap: 14px">
+    <div style="font-size: 12px; font-weight: 600; color: {{t.muted}}; letter-spacing: 0.02em">STATUS BAR ITEM (worker updates it)</div>
+    <sc-for list="{{bars}}" as="b" hint-placeholder-count="3">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div style="height: 28px; display: flex; align-items: center; gap: 18px; padding: 0 12px; font-size: 12px; color: {{t.muted}}; background: {{t.chrome}}; border: 1px solid {{t.border}}; border-radius: 6px">
+          <span>Claude 0% 5h</span>
+          <span style="margin-left: auto; display: flex; align-items: center; gap: 6px; color: {{b.color}}">
+            <span style="width: 8px; height: 8px; border-radius: {{b.radius}}; transform: {{b.rotate}}; background: {{b.color}}" aria-hidden="true"></span>{{b.text}}
+          </span>
+          <span>1 host</span>
+        </div>
+        <span style="font-size: 11.5px; color: {{t.muted}}">{{b.note}}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- notification -->
+  <div style="display: flex; flex-direction: column; gap: 14px">
+    <div style="font-size: 12px; font-weight: 600; color: {{t.muted}}; letter-spacing: 0.02em">DESKTOP NOTIFICATION (when a gate opens)</div>
+    <div style="width: 380px; border-radius: 14px; padding: 14px; background: {{t.raised}}; border: 1px solid {{t.border}}; display: flex; gap: 12px">
+      <div style="width: 36px; height: 36px; border-radius: 8px; background: {{t.chrome}}; display: flex; align-items: center; justify-content: center; flex-shrink: 0">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{t.accent}}" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 22V9"></path><rect x="10" y="3" width="4" height="7" rx="2"></rect><path d="M7 22c0-5-2-8-4-10"></path><path d="M17 22c0-5 2-8 4-10"></path></svg>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 3px">
+        <div style="font-weight: 600">Swamp · approval needed</div>
+        <div style="color: {{t.muted}}; line-height: 1.45">issue-factory is waiting on you for ISSUE-103 (high risk). Click to open the panel.</div>
+      </div>
+    </div>
+    <div style="font-size: 12px; color: {{t.muted}}; line-height: 1.5">Also: palette commands <span style="font-family: 'JetBrains Mono', monospace; color: {{t.text}}">Swamp: Show waiting gates</span> and <span style="font-family: 'JetBrains Mono', monospace; color: {{t.text}}">Swamp: Open StageCraft studio</span>.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["swamp","orca"],"default":"swamp"},"$preview":{"width":1240,"height":300}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const swamp = { bg:'#0e1611', chrome:'#0a110d', raised:'#16241b', border:'#25392c', text:'#e2ead6', muted:'#97ab92', accent:'#9bd36a', ok:'#7cc95a', run:'#6cc4e0', gold:'#e3b341' };
+    const orca = { bg:'#1e1e1e', chrome:'#181818', raised:'#262626', border:'#303030', text:'#e6e6e6', muted:'#9d9d9d', accent:'#e6e6e6', ok:'#3fb950', run:'#58a6ff', gold:'#e3b341' };
+    const t = (this.props.theme ?? 'swamp') === 'orca' ? orca : swamp;
+    const bars = [
+      { text:'swamp · quiet', color:t.ok, radius:'50%', rotate:'none', note:'Nothing running, nothing waiting.' },
+      { text:'swamp · 1 run active', color:t.run, radius:'50%', rotate:'none', note:'A workflow or work item is moving.' },
+      { text:'swamp · 2 waiting on you', color:t.gold, radius:'1px', rotate:'rotate(45deg)', note:'Gold diamond = a person must decide. Click opens the panel filtered to waiting.' }
+    ];
+    return { t, bars };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,214 @@
+{
+  "id": "3183ce29-9427-402e-842d-ef9faf7a86fb",
+  "name": "issue-factory",
+  "description": "Autonomous Issue-to-Production Software Factory for SwipeNews. Triggered via webhook (POST /hooks/issue) or CLI, this workflow isolates a Git worktree, invokes the Builder Agent to implement code & tests, enforces deterministic Quality Gates (fmt, lint, typecheck, unit tests), runs a Bounded 4-Category Red-Team Adversary Agent, verifies CEL data assertions, pauses high-risk changes at a Human Approval Gate, and ships the verified commit to main.",
+  "version": 1,
+  "inputs": {
+    "properties": {
+      "issueId": {
+        "type": "string",
+        "description": "Issue identifier from issues.json (ISSUE-101 bug, ISSUE-102 undo feature, ISSUE-103 high-risk filter feature)",
+        "default": "ISSUE-101"
+      },
+      "mode": {
+        "type": "string",
+        "description": "Builder execution mode ('fast' deterministic template or 'claude' live LLM)",
+        "default": "fast"
+      },
+      "risk": {
+        "type": "string",
+        "description": "Optional risk level override ('low', 'normal', or 'high' to force manual approval gate)",
+        "default": ""
+      }
+    },
+    "required": [
+      "issueId"
+    ]
+  },
+  "trigger": {
+    "inputs": {
+      "issueId": "${{ has(webhook.body.issueId) ? webhook.body.issueId : 'ISSUE-101' }}"
+    }
+  },
+  "tags": {
+    "app": "swipenews",
+    "team": "platform",
+    "pipeline": "autonomous-delivery"
+  },
+  "reports": {
+    "require": [
+      "@coffeepy/factory-report"
+    ]
+  },
+  "jobs": [
+    {
+      "name": "factory",
+      "description": "Sequential 8-stage autonomous software factory pipeline: Intake -> Build -> Quality Gate -> CEL Quality Assert -> Adversary Red-Team Audit -> CEL Adversary Assert -> Conditional Human Approval Gate -> Git Ship & Live App Reload.",
+      "dependsOn": [],
+      "steps": [
+        {
+          "name": "intake",
+          "description": "[Behavior: @coffeepy/factory-intake.prepare] Reads the issue specification (title, type, risk level, acceptance criteria) from issues.json, records the current HEAD commit SHA of swipenews/main, and provisions a clean, isolated Git worktree (.swamp/worktrees/<issueId>) so in-flight work never touches main until verified.",
+          "dependsOn": [],
+          "task": {
+            "type": "model_method",
+            "modelIdOrName": "factory-intake",
+            "methodName": "prepare",
+            "inputs": {
+              "issueId": "${{ inputs.issueId }}",
+              "riskOverride": "${{ inputs.risk }}"
+            }
+          }
+        },
+        {
+          "name": "build",
+          "description": "[Behavior: @coffeepy/factory-builder.implement] Runs the Builder Agent inside the isolated Git worktree to implement the bug fix or feature across src/engine.ts and src/server.ts, writes corresponding unit & regression tests in tests/engine_test.ts, formats the code, and snapshots the changed file list and git diff --stat into Swamp Data.",
+          "dependsOn": [
+            {
+              "step": "intake",
+              "condition": {
+                "type": "succeeded"
+              }
+            }
+          ],
+          "task": {
+            "type": "model_method",
+            "modelIdOrName": "factory-builder",
+            "methodName": "implement",
+            "inputs": {
+              "issueId": "${{ inputs.issueId }}",
+              "mode": "${{ inputs.mode }}"
+            }
+          }
+        },
+        {
+          "name": "quality-gate",
+          "description": "[Behavior: @coffeepy/factory-quality.check] Deterministic compiler & test gate (zero AI opinion). Executes 4 real tools against the worktree: (1) deno fmt --check, (2) deno lint, (3) deno check (strict TypeScript typechecking), and (4) deno test. Writes structured pass/fail booleans and total test count into Swamp Data.",
+          "dependsOn": [
+            {
+              "step": "build",
+              "condition": {
+                "type": "succeeded"
+              }
+            }
+          ],
+          "task": {
+            "type": "model_method",
+            "modelIdOrName": "factory-quality",
+            "methodName": "check",
+            "inputs": {
+              "issueId": "${{ inputs.issueId }}"
+            }
+          }
+        },
+        {
+          "name": "assert-quality",
+          "description": "[Task: CEL Assertion] Queries the versioned 'quality' snapshot produced by factory-quality and verifies via CEL that allPassed == true and at least 3 unit tests executed. Halts the pipeline immediately if any deterministic check failed.",
+          "dependsOn": [
+            {
+              "step": "quality-gate",
+              "condition": {
+                "type": "succeeded"
+              }
+            }
+          ],
+          "task": {
+            "type": "assert",
+            "expr": "data.latest(\"factory-quality\", \"quality\").attributes.allPassed == true && data.latest(\"factory-quality\", \"quality\").attributes.testCount >= 3",
+            "message": "All deterministic quality gates (fmt, lint, typecheck, and >=3 unit tests) must pass",
+            "severity": "high"
+          }
+        },
+        {
+          "name": "adversary-audit",
+          "description": "[Behavior: @coffeepy/factory-adversary.audit] Bounded Red-Team Adversary Agent. Audits the worktree against a fixed 4-category rubric so the review always converges: (1) spec_compliance, (2) state_invariants (savedCount/passedCount consistency), (3) boundary_safety (20x overflow swipes past empty deck & empty-history undo), and (4) xss_dom_safety (verifies zero innerHTML/document.write sinks).",
+          "dependsOn": [
+            {
+              "step": "assert-quality",
+              "condition": {
+                "type": "succeeded"
+              }
+            }
+          ],
+          "task": {
+            "type": "model_method",
+            "modelIdOrName": "factory-adversary",
+            "methodName": "audit",
+            "inputs": {
+              "issueId": "${{ inputs.issueId }}"
+            }
+          }
+        },
+        {
+          "name": "assert-adversary",
+          "description": "[Task: CEL Assertion] Evaluates the 'adversary' data snapshot to guarantee the Red-Team Adversary verdict is 'pass' with a perfect '4/4' rubric score before any code is allowed to reach sign-off or production merge.",
+          "dependsOn": [
+            {
+              "step": "adversary-audit",
+              "condition": {
+                "type": "succeeded"
+              }
+            }
+          ],
+          "task": {
+            "type": "assert",
+            "expr": "data.latest(\"factory-adversary\", \"adversary\").attributes.verdict == \"pass\" && data.latest(\"factory-adversary\", \"adversary\").attributes.score == \"4/4\"",
+            "message": "Adversary red-team audit must pass all 4 rubric categories (4/4)",
+            "severity": "high"
+          }
+        },
+        {
+          "name": "human-signoff",
+          "description": "[Task: Manual Approval Gate] Human-in-the-loop governance gate. Guarded by CEL expression `risk != \"high\"`, so low/normal-risk issues (ISSUE-101, ISSUE-102) automatically skip this gate, while high-risk changes (ISSUE-103) suspend on swamp serve until approved in the Dashboard or CLI (then auto-resume via autoResume: true).",
+          "dependsOn": [
+            {
+              "step": "assert-adversary",
+              "condition": {
+                "type": "succeeded"
+              }
+            }
+          ],
+          "task": {
+            "type": "manual_approval",
+            "prompt": "High-risk change detected for this issue (inspect with `swamp data query 'behavior(\"factory-intake\") && name == \"intake\"' --select content`). Quality Gate and Adversary Red-Team Audit (4/4) have passed. Approve to merge and ship to main."
+          }
+        },
+        {
+          "name": "ship",
+          "description": "[Behavior: @coffeepy/factory-ship.merge] Commits the verified worktree changes with a conventional commit message, fast-forwards swipenews/main, removes the temporary Git worktree, resets the live SwipeNews server (:8080), and records the shipped commit SHA for the @coffeepy/factory-report executive summary.",
+          "dependsOn": [
+            {
+              "step": "assert-adversary",
+              "condition": {
+                "type": "succeeded"
+              }
+            },
+            {
+              "step": "human-signoff",
+              "condition": {
+                "type": "or",
+                "conditions": [
+                  {
+                    "type": "succeeded"
+                  },
+                  {
+                    "type": "skipped"
+                  }
+                ]
+              }
+            }
+          ],
+          "task": {
+            "type": "model_method",
+            "modelIdOrName": "factory-ship",
+            "methodName": "merge",
+            "inputs": {
+              "issueId": "${{ inputs.issueId }}"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "path": "/home/dev/swamp-factory-demo/swipenews-factory/workflows/workflow-issue-factory.yaml"
+}

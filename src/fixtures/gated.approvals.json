@@ -1,0 +1,15 @@
+{
+  "approvals": [
+    {
+      "workflowId": "7b1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+      "workflowName": "gated",
+      "runId": "0fdef291-426e-4ec9-a2c0-92bc24c3a7d8",
+      "stepName": "signoff",
+      "suspendedAt": "2026-11-07T06:14:14.508Z",
+      "prompt": "Approve to run the finish step.",
+      "inputs": {},
+      "initiatedBy": "user:coffeepy"
+    }
+  ],
+  "expired": []
+}

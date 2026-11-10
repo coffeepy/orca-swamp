@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Swamp panel in Orca</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#9bd36a}a:hover{color:#c3ea9a}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; display: flex; flex-direction: column; background: {{t.bg}}; color: {{t.text}}; font-family: Inter, system-ui, sans-serif; font-size: 13px; overflow: hidden">
+
+  <!-- title bar -->
+  <div style="height: 38px; display: flex; align-items: center; gap: 16px; padding: 0 14px; background: {{t.chrome}}; border-bottom: 1px solid {{t.border}}">
+    <div style="display: flex; gap: 8px" aria-hidden="true">
+      <span style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f57"></span>
+      <span style="width: 12px; height: 12px; border-radius: 50%; background: #febc2e"></span>
+      <span style="width: 12px; height: 12px; border-radius: 50%; background: #28c840"></span>
+    </div>
+    <span style="font-weight: 600">Orca</span>
+    <div style="display: flex; gap: 2px; margin-left: 150px">
+      <div style="padding: 9px 14px; border-bottom: 2px solid {{t.accent}}; color: {{t.text}}">issue-factory · ISSUE-103</div>
+      <div style="padding: 9px 14px; color: {{t.muted}}">pr-audit</div>
+      <div style="padding: 9px 14px; color: {{t.muted}}">New Session</div>
+    </div>
+  </div>
+
+  <div style="flex: 1; display: flex; min-height: 0">
+    <!-- left sidebar -->
+    <nav aria-label="Orca sidebar" style="width: 260px; flex-shrink: 0; background: {{t.chrome}}; border-right: 1px solid {{t.border}}; padding: 12px; display: flex; flex-direction: column; gap: 4px">
+      <div style="padding: 8px 10px; border-radius: 8px; background: {{t.raised}}; color: {{t.muted}}">Search</div>
+      <div style="padding: 7px 10px">Tasks</div>
+      <div style="padding: 7px 10px">Automations</div>
+      <div style="padding: 7px 10px">Agent Dashboard</div>
+      <div style="padding: 16px 10px 6px; color: {{t.muted}}; font-size: 12px">Projects</div>
+      <sc-for list="{{projects}}" as="p" hint-placeholder-count="5">
+        <div style="padding: 7px 10px; border-radius: 8px; font-weight: 500; background: {{p.bg}}">{{p.name}}</div>
+      </sc-for>
+    </nav>
+
+    <!-- center: agent terminal -->
+    <main style="flex: 1; min-width: 0; padding: 20px 28px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.6; background: {{t.bg}}">
+      <div style="color: {{t.warm}}">Run <span style="color: {{t.text}}">swamp workflow run issue-factory --input issueId=ISSUE-103</span></div>
+      <div style="color: {{t.muted}}">  ↳ intake · build · quality-gate · adversary … passed</div>
+      <div style="height: 14px"></div>
+      <div style="font-weight: 600">The run is waiting at the approval gate.</div>
+      <div style="height: 8px"></div>
+      <div>ISSUE-103 is marked high risk, so the factory stops for a person.</div>
+      <div>All quality gates passed. The adversary found 0 blocking issues.</div>
+      <div style="height: 8px"></div>
+      <div>Approve it in the Swamp panel, or run:</div>
+      <div style="color: {{t.accent}}">  swamp workflow approve issue-factory approval</div>
+      <div style="height: 24px"></div>
+      <div style="border: 1px solid {{t.border}}; border-radius: 6px; padding: 10px 12px; color: {{t.muted}}">&gt; <span style="display: inline-block; width: 8px; height: 15px; vertical-align: middle; background: {{t.text}}"></span></div>
+    </main>
+
+    <!-- right: swamp panel -->
+    <aside aria-label="Swamp panel" style="width: 400px; flex-shrink: 0; background: {{t.panel}}; border-left: 1px solid {{t.border}}; display: flex; flex-direction: column">
+      <div style="padding: 14px 16px 10px; display: flex; align-items: center; gap: 10px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{t.accent}}" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 22V9"></path><rect x="10" y="3" width="4" height="7" rx="2"></rect><path d="M7 22c0-5-2-8-4-10"></path><path d="M17 22c0-5 2-8 4-10"></path></svg>
+        <div style="flex: 1">
+          <div style="font-weight: 600; font-size: 14px">Swamp</div>
+          <div style="color: {{t.muted}}; font-size: 12px">swipenews-factory</div>
+        </div>
+        <button aria-label="Refresh" style="background: none; border: 1px solid {{t.border}}; color: {{t.muted}}; border-radius: 6px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"></path><path d="M21 3v5h-5"></path></svg></button>
+      </div>
+      <div role="tablist" style="margin: 0 16px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: {{t.raised}}; border-radius: 8px; padding: 3px">
+        <button role="tab" aria-selected="true" style="border: none; border-radius: 6px; padding: 7px; background: {{t.panel}}; color: {{t.text}}; font-weight: 500">Workflows</button>
+        <button role="tab" aria-selected="false" style="border: none; border-radius: 6px; padding: 7px; background: none; color: {{t.muted}}">Factories <span style="color: {{t.gold}}">· 2</span></button>
+      </div>
+
+      <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <span style="color: {{t.muted}}">‹</span>
+          <span style="font-weight: 600">issue-factory</span>
+          <span style="margin-left: auto; font-size: 12px; padding: 2px 8px; border-radius: 10px; color: {{t.gold}}; border: 1px solid {{t.gold}}">Waiting · 7/8</span>
+        </div>
+        <div style="font-size: 12px; color: {{t.muted}}">Run a41c · ISSUE-103 · manual · started 6m ago</div>
+
+        <ol style="list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column">
+          <sc-for list="{{steps}}" as="s" hint-placeholder-count="8">
+            <li style="display: flex; gap: 12px; min-height: 40px">
+              <div style="display: flex; flex-direction: column; align-items: center; width: 18px">
+                <sc-if value="{{s.done}}" hint-placeholder-val="{{true}}"><svg width="18" height="18" viewBox="0 0 18 18" role="img" aria-label="Succeeded"><circle cx="9" cy="9" r="8" fill="{{t.ok}}"></circle><path d="M5.5 9.2l2.3 2.3 4.7-4.8" fill="none" stroke="{{t.panel}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></sc-if>
+                <sc-if value="{{s.wait}}" hint-placeholder-val="{{false}}"><svg width="18" height="18" viewBox="0 0 18 18" role="img" aria-label="Waiting on a person"><rect x="3.5" y="3.5" width="11" height="11" transform="rotate(45 9 9)" fill="{{t.gold}}"></rect></svg></sc-if>
+                <sc-if value="{{s.pending}}" hint-placeholder-val="{{false}}"><svg width="18" height="18" viewBox="0 0 18 18" role="img" aria-label="Pending"><circle cx="9" cy="9" r="7" fill="none" stroke="{{t.dim}}" stroke-width="2"></circle></svg></sc-if>
+                <sc-if value="{{s.line}}" hint-placeholder-val="{{true}}"><div style="flex: 1; width: 2px; margin: 3px 0; background: {{s.lineColor}}"></div></sc-if>
+              </div>
+              <div style="flex: 1; display: flex; justify-content: space-between; padding-top: 1px">
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: {{s.color}}">{{s.name}}</span>
+                <span style="font-size: 12px; color: {{t.muted}}">{{s.time}}</span>
+              </div>
+            </li>
+          </sc-for>
+        </ol>
+
+        <div style="border: 1px solid {{t.gold}}; border-radius: 10px; padding: 14px; background: {{t.goldBg}}; display: flex; flex-direction: column; gap: 10px">
+          <div style="font-weight: 600">Approval needed</div>
+          <div style="color: {{t.muted}}; line-height: 1.5">ISSUE-103 is high risk. Quality gates passed. Adversary: 0 blocking, 2 low findings.</div>
+          <div style="display: flex; gap: 8px">
+            <button style="flex: 1; min-height: 36px; border-radius: 8px; border: none; background: {{t.gold}}; color: #1a1405; font-weight: 600">Approve</button>
+            <button style="flex: 1; min-height: 36px; border-radius: 8px; border: 1px solid {{t.border}}; background: none; color: {{t.text}}">Reject</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- status bar -->
+  <div style="height: 26px; display: flex; align-items: center; gap: 18px; padding: 0 12px; font-size: 12px; color: {{t.muted}}; background: {{t.chrome}}; border-top: 1px solid {{t.border}}">
+    <span>Claude 0% 5h · 51% wk</span>
+    <span>Gemini 2% 5h</span>
+    <span style="margin-left: auto; display: flex; align-items: center; gap: 6px; color: {{t.gold}}"><svg width="9" height="9" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" transform="rotate(45 5 5)" fill="currentColor"></rect></svg>swamp · 1 gate waiting</span>
+    <span>1 host</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["swamp","orca"],"default":"swamp"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const swamp = { bg:'#0e1611', chrome:'#0a110d', panel:'#111c15', raised:'#1a2a20', border:'#25392c', text:'#e2ead6', muted:'#97ab92', dim:'#5d7362', accent:'#9bd36a', warm:'#d9a35b', ok:'#7cc95a', gold:'#e3b341', goldBg:'#231f0e' };
+    const orca = { bg:'#1e1e1e', chrome:'#181818', panel:'#1b1b1b', raised:'#262626', border:'#303030', text:'#e6e6e6', muted:'#9d9d9d', dim:'#626262', accent:'#e6e6e6', warm:'#d98a5b', ok:'#3fb950', gold:'#e3b341', goldBg:'#262010' };
+    const t = (this.props.theme ?? 'swamp') === 'orca' ? orca : swamp;
+    const raw = [
+      ['intake','done','0.4s'],['build','done','1.8s'],['quality-gate','done','0.9s'],['quality-assert','done','0.1s'],
+      ['adversary','done','2.3s'],['adversary-assert','done','0.1s'],['approval','wait','4m'],['ship','pending','']
+    ];
+    const steps = raw.map(([name, s, time], i) => ({
+      name, time, done: s === 'done', wait: s === 'wait', pending: s === 'pending',
+      line: i < raw.length - 1, lineColor: s === 'done' ? t.ok : t.border,
+      color: s === 'pending' ? t.muted : t.text
+    }));
+    const projects = ['swipenews-factory','health-monitor','ops-automations','sdk-generator','swamptaters']
+      .map((name, i) => ({ name, bg: i === 0 ? t.raised : 'transparent' }));
+    return { t, steps, projects };
+  }
+}
+</script>
+</body>
+</html>

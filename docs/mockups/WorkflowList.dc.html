@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Swamp workflows list</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#9bd36a}a:hover{color:#c3ea9a}
+button,input{font:inherit}
+</style>
+</helmet>
+<div style="width: 400px; height: 960px; box-sizing: border-box; background: {{t.panel}}; color: {{t.text}}; font-family: Inter, system-ui, sans-serif; font-size: 13px; display: flex; flex-direction: column; overflow: hidden">
+
+  <div style="padding: 14px 16px 10px; display: flex; align-items: center; gap: 10px">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{t.accent}}" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 22V9"></path><rect x="10" y="3" width="4" height="7" rx="2"></rect><path d="M7 22c0-5-2-8-4-10"></path><path d="M17 22c0-5 2-8 4-10"></path></svg>
+    <div style="flex: 1">
+      <div style="font-weight: 600; font-size: 14px">Swamp</div>
+      <div style="color: {{t.muted}}; font-size: 12px">swipenews-factory · swamp 20261101</div>
+    </div>
+  </div>
+  <div role="tablist" style="margin: 0 16px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: {{t.raised}}; border-radius: 8px; padding: 3px">
+    <button role="tab" aria-selected="true" style="border: none; border-radius: 6px; padding: 7px; background: {{t.panel}}; color: {{t.text}}; font-weight: 500">Workflows</button>
+    <button role="tab" aria-selected="false" style="border: none; border-radius: 6px; padding: 7px; background: none; color: {{t.muted}}">Factories <span style="color: {{t.gold}}">· 2</span></button>
+  </div>
+
+  <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 18px">
+    <label style="display: flex; flex-direction: column; gap: 4px">
+      <span style="position: absolute; left: -9999px">Search workflows</span>
+      <input type="search" placeholder="Search workflows and runs" style="box-sizing: border-box; width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid {{t.border}}; background: {{t.raised}}; color: {{t.text}}">
+    </label>
+
+    <section style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-size: 12px; font-weight: 600; color: {{t.gold}}; letter-spacing: 0.02em">WAITING FOR YOU · 1</div>
+      <div style="border: 1px solid {{t.gold}}; background: {{t.goldBg}}; border-radius: 10px; padding: 12px; display: flex; align-items: center; gap: 10px">
+        <svg width="14" height="14" viewBox="0 0 18 18" aria-hidden="true"><rect x="3.5" y="3.5" width="11" height="11" transform="rotate(45 9 9)" fill="{{t.gold}}"></rect></svg>
+        <div style="flex: 1">
+          <div style="font-weight: 600">issue-factory › approval</div>
+          <div style="font-size: 12px; color: {{t.muted}}">ISSUE-103 · waiting 4m</div>
+        </div>
+        <button style="min-height: 32px; padding: 0 12px; border-radius: 8px; border: none; background: {{t.gold}}; color: #1a1405; font-weight: 600">Review</button>
+      </div>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 8px">
+      <div style="font-size: 12px; font-weight: 600; color: {{t.muted}}; letter-spacing: 0.02em">WORKFLOWS · 2</div>
+      <sc-for list="{{workflows}}" as="w" hint-placeholder-count="2">
+        <div style="border: 1px solid {{t.border}}; border-radius: 10px; padding: 12px; background: {{t.raised}}; display: flex; flex-direction: column; gap: 8px">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600">{{w.name}}</span>
+            <span style="margin-left: auto; font-size: 11.5px; padding: 2px 8px; border-radius: 10px; border: 1px solid {{w.badge}}; color: {{w.badge}}">{{w.status}}</span>
+          </div>
+          <div style="font-size: 12px; color: {{t.muted}}; line-height: 1.45">{{w.desc}}</div>
+          <div style="display: flex; gap: 3px" aria-label="{{w.historyLabel}}" role="img">
+            <sc-for list="{{w.history}}" as="h" hint-placeholder-count="10">
+              <span style="flex: 1; height: 6px; border-radius: 3px; background: {{h.c}}"></span>
+            </sc-for>
+          </div>
+          <div style="display: flex; gap: 12px; font-size: 12px; color: {{t.muted}}">
+            <span>{{w.steps}}</span><span>{{w.trigger}}</span><span style="margin-left: auto">{{w.last}}</span>
+          </div>
+        </div>
+      </sc-for>
+    </section>
+
+    <section style="display: flex; flex-direction: column; gap: 2px">
+      <div style="font-size: 12px; font-weight: 600; color: {{t.muted}}; letter-spacing: 0.02em; margin-bottom: 6px">RECENT RUNS</div>
+      <sc-for list="{{runs}}" as="r" hint-placeholder-count="6">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid {{t.border}}">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: {{r.c}}" aria-hidden="true"></span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px">{{r.wf}}</span>
+          <span style="font-size: 12px; color: {{t.muted}}">{{r.input}}</span>
+          <span style="margin-left: auto; font-size: 12px; color: {{t.muted}}">{{r.label}} · {{r.when}}</span>
+        </div>
+      </sc-for>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["swamp","orca"],"default":"swamp"},"$preview":{"width":400,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const swamp = { panel:'#111c15', raised:'#16241b', border:'#25392c', text:'#e2ead6', muted:'#97ab92', accent:'#9bd36a', ok:'#7cc95a', fail:'#f2775f', run:'#6cc4e0', gold:'#e3b341', goldBg:'#231f0e', dim:'#2f4536' };
+    const orca = { panel:'#1b1b1b', raised:'#232323', border:'#303030', text:'#e6e6e6', muted:'#9d9d9d', accent:'#e6e6e6', ok:'#3fb950', fail:'#f85149', run:'#58a6ff', gold:'#e3b341', goldBg:'#262010', dim:'#3a3a3a' };
+    const t = (this.props.theme ?? 'swamp') === 'orca' ? orca : swamp;
+    const c = { ok: t.ok, fail: t.fail, wait: t.gold, run: t.run, none: t.dim };
+    const hist = (s) => s.split('').map(ch => ({ c: { o: c.ok, f: c.fail, w: c.wait, '-': c.none }[ch] }));
+    const workflows = [
+      { name:'issue-factory', status:'Waiting', badge:t.gold, desc:'Issue → worktree → build → quality gates → red-team → approval → ship.', history:hist('--ooofooow'), historyLabel:'Last 10 runs: 7 passed, 1 failed, 1 waiting', steps:'8 steps', trigger:'webhook /hooks/issue', last:'6m ago' },
+      { name:'pr-audit-factory', status:'Failed', badge:t.fail, desc:'Parallel quality + adversary audit of swipenews/main.', history:hist('----oooof'), historyLabel:'Last runs: 4 passed, 1 failed', steps:'4 steps', trigger:'manual', last:'22m ago' }
+    ];
+    const runs = [
+      ['issue-factory','ISSUE-103','waiting',c.wait,'6m'],['pr-audit-factory','AUDIT-MAIN','failed',c.fail,'22m'],
+      ['issue-factory','ISSUE-102','passed',c.ok,'1h'],['issue-factory','ISSUE-101','passed',c.ok,'2h'],
+      ['pr-audit-factory','AUDIT-MAIN','passed',c.ok,'1d'],['issue-factory','ISSUE-101','failed',c.fail,'1d']
+    ].map(([wf, input, label, col, when]) => ({ wf, input, label, c: col, when }));
+    return { t, workflows, runs };
+  }
+}
+</script>
+</body>
+</html>

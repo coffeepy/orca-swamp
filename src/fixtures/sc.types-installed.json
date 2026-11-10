@@ -1,0 +1,33 @@
+{
+  "query": "stagecraft",
+  "results": [
+    {
+      "raw": "@swamp/stagecraft/factory",
+      "normalized": "@swamp/stagecraft/factory"
+    },
+    {
+      "raw": "@swamp/stagecraft/linear",
+      "normalized": "@swamp/stagecraft/linear"
+    },
+    {
+      "raw": "@swamp/stagecraft/publisher",
+      "normalized": "@swamp/stagecraft/publisher"
+    },
+    {
+      "raw": "@swamp/stagecraft/studio",
+      "normalized": "@swamp/stagecraft/studio"
+    },
+    {
+      "raw": "@swamp/stagecraft/swamp-club",
+      "normalized": "@swamp/stagecraft/swamp-club"
+    },
+    {
+      "raw": "@swamp/stagecraft/tracker",
+      "normalized": "@swamp/stagecraft/tracker"
+    },
+    {
+      "raw": "@swamp/stagecraft/work-item",
+      "normalized": "@swamp/stagecraft/work-item"
+    }
+  ]
+}

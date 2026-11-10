@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>StageCraft work item</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#9bd36a}a:hover{color:#c3ea9a}
+button{font:inherit}
+</style>
+</helmet>
+<div style="width: 400px; height: 960px; box-sizing: border-box; background: {{t.panel}}; color: {{t.text}}; font-family: Inter, system-ui, sans-serif; font-size: 13px; display: flex; flex-direction: column; padding: 14px 16px; gap: 14px; overflow: hidden">
+
+  <div style="display: flex; align-items: center; gap: 8px">
+    <button aria-label="Back to board" style="background: none; border: none; color: {{t.muted}}; padding: 4px; min-width: 28px; min-height: 28px">‹</button>
+    <span style="font-family: 'JetBrains Mono', monospace; color: {{t.muted}}">team-11</span>
+    <span style="font-weight: 600; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">High-risk content filter</span>
+  </div>
+
+  <!-- path through the factory -->
+  <div role="img" aria-label="Path: planning done, plan-review now, then implementing, testing, code-review" style="display: flex; align-items: center; gap: 4px">
+    <sc-for list="{{path}}" as="p" hint-placeholder-count="5">
+      <div style="display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0">
+        <div style="flex: 1; min-width: 0; padding: 6px 4px; border-radius: 6px; border: 1px solid {{p.border}}; background: {{p.bg}}; color: {{p.color}}; font-size: 10.5px; text-align: center; font-family: 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{p.name}}</div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div role="tablist" style="display: flex; border-bottom: 1px solid {{t.border}}">
+    <button role="tab" aria-selected="true" style="background: none; border: none; border-bottom: 2px solid {{t.accent}}; color: {{t.text}}; padding: 8px 12px">Now</button>
+    <button role="tab" aria-selected="false" style="background: none; border: none; color: {{t.muted}}; padding: 8px 12px">Timeline</button>
+    <button role="tab" aria-selected="false" style="background: none; border: none; color: {{t.muted}}; padding: 8px 12px">Ticket</button>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 4px">
+    <div style="font-size: 12px; color: {{t.muted}}">In <span style="font-family: 'JetBrains Mono', monospace; color: {{t.text}}">plan-review</span> · cycle 1 · 3h 12m</div>
+    <div style="font-weight: 600; color: {{t.gold}}">PERSON · waiting on plan-approval</div>
+  </div>
+
+  <!-- exits and gates -->
+  <section style="display: flex; flex-direction: column; gap: 8px">
+    <div style="font-size: 12px; font-weight: 600; color: {{t.muted}}; letter-spacing: 0.02em">EXITS</div>
+    <sc-for list="{{exits}}" as="e" hint-placeholder-count="2">
+      <div style="border: 1px solid {{e.border}}; background: {{e.bg}}; border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px">
+        <div style="display: flex; gap: 8px; align-items: baseline">
+          <span style="font-weight: 600">{{e.name}}</span>
+          <span style="color: {{t.muted}}; font-size: 12px">→ {{e.to}}</span>
+          <span style="margin-left: auto; font-size: 11.5px; color: {{e.stateColor}}">{{e.state}}</span>
+        </div>
+        <sc-for list="{{e.gates}}" as="g" hint-placeholder-count="3">
+          <div style="display: flex; gap: 8px; align-items: center; font-size: 12px">
+            <span style="width: 14px; text-align: center; color: {{g.color}}" aria-hidden="true">{{g.mark}}</span>
+            <span style="font-family: 'JetBrains Mono', monospace; color: {{t.muted}}">{{g.text}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-for>
+  </section>
+
+  <div style="display: flex; gap: 8px">
+    <button style="flex: 1; min-height: 38px; border-radius: 8px; border: none; background: {{t.gold}}; color: #1a1405; font-weight: 600">Approve plan</button>
+    <button style="flex: 1; min-height: 38px; border-radius: 8px; border: 1px solid {{t.border}}; background: none; color: {{t.text}}">Decline</button>
+  </div>
+
+  <!-- products -->
+  <section style="display: flex; flex-direction: column; gap: 6px">
+    <div style="font-size: 12px; font-weight: 600; color: {{t.muted}}; letter-spacing: 0.02em">PRODUCTS</div>
+    <div style="display: flex; justify-content: space-between; padding: 8px 10px; border-radius: 8px; background: {{t.raised}}"><span>plan</span><span style="color: {{t.muted}}; font-size: 12px">artifact · 5 steps · 3h ago</span></div>
+    <div style="display: flex; justify-content: space-between; padding: 8px 10px; border-radius: 8px; background: {{t.raised}}"><span>plan-review</span><span style="color: {{t.muted}}; font-size: 12px">findings · 0 high · 2 low</span></div>
+  </section>
+
+  <!-- metrics -->
+  <section style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+    <div style="padding: 10px; border-radius: 8px; border: 1px solid {{t.border}}"><div style="font-size: 16px; font-weight: 600">4h 05m</div><div style="font-size: 11.5px; color: {{t.muted}}">total time</div></div>
+    <div style="padding: 10px; border-radius: 8px; border: 1px solid {{t.border}}"><div style="font-size: 16px; font-weight: 600">1</div><div style="font-size: 11.5px; color: {{t.muted}}">review rounds</div></div>
+    <div style="padding: 10px; border-radius: 8px; border: 1px solid {{t.border}}"><div style="font-size: 16px; font-weight: 600">2</div><div style="font-size: 11.5px; color: {{t.muted}}">dispatches</div></div>
+  </section>
+
+  <div style="margin-top: auto; font-size: 11.5px; color: {{t.muted}}; line-height: 1.5">Approve runs the work item's <span style="font-family: 'JetBrains Mono', monospace">approve</span> method with plan-approval, then the agent advances it.</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["swamp","orca"],"default":"swamp"},"$preview":{"width":400,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const swamp = { panel:'#111c15', raised:'#16241b', border:'#25392c', text:'#e2ead6', muted:'#97ab92', dim:'#5d7362', accent:'#9bd36a', ok:'#7cc95a', okBg:'#16261a', gold:'#e3b341', goldBg:'#231f0e' };
+    const orca = { panel:'#1b1b1b', raised:'#232323', border:'#303030', text:'#e6e6e6', muted:'#9d9d9d', dim:'#626262', accent:'#e6e6e6', ok:'#3fb950', okBg:'#182419', gold:'#e3b341', goldBg:'#262010' };
+    const t = (this.props.theme ?? 'swamp') === 'orca' ? orca : swamp;
+    const path = [['planning','done'],['plan-review','now'],['implementing',''],['testing',''],['code-review','']].map(([name, s]) => ({
+      name,
+      border: s === 'now' ? t.gold : (s === 'done' ? t.ok : t.border),
+      bg: s === 'now' ? t.goldBg : (s === 'done' ? t.okBg : 'transparent'),
+      color: s ? t.text : t.muted
+    }));
+    const g = (ok, text) => ({ text, mark: ok === 'p' ? '◆' : (ok ? '✓' : '·'), color: ok === 'p' ? t.gold : (ok ? t.ok : t.dim) });
+    const exits = [
+      { name:'approve', to:'implementing', state:'needs a person', stateColor:t.gold, border:t.gold, bg:t.goldBg,
+        gates:[ g(true,'artifact-fresh plan-review'), g(true,'findings-clear critical,high'), g('p','human-approval plan-approval') ] },
+      { name:'rework', to:'planning', state:'open', stateColor:t.muted, border:t.border, bg:'transparent', gates:[] }
+    ];
+    return { t, path, exits };
+  }
+}
+</script>
+</body>
+</html>

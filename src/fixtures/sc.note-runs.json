@@ -1,0 +1,1159 @@
+{
+  "predicate": "modelType == \"@swamp/stagecraft/work-item\" && name == \"run\"",
+  "results": [
+    {
+      "id": "e066f210-ec57-4f95-bc6b-02745514e3fc",
+      "name": "run",
+      "version": 7,
+      "isLatest": true,
+      "createdAt": "2026-11-08T05:09:07.660Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "run",
+        "modelName": "note-1",
+        "initiatedBy": "user:coffeepy",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "note-1",
+      "modelId": "5505152f-9b1e-4d93-ab21-ff6756eaf0c8",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "run",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 20,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 3737,
+      "path": "",
+      "ownerRef": "5505152f-9b1e-4d93-ab21-ff6756eaf0c8",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 2,
+        "key": "note-1",
+        "title": "Test note",
+        "externalRefs": {},
+        "tracker": {
+          "instance": "board",
+          "kind": "builtin"
+        },
+        "factory": "note-factory",
+        "definition": {
+          "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+          "version": 1
+        },
+        "era": "6632f63c-1e19-40fc-94c6-09675a02aeb8",
+        "status": "terminal",
+        "stage": "done",
+        "entries": {
+          "write": 1,
+          "check": 1,
+          "ship": 1,
+          "done": 1
+        },
+        "products": {
+          "artifacts": {
+            "note": {
+              "version": 1,
+              "digest": "sha256:07ff329961ed897410efca357c89c095ad3aa3d8fd562ce64482d57a06f032f6",
+              "stage": "write",
+              "cycle": 1,
+              "at": "2026-11-08T04:54:02.828Z"
+            }
+          },
+          "evidence": {
+            "check": {
+              "version": 1,
+              "digest": "sha256:76f1805001bc4f155c8efa5651c57c4f1858af1f6786cbe4596214a4b64375a6",
+              "stage": "check",
+              "cycle": 1,
+              "at": "2026-11-08T04:54:15.855Z"
+            }
+          }
+        },
+        "validations": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "dispatches": [],
+        "approvals": [
+          {
+            "id": 1,
+            "gateId": "ship-approval",
+            "decision": "approve",
+            "era": "6632f63c-1e19-40fc-94c6-09675a02aeb8",
+            "stage": "ship",
+            "cycle": 1,
+            "at": "2026-11-08T05:09:06.291Z",
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform",
+              "asserted": "dev"
+            },
+            "products": {
+              "artifacts": {
+                "note": {
+                  "version": 1,
+                  "digest": "sha256:07ff329961ed897410efca357c89c095ad3aa3d8fd562ce64482d57a06f032f6"
+                }
+              },
+              "evidence": {
+                "check": {
+                  "version": 1,
+                  "digest": "sha256:76f1805001bc4f155c8efa5651c57c4f1858af1f6786cbe4596214a4b64375a6"
+                }
+              }
+            }
+          }
+        ],
+        "overrides": [],
+        "journal": [
+          {
+            "at": "2026-11-08T04:53:49.084Z",
+            "era": "6632f63c-1e19-40fc-94c6-09675a02aeb8",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "started",
+            "factory": "note-factory",
+            "definition": {
+              "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+              "version": 1
+            }
+          },
+          {
+            "at": "2026-11-08T04:54:02.828Z",
+            "era": "6632f63c-1e19-40fc-94c6-09675a02aeb8",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "recorded",
+            "kind": "artifact",
+            "name": "note",
+            "version": 1,
+            "digest": "sha256:07ff329961ed897410efca357c89c095ad3aa3d8fd562ce64482d57a06f032f6"
+          },
+          {
+            "at": "2026-11-08T04:54:14.326Z",
+            "era": "6632f63c-1e19-40fc-94c6-09675a02aeb8",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "advanced",
+            "transition": "written",
+            "to": "check",
+            "toCycle": 1
+          },
+          {
+            "at": "2026-11-08T04:54:15.855Z",
+            "era": "6632f63c-1e19-40fc-94c6-09675a02aeb8",
+            "stage": "check",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "recorded",
+            "kind": "evidence",
+            "name": "check",
+            "version": 1,
+            "digest": "sha256:76f1805001bc4f155c8efa5651c57c4f1858af1f6786cbe4596214a4b64375a6"
+          },
+          {
+            "at": "2026-11-08T04:54:17.147Z",
+            "era": "6632f63c-1e19-40fc-94c6-09675a02aeb8",
+            "stage": "check",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "advanced",
+            "transition": "passed",
+            "to": "ship",
+            "toCycle": 1
+          },
+          {
+            "at": "2026-11-08T04:54:17.148Z",
+            "era": "6632f63c-1e19-40fc-94c6-09675a02aeb8",
+            "stage": "ship",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "awaiting",
+            "exits": [
+              {
+                "transition": "shipped",
+                "to": "done",
+                "manual": false,
+                "gateIds": [
+                  "ship-approval"
+                ]
+              }
+            ]
+          },
+          {
+            "at": "2026-11-08T05:09:06.291Z",
+            "era": "6632f63c-1e19-40fc-94c6-09675a02aeb8",
+            "stage": "ship",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform",
+              "asserted": "dev"
+            },
+            "type": "approval",
+            "approvalId": 1,
+            "gateId": "ship-approval",
+            "decision": "approve"
+          },
+          {
+            "at": "2026-11-08T05:09:06.293Z",
+            "era": "6632f63c-1e19-40fc-94c6-09675a02aeb8",
+            "stage": "ship",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform",
+              "asserted": "dev"
+            },
+            "type": "awaiting",
+            "exits": []
+          },
+          {
+            "type": "advanced",
+            "transition": "shipped",
+            "to": "done",
+            "toCycle": 1,
+            "at": "2026-11-08T05:09:07.656Z",
+            "era": "6632f63c-1e19-40fc-94c6-09675a02aeb8",
+            "stage": "ship",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform",
+              "asserted": "dev"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "50f62482-0558-4ecd-b069-c6c85867b791",
+      "name": "run",
+      "version": 5,
+      "isLatest": true,
+      "createdAt": "2026-11-08T05:47:05.465Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "run",
+        "modelName": "note-2",
+        "initiatedBy": "user:coffeepy",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "note-2",
+      "modelId": "59bc917c-b618-4f10-844c-a6c935730b34",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "run",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 20,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 2224,
+      "path": "",
+      "ownerRef": "59bc917c-b618-4f10-844c-a6c935730b34",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 2,
+        "key": "note-2",
+        "title": "Loops back",
+        "externalRefs": {},
+        "tracker": {
+          "instance": "board",
+          "kind": "builtin"
+        },
+        "factory": "note-factory",
+        "definition": {
+          "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+          "version": 1
+        },
+        "era": "c4ff60ff-e350-4aa9-9cbb-bad2f7421a6f",
+        "status": "active",
+        "stage": "write",
+        "entries": {
+          "write": 2,
+          "check": 1
+        },
+        "products": {
+          "artifacts": {
+            "note": {
+              "version": 1,
+              "digest": "sha256:e7b995efa755c5ff3b84d2188b58cb4ae916a59470eb3761df8a814f11763500",
+              "stage": "write",
+              "cycle": 1,
+              "at": "2026-11-08T05:46:55.531Z"
+            }
+          },
+          "evidence": {
+            "check": {
+              "version": 1,
+              "digest": "sha256:759315d5ae8c31136d2a7bc803e591554894987559325cdf7e0b5965bec0eaca",
+              "stage": "check",
+              "cycle": 1,
+              "at": "2026-11-08T05:47:01.861Z"
+            }
+          }
+        },
+        "validations": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "dispatches": [],
+        "approvals": [],
+        "overrides": [],
+        "journal": [
+          {
+            "at": "2026-11-08T05:46:29.123Z",
+            "era": "c4ff60ff-e350-4aa9-9cbb-bad2f7421a6f",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "started",
+            "factory": "note-factory",
+            "definition": {
+              "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+              "version": 1
+            }
+          },
+          {
+            "at": "2026-11-08T05:46:55.531Z",
+            "era": "c4ff60ff-e350-4aa9-9cbb-bad2f7421a6f",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "recorded",
+            "kind": "artifact",
+            "name": "note",
+            "version": 1,
+            "digest": "sha256:e7b995efa755c5ff3b84d2188b58cb4ae916a59470eb3761df8a814f11763500"
+          },
+          {
+            "at": "2026-11-08T05:46:58.884Z",
+            "era": "c4ff60ff-e350-4aa9-9cbb-bad2f7421a6f",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "advanced",
+            "transition": "written",
+            "to": "check",
+            "toCycle": 1
+          },
+          {
+            "at": "2026-11-08T05:47:01.861Z",
+            "era": "c4ff60ff-e350-4aa9-9cbb-bad2f7421a6f",
+            "stage": "check",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "recorded",
+            "kind": "evidence",
+            "name": "check",
+            "version": 1,
+            "digest": "sha256:759315d5ae8c31136d2a7bc803e591554894987559325cdf7e0b5965bec0eaca"
+          },
+          {
+            "type": "advanced",
+            "transition": "failed",
+            "to": "write",
+            "toCycle": 2,
+            "at": "2026-11-08T05:47:05.426Z",
+            "era": "c4ff60ff-e350-4aa9-9cbb-bad2f7421a6f",
+            "stage": "check",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "843a2685-e3e2-4e8b-8083-6a8b404bbb98",
+      "name": "run",
+      "version": 5,
+      "isLatest": true,
+      "createdAt": "2026-11-08T05:47:27.037Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "run",
+        "modelName": "note-3",
+        "initiatedBy": "user:coffeepy",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "note-3",
+      "modelId": "cfe17a7f-af34-427b-9724-24b5b58608fa",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "run",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 20,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 2500,
+      "path": "",
+      "ownerRef": "cfe17a7f-af34-427b-9724-24b5b58608fa",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 2,
+        "key": "note-3",
+        "title": "Sandbox 3",
+        "externalRefs": {},
+        "tracker": {
+          "instance": "board",
+          "kind": "builtin"
+        },
+        "factory": "note-factory",
+        "definition": {
+          "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+          "version": 1
+        },
+        "era": "ab4afd04-b161-4e3b-8b6e-c481d929387f",
+        "status": "active",
+        "stage": "ship",
+        "entries": {
+          "write": 1,
+          "check": 1,
+          "ship": 1
+        },
+        "products": {
+          "artifacts": {
+            "note": {
+              "version": 1,
+              "digest": "sha256:e7b995efa755c5ff3b84d2188b58cb4ae916a59470eb3761df8a814f11763500",
+              "stage": "write",
+              "cycle": 1,
+              "at": "2026-11-08T05:47:17.877Z"
+            }
+          },
+          "evidence": {
+            "check": {
+              "version": 1,
+              "digest": "sha256:76f1805001bc4f155c8efa5651c57c4f1858af1f6786cbe4596214a4b64375a6",
+              "stage": "check",
+              "cycle": 1,
+              "at": "2026-11-08T05:47:23.960Z"
+            }
+          }
+        },
+        "validations": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "dispatches": [],
+        "approvals": [],
+        "overrides": [],
+        "journal": [
+          {
+            "at": "2026-11-08T05:47:12.166Z",
+            "era": "ab4afd04-b161-4e3b-8b6e-c481d929387f",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "started",
+            "factory": "note-factory",
+            "definition": {
+              "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+              "version": 1
+            }
+          },
+          {
+            "at": "2026-11-08T05:47:17.877Z",
+            "era": "ab4afd04-b161-4e3b-8b6e-c481d929387f",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "recorded",
+            "kind": "artifact",
+            "name": "note",
+            "version": 1,
+            "digest": "sha256:e7b995efa755c5ff3b84d2188b58cb4ae916a59470eb3761df8a814f11763500"
+          },
+          {
+            "at": "2026-11-08T05:47:20.808Z",
+            "era": "ab4afd04-b161-4e3b-8b6e-c481d929387f",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "advanced",
+            "transition": "written",
+            "to": "check",
+            "toCycle": 1
+          },
+          {
+            "at": "2026-11-08T05:47:23.960Z",
+            "era": "ab4afd04-b161-4e3b-8b6e-c481d929387f",
+            "stage": "check",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "recorded",
+            "kind": "evidence",
+            "name": "check",
+            "version": 1,
+            "digest": "sha256:76f1805001bc4f155c8efa5651c57c4f1858af1f6786cbe4596214a4b64375a6"
+          },
+          {
+            "type": "advanced",
+            "transition": "passed",
+            "to": "ship",
+            "toCycle": 1,
+            "at": "2026-11-08T05:47:27.030Z",
+            "era": "ab4afd04-b161-4e3b-8b6e-c481d929387f",
+            "stage": "check",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            }
+          },
+          {
+            "type": "awaiting",
+            "exits": [
+              {
+                "transition": "shipped",
+                "to": "done",
+                "manual": false,
+                "gateIds": [
+                  "ship-approval"
+                ]
+              }
+            ],
+            "at": "2026-11-08T05:47:27.032Z",
+            "era": "ab4afd04-b161-4e3b-8b6e-c481d929387f",
+            "stage": "ship",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "e9b1beb6-de0e-4da5-87e7-ed03aaa48888",
+      "name": "run",
+      "version": 2,
+      "isLatest": true,
+      "createdAt": "2026-11-08T05:47:41.992Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "run",
+        "modelName": "note-4",
+        "initiatedBy": "user:coffeepy",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "note-4",
+      "modelId": "9dde0bda-ce11-47c1-865a-a8a8d234f26c",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "run",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 20,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 1216,
+      "path": "",
+      "ownerRef": "9dde0bda-ce11-47c1-865a-a8a8d234f26c",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 2,
+        "key": "note-4",
+        "title": "Sandbox 4",
+        "externalRefs": {},
+        "tracker": {
+          "instance": "board",
+          "kind": "builtin"
+        },
+        "factory": "note-factory",
+        "definition": {
+          "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+          "version": 1
+        },
+        "era": "2b183441-a2d4-469f-8df7-54b91fbc27e3",
+        "status": "active",
+        "stage": "write",
+        "entries": {
+          "write": 1
+        },
+        "products": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "validations": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "dispatches": [
+          {
+            "id": 1,
+            "era": "2b183441-a2d4-469f-8df7-54b91fbc27e3",
+            "stage": "write",
+            "cycle": 1,
+            "at": "2026-11-08T05:47:41.988Z",
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "mode": "interactive",
+            "inputs": {}
+          }
+        ],
+        "approvals": [],
+        "overrides": [],
+        "journal": [
+          {
+            "at": "2026-11-08T05:47:13.552Z",
+            "era": "2b183441-a2d4-469f-8df7-54b91fbc27e3",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "started",
+            "factory": "note-factory",
+            "definition": {
+              "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+              "version": 1
+            }
+          },
+          {
+            "type": "dispatched",
+            "dispatchId": 1,
+            "at": "2026-11-08T05:47:41.988Z",
+            "era": "2b183441-a2d4-469f-8df7-54b91fbc27e3",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "f9f97e09-8661-4123-aae0-2dad3ad10538",
+      "name": "run",
+      "version": 7,
+      "isLatest": true,
+      "createdAt": "2026-11-08T05:48:05.552Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "run",
+        "modelName": "note-5",
+        "initiatedBy": "user:coffeepy",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "note-5",
+      "modelId": "d2ffb9e5-2173-4394-a7cc-d47cee8479d4",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "run",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 20,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 3737,
+      "path": "",
+      "ownerRef": "d2ffb9e5-2173-4394-a7cc-d47cee8479d4",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 2,
+        "key": "note-5",
+        "title": "Sandbox 5",
+        "externalRefs": {},
+        "tracker": {
+          "instance": "board",
+          "kind": "builtin"
+        },
+        "factory": "note-factory",
+        "definition": {
+          "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+          "version": 1
+        },
+        "era": "5286f719-5e6b-471d-842e-5d2458a68447",
+        "status": "terminal",
+        "stage": "done",
+        "entries": {
+          "write": 1,
+          "check": 1,
+          "ship": 1,
+          "done": 1
+        },
+        "products": {
+          "artifacts": {
+            "note": {
+              "version": 1,
+              "digest": "sha256:e7b995efa755c5ff3b84d2188b58cb4ae916a59470eb3761df8a814f11763500",
+              "stage": "write",
+              "cycle": 1,
+              "at": "2026-11-08T05:47:30.103Z"
+            }
+          },
+          "evidence": {
+            "check": {
+              "version": 1,
+              "digest": "sha256:76f1805001bc4f155c8efa5651c57c4f1858af1f6786cbe4596214a4b64375a6",
+              "stage": "check",
+              "cycle": 1,
+              "at": "2026-11-08T05:47:36.129Z"
+            }
+          }
+        },
+        "validations": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "dispatches": [],
+        "approvals": [
+          {
+            "id": 1,
+            "gateId": "ship-approval",
+            "decision": "approve",
+            "era": "5286f719-5e6b-471d-842e-5d2458a68447",
+            "stage": "ship",
+            "cycle": 1,
+            "at": "2026-11-08T05:48:02.539Z",
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform",
+              "asserted": "dev"
+            },
+            "products": {
+              "artifacts": {
+                "note": {
+                  "version": 1,
+                  "digest": "sha256:e7b995efa755c5ff3b84d2188b58cb4ae916a59470eb3761df8a814f11763500"
+                }
+              },
+              "evidence": {
+                "check": {
+                  "version": 1,
+                  "digest": "sha256:76f1805001bc4f155c8efa5651c57c4f1858af1f6786cbe4596214a4b64375a6"
+                }
+              }
+            }
+          }
+        ],
+        "overrides": [],
+        "journal": [
+          {
+            "at": "2026-11-08T05:47:14.909Z",
+            "era": "5286f719-5e6b-471d-842e-5d2458a68447",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "started",
+            "factory": "note-factory",
+            "definition": {
+              "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+              "version": 1
+            }
+          },
+          {
+            "at": "2026-11-08T05:47:30.103Z",
+            "era": "5286f719-5e6b-471d-842e-5d2458a68447",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "recorded",
+            "kind": "artifact",
+            "name": "note",
+            "version": 1,
+            "digest": "sha256:e7b995efa755c5ff3b84d2188b58cb4ae916a59470eb3761df8a814f11763500"
+          },
+          {
+            "at": "2026-11-08T05:47:33.306Z",
+            "era": "5286f719-5e6b-471d-842e-5d2458a68447",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "advanced",
+            "transition": "written",
+            "to": "check",
+            "toCycle": 1
+          },
+          {
+            "at": "2026-11-08T05:47:36.129Z",
+            "era": "5286f719-5e6b-471d-842e-5d2458a68447",
+            "stage": "check",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "recorded",
+            "kind": "evidence",
+            "name": "check",
+            "version": 1,
+            "digest": "sha256:76f1805001bc4f155c8efa5651c57c4f1858af1f6786cbe4596214a4b64375a6"
+          },
+          {
+            "at": "2026-11-08T05:47:39.038Z",
+            "era": "5286f719-5e6b-471d-842e-5d2458a68447",
+            "stage": "check",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "advanced",
+            "transition": "passed",
+            "to": "ship",
+            "toCycle": 1
+          },
+          {
+            "at": "2026-11-08T05:47:39.040Z",
+            "era": "5286f719-5e6b-471d-842e-5d2458a68447",
+            "stage": "ship",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "awaiting",
+            "exits": [
+              {
+                "transition": "shipped",
+                "to": "done",
+                "manual": false,
+                "gateIds": [
+                  "ship-approval"
+                ]
+              }
+            ]
+          },
+          {
+            "at": "2026-11-08T05:48:02.539Z",
+            "era": "5286f719-5e6b-471d-842e-5d2458a68447",
+            "stage": "ship",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform",
+              "asserted": "dev"
+            },
+            "type": "approval",
+            "approvalId": 1,
+            "gateId": "ship-approval",
+            "decision": "approve"
+          },
+          {
+            "at": "2026-11-08T05:48:02.541Z",
+            "era": "5286f719-5e6b-471d-842e-5d2458a68447",
+            "stage": "ship",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform",
+              "asserted": "dev"
+            },
+            "type": "awaiting",
+            "exits": []
+          },
+          {
+            "type": "advanced",
+            "transition": "shipped",
+            "to": "done",
+            "toCycle": 1,
+            "at": "2026-11-08T05:48:05.547Z",
+            "era": "5286f719-5e6b-471d-842e-5d2458a68447",
+            "stage": "ship",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform",
+              "asserted": "dev"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "695cf4e0-cf08-450f-a505-d800fd7bf471",
+      "name": "run",
+      "version": 6,
+      "isLatest": true,
+      "createdAt": "2026-11-08T05:48:27.988Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "run",
+        "modelName": "note-6",
+        "initiatedBy": "user:coffeepy",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "note-6",
+      "modelId": "461583b0-1d3a-46ae-a1d5-f8177f1bc181",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "run",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 20,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 2528,
+      "path": "",
+      "ownerRef": "461583b0-1d3a-46ae-a1d5-f8177f1bc181",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 2,
+        "key": "note-6",
+        "title": "Stuck one",
+        "externalRefs": {},
+        "tracker": {
+          "instance": "board",
+          "kind": "builtin"
+        },
+        "factory": "note-factory",
+        "definition": {
+          "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+          "version": 1
+        },
+        "era": "3ca5be7b-ce2d-4acd-86c9-5cd94107f4c2",
+        "status": "active",
+        "stage": "write",
+        "entries": {
+          "write": 1
+        },
+        "products": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "validations": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "dispatches": [
+          {
+            "id": 1,
+            "era": "3ca5be7b-ce2d-4acd-86c9-5cd94107f4c2",
+            "stage": "write",
+            "cycle": 1,
+            "at": "2026-11-08T05:48:15.807Z",
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "mode": "interactive",
+            "inputs": {},
+            "outcome": {
+              "value": "failed",
+              "at": "2026-11-08T05:48:18.587Z",
+              "actor": {
+                "principal": "user:coffeepy",
+                "source": "platform"
+              }
+            }
+          },
+          {
+            "id": 2,
+            "era": "3ca5be7b-ce2d-4acd-86c9-5cd94107f4c2",
+            "stage": "write",
+            "cycle": 1,
+            "at": "2026-11-08T05:48:21.647Z",
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "mode": "interactive",
+            "inputs": {},
+            "outcome": {
+              "value": "failed",
+              "at": "2026-11-08T05:48:25.001Z",
+              "actor": {
+                "principal": "user:coffeepy",
+                "source": "platform"
+              }
+            }
+          }
+        ],
+        "approvals": [],
+        "overrides": [],
+        "journal": [
+          {
+            "at": "2026-11-08T05:48:12.628Z",
+            "era": "3ca5be7b-ce2d-4acd-86c9-5cd94107f4c2",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "started",
+            "factory": "note-factory",
+            "definition": {
+              "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+              "version": 1
+            }
+          },
+          {
+            "at": "2026-11-08T05:48:15.807Z",
+            "era": "3ca5be7b-ce2d-4acd-86c9-5cd94107f4c2",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "dispatched",
+            "dispatchId": 1
+          },
+          {
+            "at": "2026-11-08T05:48:18.587Z",
+            "era": "3ca5be7b-ce2d-4acd-86c9-5cd94107f4c2",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "outcome",
+            "dispatchId": 1,
+            "outcome": "failed"
+          },
+          {
+            "at": "2026-11-08T05:48:21.648Z",
+            "era": "3ca5be7b-ce2d-4acd-86c9-5cd94107f4c2",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "dispatched",
+            "dispatchId": 2
+          },
+          {
+            "at": "2026-11-08T05:48:25.001Z",
+            "era": "3ca5be7b-ce2d-4acd-86c9-5cd94107f4c2",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            },
+            "type": "outcome",
+            "dispatchId": 2,
+            "outcome": "failed"
+          },
+          {
+            "type": "awaiting",
+            "exits": [],
+            "dispatchOverride": {
+              "count": 2,
+              "limit": 2,
+              "granted": 0
+            },
+            "at": "2026-11-08T05:48:27.984Z",
+            "era": "3ca5be7b-ce2d-4acd-86c9-5cd94107f4c2",
+            "stage": "write",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:coffeepy",
+              "source": "platform"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "total": 6,
+  "limited": false
+}

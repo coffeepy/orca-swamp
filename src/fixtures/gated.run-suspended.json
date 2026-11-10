@@ -1,0 +1,53 @@
+{
+  "id": "0fdef291-426e-4ec9-a2c0-92bc24c3a7d8",
+  "workflowId": "7b1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+  "workflowName": "gated",
+  "status": "suspended",
+  "jobs": [
+    {
+      "name": "main",
+      "status": "running",
+      "steps": [
+        {
+          "name": "prepare",
+          "status": "succeeded",
+          "startedAt": "2026-11-07T06:14:14.500Z",
+          "completedAt": "2026-11-07T06:14:14.506Z",
+          "duration": 6,
+          "assertResult": {
+            "passed": true,
+            "expr": "true",
+            "message": "always passes",
+            "severity": "low"
+          }
+        },
+        {
+          "name": "side-check",
+          "status": "succeeded",
+          "startedAt": "2026-11-07T06:14:14.508Z",
+          "completedAt": "2026-11-07T06:14:14.509Z",
+          "duration": 1,
+          "assertResult": {
+            "passed": true,
+            "expr": "true",
+            "message": "always passes",
+            "severity": "low"
+          }
+        },
+        {
+          "name": "signoff",
+          "status": "waiting_approval",
+          "startedAt": "2026-11-07T06:14:14.508Z"
+        },
+        {
+          "name": "finish",
+          "status": "pending"
+        }
+      ],
+      "startedAt": "2026-11-07T06:14:14.498Z"
+    }
+  ],
+  "startedAt": "2026-11-07T06:14:14.493Z",
+  "path": "/tmp/e2e-repo/.swamp/workflow-runs/7b1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d/workflow-run-0fdef291-426e-4ec9-a2c0-92bc24c3a7d8.yaml",
+  "initiatedBy": "user:coffeepy"
+}

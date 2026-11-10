@@ -1,0 +1,122 @@
+{
+  "id": "606a61b6-acf0-4ef1-a54f-a12336b05b73",
+  "name": "convert-call",
+  "description": "Convert one GraphQL call to REST (guide section 5, steps 0-4) in its own worktree, ending in its own pull request for Brant to review.",
+  "version": 1,
+  "inputs": {
+    "properties": {
+      "call": {
+        "type": "string",
+        "description": "Audit row id, e.g. graphql:query:allThemes (kind and domain are read from the audit row)"
+      },
+      "base": {
+        "type": "string",
+        "description": "The GitHub branch on origin each call starts from (fetched at prepare) and its PR merges into"
+      },
+      "budget": {
+        "type": "number",
+        "description": "Claude spend limit for this call in USD; 0 = no limit",
+        "default": 0
+      }
+    },
+    "required": [
+      "call",
+      "base"
+    ]
+  },
+  "tags": {},
+  "jobs": [
+    {
+      "name": "prepare",
+      "description": "Guide step 0",
+      "dependsOn": [],
+      "steps": [
+        {
+          "name": "prepare",
+          "description": "Create the call worktree and its local.env, regenerate the inventory and audit, confirm category convert.",
+          "dependsOn": [],
+          "task": {
+            "type": "model_method",
+            "modelType": "command/shell",
+            "modelName": "fc-${{ run.id }}-prepare",
+            "methodName": "execute",
+            "inputs": {
+              "run": "exec python3 scripts/factory.py prepare '${{ inputs.call }}' --base '${{ inputs.base }}'"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "record",
+      "description": "Guide step 1",
+      "dependsOn": [
+        {
+          "job": "prepare",
+          "condition": {
+            "type": "succeeded"
+          }
+        }
+      ],
+      "steps": [
+        {
+          "name": "record_impl",
+          "description": "Implementer writes the golden test; the factory runs it twice (first run fails on purpose).",
+          "dependsOn": [],
+          "task": {
+            "type": "model_method",
+            "modelType": "command/shell",
+            "modelName": "fc-${{ run.id }}-record-impl",
+            "methodName": "execute",
+            "inputs": {
+              "run": "exec python3 scripts/ai.py implement '${{ inputs.call }}' record --budget ${{ inputs.budget }}"
+            }
+          }
+        },
+        {
+          "name": "record_matrix",
+          "description": "Matrix adversary adds missing input cases as tests; kept findings go back to the implementer.",
+          "dependsOn": [
+            {
+              "step": "record_impl",
+              "condition": {
+                "type": "succeeded"
+              }
+            }
+          ],
+          "task": {
+            "type": "model_method",
+            "modelType": "command/shell",
+            "modelName": "fc-${{ run.id }}-record-matrix",
+            "methodName": "execute",
+            "inputs": {
+              "run": "exec python3 scripts/ai.py adversary '${{ inputs.call }}' matrix --budget ${{ inputs.budget }}"
+            }
+          }
+        },
+        {
+          "name": "record_verify",
+          "description": "Golden test passes without --update-golden.",
+          "dependsOn": [
+            {
+              "step": "record_matrix",
+              "condition": {
+                "type": "succeeded"
+              }
+            }
+          ],
+          "task": {
+            "type": "model_method",
+            "modelType": "command/shell",
+            "modelName": "fc-${{ run.id }}-record-verify",
+            "methodName": "execute",
+            "inputs": {
+              "run": "exec python3 scripts/factory.py check '${{ inputs.call }}' record"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "path": "/Users/dev/orca/workspaces/acme/rest-api/tools/factory/workflows/workflow-convert-call.yaml"
+}

@@ -1,0 +1,44 @@
+{
+  "id": "local",
+  "ok": true,
+  "result": {
+    "environments": [
+      {
+        "id": "5265ddee-dbf9-4e8c-b5ba-26d33664b860",
+        "name": "jarvis",
+        "createdAt": 1793046448897,
+        "updatedAt": 1794099926906,
+        "pairingRevision": 1793046448897,
+        "pairedDeviceId": "00000000-0000-0000-0000-000000000000",
+        "lastUsedAt": 1794099926906,
+        "runtimeId": "00000000-0000-0000-0000-000000000000",
+        "connectionDependency": "ssh-tunnel",
+        "endpoints": [
+          {
+            "id": "ws-5265ddee-dbf9-4e8c-b5ba-26d33664b860",
+            "kind": "websocket",
+            "label": "WebSocket",
+            "endpoint": "ws://127.0.0.1:57274/"
+          }
+        ],
+        "preferredEndpointId": "ws-5265ddee-dbf9-4e8c-b5ba-26d33664b860",
+        "orcadDeployment": {
+          "sshTargetId": "ssh-1792428780344-44ywpw",
+          "sshTargetGeneration": 3,
+          "localPort": 57274,
+          "remotePort": 6768
+        },
+        "orcadMigratedAt": "2026-10-26T20:27:28.914Z"
+      },
+      {
+        "id": "11111111-2222-4333-8444-555555555555",
+        "name": "cloudbox",
+        "connectionDependency": "direct",
+        "endpoints": []
+      }
+    ]
+  },
+  "_meta": {
+    "runtimeId": "local"
+  }
+}

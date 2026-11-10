@@ -1,0 +1,154 @@
+{
+  "id": "3d41529b-777e-4dc9-aa06-ba1b80485a04",
+  "workflowId": "606a61b6-acf0-4ef1-a54f-a12336b05b73",
+  "workflowName": "convert-call",
+  "inputs": {
+    "call": "graphql:query:meta",
+    "base": "rest/factory-base",
+    "budget": 0
+  },
+  "status": "failed",
+  "jobs": [
+    {
+      "name": "prepare",
+      "status": "succeeded",
+      "steps": [
+        {
+          "name": "prepare",
+          "status": "succeeded",
+          "startedAt": "2026-11-07T02:30:13.705Z",
+          "completedAt": "2026-11-07T02:31:13.446Z",
+          "duration": 59741,
+          "dataArtifacts": [
+            {
+              "dataId": "464a0e2c-665c-4986-9a28-c7aa3e9327af",
+              "name": "result",
+              "version": 1,
+              "tags": {
+                "type": "resource",
+                "specName": "result",
+                "modelName": "fc-3d41529b-777e-4dc9-aa06-ba1b80485a04-prepare",
+                "source": "step-output",
+                "workflow": "convert-call",
+                "workflowId": "606a61b6-acf0-4ef1-a54f-a12336b05b73",
+                "workflowRunId": "3d41529b-777e-4dc9-aa06-ba1b80485a04",
+                "job": "prepare",
+                "step": "prepare",
+                "initiatedBy": "user:coffeepy",
+                "_swamp.kind": "resource"
+              }
+            }
+          ],
+          "outputs": {}
+        }
+      ],
+      "startedAt": "2026-11-07T02:30:13.704Z",
+      "completedAt": "2026-11-07T02:31:13.455Z",
+      "duration": 59751
+    },
+    {
+      "name": "record",
+      "status": "succeeded",
+      "steps": [
+        {
+          "name": "record_impl",
+          "status": "succeeded",
+          "startedAt": "2026-11-07T02:31:13.460Z",
+          "completedAt": "2026-11-07T02:36:15.290Z",
+          "duration": 301830,
+          "dataArtifacts": [
+            {
+              "dataId": "306237d4-3702-4015-82a7-5fcae9278c7d",
+              "name": "result",
+              "version": 1,
+              "tags": {
+                "type": "resource",
+                "specName": "result",
+                "modelName": "fc-3d41529b-777e-4dc9-aa06-ba1b80485a04-record-impl",
+                "source": "step-output",
+                "workflow": "convert-call",
+                "workflowId": "606a61b6-acf0-4ef1-a54f-a12336b05b73",
+                "workflowRunId": "3d41529b-777e-4dc9-aa06-ba1b80485a04",
+                "job": "record",
+                "step": "record_impl",
+                "initiatedBy": "user:coffeepy",
+                "_swamp.kind": "resource"
+              }
+            }
+          ],
+          "outputs": {}
+        },
+        {
+          "name": "record_matrix",
+          "status": "succeeded",
+          "startedAt": "2026-11-07T02:36:15.305Z",
+          "completedAt": "2026-11-07T03:51:12.673Z",
+          "duration": 4497368,
+          "dataArtifacts": [
+            {
+              "dataId": "3bf99519-982e-4b0f-b035-c152b5b13782",
+              "name": "result",
+              "version": 1,
+              "tags": {
+                "type": "resource",
+                "specName": "result",
+                "modelName": "fc-3d41529b-777e-4dc9-aa06-ba1b80485a04-record-matrix",
+                "source": "step-output",
+                "workflow": "convert-call",
+                "workflowId": "606a61b6-acf0-4ef1-a54f-a12336b05b73",
+                "workflowRunId": "3d41529b-777e-4dc9-aa06-ba1b80485a04",
+                "job": "record",
+                "step": "record_matrix",
+                "initiatedBy": "user:coffeepy",
+                "_swamp.kind": "resource"
+              }
+            }
+          ],
+          "outputs": {}
+        },
+        {
+          "name": "record_verify",
+          "status": "succeeded",
+          "startedAt": "2026-11-07T03:51:12.690Z",
+          "completedAt": "2026-11-07T03:53:10.322Z",
+          "duration": 117632,
+          "dataArtifacts": [
+            {
+              "dataId": "9cc5664f-74fd-463b-9ba3-977adca7b4ed",
+              "name": "result",
+              "version": 1,
+              "tags": {
+                "type": "resource",
+                "specName": "result",
+                "modelName": "fc-3d41529b-777e-4dc9-aa06-ba1b80485a04-record-verify",
+                "source": "step-output",
+                "workflow": "convert-call",
+                "workflowId": "606a61b6-acf0-4ef1-a54f-a12336b05b73",
+                "workflowRunId": "3d41529b-777e-4dc9-aa06-ba1b80485a04",
+                "job": "record",
+                "step": "record_verify",
+                "initiatedBy": "user:coffeepy",
+                "_swamp.kind": "resource"
+              }
+            }
+          ],
+          "outputs": {}
+        }
+      ],
+      "startedAt": "2026-11-07T02:31:13.460Z",
+      "completedAt": "2026-11-07T03:53:10.346Z",
+      "duration": 4916886
+    }
+  ],
+  "startedAt": "2026-11-07T02:30:13.701Z",
+  "completedAt": "2026-11-07T03:59:48.428Z",
+  "duration": 5374727,
+  "path": "/Users/dev/orca/workspaces/acme/rest-api/tools/factory/.swamp/workflow-runs/606a61b6-acf0-4ef1-a54f-a12336b05b73/workflow-run-3d41529b-777e-4dc9-aa06-ba1b80485a04.yaml",
+  "initiatedBy": "user:coffeepy",
+  "parentRun": {
+    "workflowId": "e1169dc3-f812-463f-814b-447b075e093e",
+    "workflowName": "convert-lane",
+    "runId": "4961955e-1b41-40b1-adf9-3d4fe8530d45",
+    "stepName": "slot-4"
+  }
+}

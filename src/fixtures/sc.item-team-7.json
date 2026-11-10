@@ -1,0 +1,1172 @@
+{
+  "predicate": "modelType == \"@swamp/stagecraft/work-item\" && modelName == \"team-7\" && !name.startsWith(\"report-\")",
+  "results": [
+    {
+      "id": "6abb41fb-09b3-4fbc-b165-cccf55591f40",
+      "name": "definition",
+      "version": 1,
+      "isLatest": true,
+      "createdAt": "2026-11-07T23:30:25.925Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "definition",
+        "modelName": "team-7",
+        "initiatedBy": "user:dev",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "team-7",
+      "modelId": "2588e6a2-2868-4054-b2f4-bb596dd36774",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "definition",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": "10y",
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 12774,
+      "path": "",
+      "ownerRef": "2588e6a2-2868-4054-b2f4-bb596dd36774",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "factory": "team",
+        "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+        "definition": {
+          "schemaVersion": 3,
+          "description": "A general software change, from plan to release: plan, review the plan,\nimplement, verify, review the change, release.\n\nFor: changes to any codebase. A person approves the plan and the release,\nand confirms abandoning the work. A review with a blocking finding, or a\nfailed verify, sends the work back. Every check and the release are bound\nto the commit named in change-summary. Stages name tracker status keys, so\na work item can drive a ticket; drop the stages' tracker blocks if it will\nnot. For a swamp extension, build-swamp-extension.yaml adds a quality score\nand a manifest version check.\n\nChange first: verify's command (your project's checks), the skills the\nplan-review and code-review stages load, and release's description (how\nyour project ships).",
+          "stages": [
+            {
+              "id": "plan",
+              "description": "Plan the change.",
+              "initial": true,
+              "work": {
+                "mode": "interactive",
+                "skills": [],
+                "systemPrompt": "First, check the work is not a duplicate of another ticket. If it\nis, find out whether that ticket, the primary, already has a work\nitem: run the tracker's claim on it with dryRun=true, which writes\nnothing. Record duplicate-of with the primary's stable id, its\ndisplay id and why, and wait for a person to approve\nduplicate-confirmation; do not plan. Once it is approved, move the\nwork to the primary. When the primary has no work item, retarget\nthis work item onto the primary's externalRefs and publish at once,\nso the ticket index follows before anyone claims the primary, then\nplan the primary's work here. When it has one, take the duplicate\nexit.\n\nPlan the change with the person. Read the code it touches first.\nRecord plan with a summary, the steps in order (each naming the files\nit touches) and the testing strategy.\n\nOn a later plan, read the injected plan (the last one), plan-review\n(its review) and plan-feedback (the person's latest feedback); the\nfirst plan has none of them. After a review sends the plan back,\naddress its findings. After revise, address the feedback. Record\nfeedbackIncorporated as the last plan's list, adding the feedback word\nfor word unless it is already the list's last entry: after rework,\nplan-feedback is the feedback the last plan already answered.\n",
+                "context": {
+                  "inject": [
+                    "plan",
+                    "plan-review",
+                    "plan-feedback"
+                  ]
+                }
+              },
+              "artifacts": [
+                {
+                  "name": "plan",
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "summary",
+                      "steps",
+                      "testingStrategy"
+                    ],
+                    "properties": {
+                      "summary": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "steps": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "description",
+                            "files"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "description": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "files": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "testingStrategy": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "feedbackIncorporated": {
+                        "description": "Every round of a person's plan feedback this plan answers, oldest first.",
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "name": "duplicate-of",
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "primary",
+                      "display",
+                      "reason"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "primary": {
+                        "description": "The primary ticket's stable id.",
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "display": {
+                        "description": "The primary ticket's display id.",
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "reason": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                }
+              ],
+              "transitions": [
+                {
+                  "name": "submit",
+                  "to": "plan-review",
+                  "gates": [
+                    {
+                      "type": "artifact-exists",
+                      "config": {
+                        "artifact": "plan"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "duplicate",
+                  "to": "duplicate",
+                  "description": "The work duplicates a primary ticket that already has a work item; a person confirms it. When the primary has none, the work item is retargeted onto it instead, and the cel gate closes this exit to it. \"builtin\" there is the built-in tracker's externalRefs key; a definition for Linear names \"linear\".",
+                  "gates": [
+                    {
+                      "type": "human-approval",
+                      "config": {
+                        "id": "duplicate-confirmation"
+                      }
+                    },
+                    {
+                      "type": "cel",
+                      "config": {
+                        "expr": "\"duplicate-of\" in artifacts && (!(\"builtin\" in item.externalRefs) || item.externalRefs[\"builtin\"] != artifacts[\"duplicate-of\"].payload.primary)",
+                        "message": "this work item is on the primary ticket now; plan it here"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "tracker": {
+                "status": "open",
+                "duplicate": {
+                  "on": {
+                    "approve": "duplicate-confirmation"
+                  },
+                  "record": "duplicate-of",
+                  "field": "primary"
+                }
+              }
+            },
+            {
+              "id": "plan-review",
+              "description": "Adversarial review of the current plan. Open blocking findings send it back; none lets it through. With nothing blocking, approving carries the open medium and low findings into implement, which receives plan-review; revise is for when the person wants the plan itself changed and reviewed again.",
+              "work": {
+                "mode": "dispatch",
+                "skills": [
+                  "adversarial-review"
+                ],
+                "systemPrompt": "You are an adversarial reviewer. Try to refute this plan:\n{{planSummary}}\nCheck its steps against the code and its testing strategy against the\nrisks.\nRate a finding critical or high only if the plan would ship a\ndefect, lose data, break a stated rule, or make the declared checks\nmeaningless. Gaps in process, logistics or manual verification that\nthe automated checks already cover are medium at most. Judge the\nplan against the size of the change: do not ask for verification\nmachinery bigger than the change, and give the smallest adequate fix\nfor each finding. Report findings with severities, and do not soften\nthe severity of a real defect.\n",
+                "context": {
+                  "inject": [
+                    "plan"
+                  ]
+                },
+                "let": {
+                  "planSummary": "artifacts[\"plan\"].payload.summary"
+                }
+              },
+              "artifacts": [
+                {
+                  "name": "plan-review",
+                  "kind": "findings",
+                  "reviews": "plan"
+                }
+              ],
+              "evidence": [
+                {
+                  "name": "plan-feedback",
+                  "description": "A person's feedback on the plan, in their words; revise needs it. The round is the cycle it was recorded in.",
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "feedback"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "feedback": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "recordedBy": "person"
+                }
+              ],
+              "transitions": [
+                {
+                  "name": "approve",
+                  "to": "implement",
+                  "gates": [
+                    {
+                      "type": "artifact-fresh",
+                      "config": {
+                        "artifact": "plan-review",
+                        "recordedThisCycle": true
+                      }
+                    },
+                    {
+                      "type": "findings-clear",
+                      "config": {
+                        "artifact": "plan-review",
+                        "blocking": [
+                          "critical",
+                          "high"
+                        ]
+                      }
+                    },
+                    {
+                      "type": "human-approval",
+                      "config": {
+                        "id": "plan-approval"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "rework",
+                  "to": "plan",
+                  "description": "The fresh plan review has an open critical or high finding, so the plan goes back to be fixed.",
+                  "gates": [
+                    {
+                      "type": "artifact-fresh",
+                      "config": {
+                        "artifact": "plan-review",
+                        "recordedThisCycle": true
+                      }
+                    },
+                    {
+                      "type": "findings-open",
+                      "config": {
+                        "artifact": "plan-review",
+                        "blocking": [
+                          "critical",
+                          "high"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "revise",
+                  "to": "plan",
+                  "description": "A person sent the plan back without a blocking finding, to change the plan itself and have it reviewed again. To act on non-blocking findings during implement, approve instead. Manual, so it never fires on its own, and the person's feedback is recorded first, so every revision carries its reason to the next plan.",
+                  "manual": true,
+                  "gates": [
+                    {
+                      "type": "evidence-recorded",
+                      "description": "The person's feedback on this plan is recorded.",
+                      "config": {
+                        "name": "plan-feedback"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "tracker": {
+                "status": "open"
+              }
+            },
+            {
+              "id": "implement",
+              "description": "Implement the plan and commit it.",
+              "work": {
+                "mode": "interactive",
+                "skills": [],
+                "systemPrompt": "Implement the plan. Commit the work, then record change-summary with\nthe full 40-character SHA of the commit to check and review. Do not\nopen a pull request. After a check or review sends the work back, fix\nit, commit, and record change-summary again for the new commit.\n",
+                "context": {
+                  "inject": [
+                    "plan",
+                    "plan-review"
+                  ]
+                }
+              },
+              "artifacts": [
+                {
+                  "name": "change-summary",
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "summary",
+                      "commit",
+                      "files"
+                    ],
+                    "properties": {
+                      "summary": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "commit": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{40}$"
+                      },
+                      "files": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "transitions": [
+                {
+                  "name": "submit",
+                  "to": "verify",
+                  "gates": [
+                    {
+                      "type": "artifact-exists",
+                      "config": {
+                        "artifact": "change-summary"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "tracker": {
+                "status": "in_progress"
+              }
+            },
+            {
+              "id": "verify",
+              "description": "Run the checks on the change-summary commit and record checks, with one result per check.",
+              "work": {
+                "mode": "interactive",
+                "systemPrompt": "Check out commit {{commit}} and run the stage's command. Record checks\nwith that commit, the overall status, and one result per check (its\nname, status and, when it failed, the output that shows why). Record\nonly what you ran and saw.\n",
+                "command": "the project's format, lint, type and test checks (replace this with the real commands)",
+                "let": {
+                  "commit": "artifacts[\"change-summary\"].payload.commit"
+                }
+              },
+              "evidence": [
+                {
+                  "name": "checks",
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "commit",
+                      "status",
+                      "results"
+                    ],
+                    "properties": {
+                      "commit": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{40}$"
+                      },
+                      "status": {
+                        "enum": [
+                          "passed",
+                          "failed"
+                        ]
+                      },
+                      "results": {
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "name",
+                            "status"
+                          ],
+                          "additionalProperties": false,
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "status": {
+                              "enum": [
+                                "passed",
+                                "failed",
+                                "skipped"
+                              ]
+                            },
+                            "detail": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "$comment": "An overall pass cannot contain a failed result.",
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "passed"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "results": {
+                          "not": {
+                            "contains": {
+                              "properties": {
+                                "status": {
+                                  "const": "failed"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "transitions": [
+                {
+                  "name": "passed",
+                  "to": "code-review",
+                  "gates": [
+                    {
+                      "type": "evidence-recorded",
+                      "config": {
+                        "name": "checks",
+                        "requireField": {
+                          "status": "passed"
+                        }
+                      }
+                    },
+                    {
+                      "type": "cel",
+                      "config": {
+                        "expr": "evidence[\"checks\"].payload.commit == artifacts[\"change-summary\"].payload.commit",
+                        "message": "checks must be for the change-summary commit"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "failed",
+                  "to": "implement",
+                  "description": "The checks failed, so the change goes back to be fixed.",
+                  "gates": [
+                    {
+                      "type": "evidence-recorded",
+                      "config": {
+                        "name": "checks",
+                        "requireField": {
+                          "status": "failed"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              "tracker": {
+                "status": "in_progress"
+              }
+            },
+            {
+              "id": "code-review",
+              "description": "Adversarial review of the change. Open blocking findings send it back; none lets it through.",
+              "work": {
+                "mode": "dispatch",
+                "skills": [
+                  "code-review"
+                ],
+                "systemPrompt": "You are an adversarial reviewer. Review commit {{commit}}:\n{{changeSummary}}\nCheck it against the plan.\nRate a finding critical or high only if the change would ship a\ndefect, lose data, break a stated rule, or make the declared checks\nmeaningless. Gaps in process, logistics or manual verification that\nthe automated checks already cover are medium at most. Judge the\nchange against the size of the change: do not ask for verification\nmachinery bigger than the change, and give the smallest adequate fix\nfor each finding. Report findings with severities, and do not soften\nthe severity of a real defect.\n",
+                "context": {
+                  "inject": [
+                    "plan",
+                    "change-summary"
+                  ]
+                },
+                "let": {
+                  "commit": "artifacts[\"change-summary\"].payload.commit",
+                  "changeSummary": "artifacts[\"change-summary\"].payload.summary"
+                }
+              },
+              "artifacts": [
+                {
+                  "name": "code-review",
+                  "kind": "findings",
+                  "reviews": "change-summary"
+                }
+              ],
+              "transitions": [
+                {
+                  "name": "accept",
+                  "to": "release",
+                  "gates": [
+                    {
+                      "type": "artifact-fresh",
+                      "config": {
+                        "artifact": "code-review",
+                        "recordedThisCycle": true
+                      }
+                    },
+                    {
+                      "type": "findings-clear",
+                      "config": {
+                        "artifact": "code-review",
+                        "blocking": [
+                          "critical",
+                          "high"
+                        ]
+                      }
+                    },
+                    {
+                      "type": "human-approval",
+                      "config": {
+                        "id": "release-approval"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "rework",
+                  "to": "implement",
+                  "description": "The fresh code review has an open critical or high finding, so the change goes back to be fixed.",
+                  "gates": [
+                    {
+                      "type": "artifact-fresh",
+                      "config": {
+                        "artifact": "code-review",
+                        "recordedThisCycle": true
+                      }
+                    },
+                    {
+                      "type": "findings-open",
+                      "config": {
+                        "artifact": "code-review",
+                        "blocking": [
+                          "critical",
+                          "high"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "revise",
+                  "to": "implement",
+                  "description": "A person sent the change back without a blocking finding. Manual, so it never fires on its own.",
+                  "manual": true
+                }
+              ],
+              "tracker": {
+                "status": "in_progress"
+              }
+            },
+            {
+              "id": "release",
+              "description": "Release the reviewed commit.",
+              "work": {
+                "mode": "interactive",
+                "systemPrompt": "Release the reviewed commit, and record release with the commit that\nshipped and where.\n"
+              },
+              "evidence": [
+                {
+                  "name": "release",
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "commit",
+                      "url"
+                    ],
+                    "properties": {
+                      "commit": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{40}$"
+                      },
+                      "url": {
+                        "type": "string",
+                        "format": "uri"
+                      }
+                    }
+                  }
+                }
+              ],
+              "transitions": [
+                {
+                  "name": "released",
+                  "to": "done",
+                  "gates": [
+                    {
+                      "type": "evidence-recorded",
+                      "config": {
+                        "name": "release"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "rework",
+                  "to": "implement",
+                  "description": "The release was blocked; go back and change the work.",
+                  "manual": true
+                }
+              ],
+              "tracker": {
+                "status": "in_progress"
+              }
+            },
+            {
+              "id": "done",
+              "terminal": true,
+              "tracker": {
+                "status": "shipped"
+              }
+            },
+            {
+              "id": "duplicate",
+              "description": "The work duplicated a primary ticket that has its own work item.",
+              "terminal": true,
+              "tracker": {
+                "status": "closed"
+              }
+            },
+            {
+              "id": "abandoned",
+              "terminal": true,
+              "tracker": {
+                "status": "closed"
+              }
+            }
+          ],
+          "globalTransitions": [
+            {
+              "name": "abandon",
+              "to": "abandoned",
+              "gates": [
+                {
+                  "type": "human-approval",
+                  "config": {
+                    "id": "abandon-confirmation"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "560a2e5c-7626-41a8-b8de-c879a05f3412",
+      "name": "artifact-plan",
+      "version": 1,
+      "isLatest": true,
+      "createdAt": "2026-11-07T23:30:28.563Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "artifact",
+        "modelName": "team-7",
+        "initiatedBy": "user:dev",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "team-7",
+      "modelId": "2588e6a2-2868-4054-b2f4-bb596dd36774",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "artifact",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": "1y",
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 123,
+      "path": "",
+      "ownerRef": "2588e6a2-2868-4054-b2f4-bb596dd36774",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "summary": "Ship it",
+        "steps": [
+          {
+            "description": "Change the handler",
+            "files": [
+              "src/feed.ts"
+            ]
+          }
+        ],
+        "testingStrategy": "unit tests"
+      }
+    },
+    {
+      "id": "5de071e1-7d0d-4452-aa3f-a4b51fa677ac",
+      "name": "run",
+      "version": 6,
+      "isLatest": true,
+      "createdAt": "2026-11-07T23:30:39.424Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "run",
+        "modelName": "team-7",
+        "initiatedBy": "user:dev",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "team-7",
+      "modelId": "2588e6a2-2868-4054-b2f4-bb596dd36774",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "run",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 20,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 9485,
+      "path": "",
+      "ownerRef": "2588e6a2-2868-4054-b2f4-bb596dd36774",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 1,
+        "key": "team-7",
+        "title": "Dark mode tokens",
+        "externalRefs": {},
+        "tracker": {
+          "instance": "board",
+          "kind": "builtin"
+        },
+        "factory": "team",
+        "definition": {
+          "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+          "version": 1
+        },
+        "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+        "status": "active",
+        "stage": "plan-review",
+        "entries": {
+          "plan": 1,
+          "plan-review": 1
+        },
+        "products": {
+          "artifacts": {
+            "plan": {
+              "version": 1,
+              "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a",
+              "stage": "plan",
+              "cycle": 1,
+              "at": "2026-11-07T23:30:28.567Z"
+            }
+          },
+          "evidence": {}
+        },
+        "validations": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "dispatches": [
+          {
+            "id": 1,
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "stage": "plan-review",
+            "cycle": 1,
+            "at": "2026-11-07T23:30:33.945Z",
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "mode": "dispatch",
+            "inputs": {
+              "planSummary": "Ship it"
+            },
+            "prompt": "You are an adversarial reviewer. Try to refute this plan:\nShip it\nCheck its steps against the code and its testing strategy against the\nrisks.\nRate a finding critical or high only if the plan would ship a\ndefect, lose data, break a stated rule, or make the declared checks\nmeaningless. Gaps in process, logistics or manual verification that\nthe automated checks already cover are medium at most. Judge the\nplan against the size of the change: do not ask for verification\nmachinery bigger than the change, and give the smallest adequate fix\nfor each finding. Report findings with severities, and do not soften\nthe severity of a real defect.\n",
+            "subagentPrompts": [
+              {
+                "skill": "adversarial-review",
+                "resultPaths": {
+                  "plan-review": "/var/folders/ys/43szdb6x5sj83l3sqs909qmr0000gn/T/stagecraft-4728c59c19d15376/team-7-d1-1-plan-review.json"
+                },
+                "prompt": "You are an adversarial reviewer. Try to refute this plan:\nShip it\nCheck its steps against the code and its testing strategy against the\nrisks.\nRate a finding critical or high only if the plan would ship a\ndefect, lose data, break a stated rule, or make the declared checks\nmeaningless. Gaps in process, logistics or manual verification that\nthe automated checks already cover are medium at most. Judge the\nplan against the size of the change: do not ask for verification\nmachinery bigger than the change, and give the smallest adequate fix\nfor each finding. Report findings with severities, and do not soften\nthe severity of a real defect.\n\n---\n\nFollow the adversarial-review skill.\n\nRead these products fresh from the store. Each command prints\nthe product's payload as one JSON object. If it exits non-zero\nwith an error (the record is missing or not alone), stop and\nreport that; never guess the product.\n- plan: swamp data query 'modelName == \"team-7\" && name == \"artifact-plan\"' --select content --single --json\n\nWrite your result as JSON, one file per product, holding the\npayload and nothing else. These files are the only thing you may\nwrite.\n- artifact plan-review: write it to /var/folders/ys/43szdb6x5sj83l3sqs909qmr0000gn/T/stagecraft-4728c59c19d15376/team-7-d1-1-plan-review.json\n  Its schema:\n    {\n      \"type\": \"object\",\n      \"required\": [\n        \"findings\"\n      ],\n      \"properties\": {\n        \"findings\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"required\": [\n              \"id\",\n              \"severity\",\n              \"description\"\n            ],\n            \"additionalProperties\": false,\n            \"properties\": {\n              \"id\": {\n                \"type\": \"string\",\n                \"minLength\": 1\n              },\n              \"severity\": {\n                \"enum\": [\n                  \"critical\",\n                  \"high\",\n                  \"medium\",\n                  \"low\"\n                ]\n              },\n              \"description\": {\n                \"type\": \"string\",\n                \"minLength\": 1\n              },\n              \"category\": {\n                \"type\": \"string\"\n              },\n              \"resolved\": {\n                \"type\": \"boolean\"\n              },\n              \"resolutionNote\": {\n                \"type\": \"string\"\n              }\n            }\n          }\n        }\n      }\n    }\n"
+              }
+            ]
+          },
+          {
+            "id": 2,
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "stage": "plan-review",
+            "cycle": 1,
+            "at": "2026-11-07T23:30:36.603Z",
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "mode": "dispatch",
+            "inputs": {
+              "planSummary": "Ship it"
+            },
+            "prompt": "You are an adversarial reviewer. Try to refute this plan:\nShip it\nCheck its steps against the code and its testing strategy against the\nrisks.\nRate a finding critical or high only if the plan would ship a\ndefect, lose data, break a stated rule, or make the declared checks\nmeaningless. Gaps in process, logistics or manual verification that\nthe automated checks already cover are medium at most. Judge the\nplan against the size of the change: do not ask for verification\nmachinery bigger than the change, and give the smallest adequate fix\nfor each finding. Report findings with severities, and do not soften\nthe severity of a real defect.\n",
+            "subagentPrompts": [
+              {
+                "skill": "adversarial-review",
+                "resultPaths": {
+                  "plan-review": "/var/folders/ys/43szdb6x5sj83l3sqs909qmr0000gn/T/stagecraft-e533151d756b04c3/team-7-d2-1-plan-review.json"
+                },
+                "prompt": "You are an adversarial reviewer. Try to refute this plan:\nShip it\nCheck its steps against the code and its testing strategy against the\nrisks.\nRate a finding critical or high only if the plan would ship a\ndefect, lose data, break a stated rule, or make the declared checks\nmeaningless. Gaps in process, logistics or manual verification that\nthe automated checks already cover are medium at most. Judge the\nplan against the size of the change: do not ask for verification\nmachinery bigger than the change, and give the smallest adequate fix\nfor each finding. Report findings with severities, and do not soften\nthe severity of a real defect.\n\n---\n\nFollow the adversarial-review skill.\n\nRead these products fresh from the store. Each command prints\nthe product's payload as one JSON object. If it exits non-zero\nwith an error (the record is missing or not alone), stop and\nreport that; never guess the product.\n- plan: swamp data query 'modelName == \"team-7\" && name == \"artifact-plan\"' --select content --single --json\n\nWrite your result as JSON, one file per product, holding the\npayload and nothing else. These files are the only thing you may\nwrite.\n- artifact plan-review: write it to /var/folders/ys/43szdb6x5sj83l3sqs909qmr0000gn/T/stagecraft-e533151d756b04c3/team-7-d2-1-plan-review.json\n  Its schema:\n    {\n      \"type\": \"object\",\n      \"required\": [\n        \"findings\"\n      ],\n      \"properties\": {\n        \"findings\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"required\": [\n              \"id\",\n              \"severity\",\n              \"description\"\n            ],\n            \"additionalProperties\": false,\n            \"properties\": {\n              \"id\": {\n                \"type\": \"string\",\n                \"minLength\": 1\n              },\n              \"severity\": {\n                \"enum\": [\n                  \"critical\",\n                  \"high\",\n                  \"medium\",\n                  \"low\"\n                ]\n              },\n              \"description\": {\n                \"type\": \"string\",\n                \"minLength\": 1\n              },\n              \"category\": {\n                \"type\": \"string\"\n              },\n              \"resolved\": {\n                \"type\": \"boolean\"\n              },\n              \"resolutionNote\": {\n                \"type\": \"string\"\n              }\n            }\n          }\n        }\n      }\n    }\n"
+              }
+            ]
+          }
+        ],
+        "approvals": [],
+        "overrides": [],
+        "journal": [
+          {
+            "at": "2026-11-07T23:30:25.929Z",
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "started",
+            "factory": "team",
+            "definition": {
+              "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+              "version": 1
+            }
+          },
+          {
+            "at": "2026-11-07T23:30:28.567Z",
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "recorded",
+            "kind": "artifact",
+            "name": "plan",
+            "version": 1,
+            "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a"
+          },
+          {
+            "at": "2026-11-07T23:30:31.267Z",
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "advanced",
+            "transition": "submit",
+            "to": "plan-review",
+            "toCycle": 1
+          },
+          {
+            "at": "2026-11-07T23:30:33.945Z",
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "stage": "plan-review",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "dispatched",
+            "dispatchId": 1
+          },
+          {
+            "at": "2026-11-07T23:30:36.603Z",
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "stage": "plan-review",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "dispatched",
+            "dispatchId": 2
+          },
+          {
+            "type": "awaiting",
+            "exits": [],
+            "dispatchOverride": {
+              "count": 2,
+              "limit": 2,
+              "granted": 0
+            },
+            "at": "2026-11-07T23:30:39.415Z",
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "stage": "plan-review",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "5bdc6c68-b0dd-424b-aa5a-6d97e4d1c87b",
+      "name": "metrics",
+      "version": 6,
+      "isLatest": true,
+      "createdAt": "2026-11-07T23:30:39.433Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "metrics",
+        "modelName": "team-7",
+        "initiatedBy": "user:dev",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "team-7",
+      "modelId": "2588e6a2-2868-4054-b2f4-bb596dd36774",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "metrics",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 5,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 2395,
+      "path": "",
+      "ownerRef": "2588e6a2-2868-4054-b2f4-bb596dd36774",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 1,
+        "key": "team-7",
+        "externalRefs": {},
+        "factory": "team",
+        "definition": {
+          "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+          "version": 1
+        },
+        "status": "active",
+        "stage": "plan-review",
+        "journalVersion": 6,
+        "startedAt": "2026-11-07T23:30:25.929Z",
+        "endedAt": null,
+        "durationMs": null,
+        "eras": [
+          {
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "startedAt": "2026-11-07T23:30:25.929Z",
+            "endedAt": null,
+            "endedBy": null,
+            "durationMs": null,
+            "visits": [
+              {
+                "stage": "plan",
+                "cycle": 1,
+                "enteredAt": "2026-11-07T23:30:25.929Z",
+                "leftAt": "2026-11-07T23:30:31.267Z",
+                "durationMs": 5338,
+                "leftBy": "submit",
+                "terminal": false
+              },
+              {
+                "stage": "plan-review",
+                "cycle": 1,
+                "enteredAt": "2026-11-07T23:30:31.267Z",
+                "leftAt": null,
+                "durationMs": null,
+                "leftBy": null,
+                "terminal": false
+              }
+            ],
+            "waits": [
+              {
+                "kind": "dispatch-override",
+                "stage": "plan-review",
+                "cycle": 1,
+                "transition": null,
+                "manual": false,
+                "gateIds": [],
+                "from": "2026-11-07T23:30:39.415Z",
+                "until": null,
+                "durationMs": null,
+                "endedBy": null
+              }
+            ],
+            "dispatches": [
+              {
+                "stage": "plan-review",
+                "cycle": 1,
+                "dispatches": 2,
+                "retries": 1,
+                "outcomes": {
+                  "succeeded": 0,
+                  "failed": 0,
+                  "interrupted": 0,
+                  "open": 2,
+                  "none": 0
+                }
+              }
+            ],
+            "overrides": [],
+            "summary": {
+              "stages": {
+                "plan": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 5338,
+                  "open": false
+                },
+                "plan-review": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 0,
+                  "open": true
+                }
+              },
+              "rework": {
+                "reentries": 0,
+                "reviewRounds": {},
+                "declines": 0,
+                "rejections": 0
+              },
+              "waits": {
+                "count": 1,
+                "open": 1,
+                "timeMs": 0
+              },
+              "dispatches": {
+                "count": 2,
+                "retries": 1
+              },
+              "dispatchOutcomes": {
+                "succeeded": 0,
+                "failed": 0,
+                "interrupted": 0,
+                "open": 2,
+                "none": 0
+              },
+              "overrides": {
+                "cycle": 0,
+                "dispatch": 0
+              },
+              "usage": {
+                "totalTokens": 0,
+                "inputTokens": 0,
+                "outputTokens": 0,
+                "dispatchesWithSplit": 0,
+                "toolUses": 0,
+                "durationMs": 0,
+                "byModel": {},
+                "dispatchesWithUsage": 0,
+                "dispatchesWithoutUsage": 2,
+                "withoutUsageByMode": {
+                  "dispatch": 2
+                },
+                "attested": true
+              }
+            }
+          }
+        ],
+        "summary": {
+          "stages": {
+            "plan": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 5338,
+              "open": false
+            },
+            "plan-review": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 0,
+              "open": true
+            }
+          },
+          "rework": {
+            "reentries": 0,
+            "reviewRounds": {},
+            "declines": 0,
+            "rejections": 0
+          },
+          "waits": {
+            "count": 1,
+            "open": 1,
+            "timeMs": 0
+          },
+          "dispatches": {
+            "count": 2,
+            "retries": 1
+          },
+          "dispatchOutcomes": {
+            "succeeded": 0,
+            "failed": 0,
+            "interrupted": 0,
+            "open": 2,
+            "none": 0
+          },
+          "overrides": {
+            "cycle": 0,
+            "dispatch": 0
+          },
+          "usage": {
+            "totalTokens": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "dispatchesWithSplit": 0,
+            "toolUses": 0,
+            "durationMs": 0,
+            "byModel": {},
+            "dispatchesWithUsage": 0,
+            "dispatchesWithoutUsage": 2,
+            "withoutUsageByMode": {
+              "dispatch": 2
+            },
+            "attested": true
+          }
+        }
+      }
+    }
+  ],
+  "total": 4,
+  "limited": false
+}

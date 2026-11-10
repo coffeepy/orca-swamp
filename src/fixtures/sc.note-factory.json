@@ -1,0 +1,137 @@
+{
+  "id": "704e4c97-4d40-4444-acf6-7151f1727dc5",
+  "name": "note-factory",
+  "type": "@swamp/stagecraft/factory",
+  "version": 1,
+  "globalArguments": {
+    "tracker": "board",
+    "definition": {
+      "schemaVersion": 5,
+      "description": "Test factory. Write a note, check it, wait for your approval, then ship it. Same job as the make-note workflow.",
+      "stages": [
+        {
+          "id": "write",
+          "initial": true,
+          "description": "Write the note.",
+          "work": {
+            "mode": "interactive"
+          },
+          "artifacts": [
+            {
+              "name": "note",
+              "schema": {
+                "type": "object",
+                "required": [
+                  "text"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          ],
+          "transitions": [
+            {
+              "name": "written",
+              "to": "check",
+              "gates": [
+                {
+                  "type": "artifact-exists",
+                  "config": {
+                    "artifact": "note"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "check",
+          "description": "Check that the note is not empty.",
+          "work": {
+            "mode": "interactive"
+          },
+          "evidence": [
+            {
+              "name": "check",
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "passed",
+                      "failed"
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "transitions": [
+            {
+              "name": "passed",
+              "to": "ship",
+              "gates": [
+                {
+                  "type": "evidence-recorded",
+                  "config": {
+                    "name": "check",
+                    "requireField": {
+                      "status": "passed"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "name": "failed",
+              "to": "write",
+              "gates": [
+                {
+                  "type": "evidence-recorded",
+                  "config": {
+                    "name": "check",
+                    "requireField": {
+                      "status": "failed"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ship",
+          "description": "Ship the note after you approve it.",
+          "work": {
+            "mode": "interactive"
+          },
+          "transitions": [
+            {
+              "name": "shipped",
+              "to": "done",
+              "gates": [
+                {
+                  "type": "human-approval",
+                  "config": {
+                    "id": "ship-approval"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "done",
+          "terminal": true
+        }
+      ]
+    }
+  }
+}

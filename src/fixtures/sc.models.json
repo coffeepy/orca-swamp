@@ -1,0 +1,2005 @@
+{
+  "query": "",
+  "results": [
+    {
+      "id": "46a6c18f-0a30-41f3-a297-4d8fc12f1691",
+      "name": "team",
+      "type": "@swamp/stagecraft/factory",
+      "methods": [
+        {
+          "name": "validate",
+          "description": "Check the definition in full, analyse it as a graph, and report every problem with its path",
+          "arguments": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "kind": "read",
+          "kindSource": "declared"
+        }
+      ],
+      "globalArgumentsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "definition": {
+            "foreignTemplate": true,
+            "description": "The factory definition: its stages, transitions, gates and prompts. Start from one of the skill's examples.",
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "type": "number",
+                "const": 3
+              },
+              "description": {
+                "type": "string"
+              },
+              "tracker": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]*$"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": false
+              },
+              "stages": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_-]*$"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "initial": {
+                      "type": "boolean"
+                    },
+                    "terminal": {
+                      "type": "boolean"
+                    },
+                    "maxCycles": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "maxDispatchesPerCycle": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "maxInterruptionsPerCycle": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "work": {
+                      "type": "object",
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "interactive",
+                            "dispatch",
+                            "workflow",
+                            "method"
+                          ]
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "skills": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "systemPrompt": {
+                          "type": "string"
+                        },
+                        "command": {
+                          "type": "string"
+                        },
+                        "constraints": {
+                          "type": "string"
+                        },
+                        "context": {
+                          "type": "object",
+                          "properties": {
+                            "inject": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9_-]*$"
+                              }
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "workflow": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "inputs": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            },
+                            "passAsInputs": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            }
+                          },
+                          "required": [
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "method": {
+                          "type": "object",
+                          "properties": {
+                            "modelIdOrName": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "methodName": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "inputs": {
+                              "type": "object",
+                              "propertyNames": {
+                                "type": "string"
+                              },
+                              "additionalProperties": {}
+                            },
+                            "passAsInputs": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "minLength": 1
+                              }
+                            }
+                          },
+                          "required": [
+                            "modelIdOrName",
+                            "methodName"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "let": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "inputsSchema": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        },
+                        "resultEvidence": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_-]*$"
+                        }
+                      },
+                      "required": [
+                        "mode"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "artifacts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_-]*$"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "const": "findings"
+                          },
+                          "reviews": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_-]*$"
+                          },
+                          "schema": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "evidence": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_-]*$"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "schema": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          },
+                          "recordedBy": {
+                            "type": "string",
+                            "const": "person"
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "transitions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_-]*$"
+                          },
+                          "to": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_-]*$"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "manual": {
+                            "type": "boolean"
+                          },
+                          "gates": {
+                            "type": "array",
+                            "items": {
+                              "oneOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "artifact-exists"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "config": {
+                                      "type": "object",
+                                      "properties": {
+                                        "artifact": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9_-]*$"
+                                        }
+                                      },
+                                      "required": [
+                                        "artifact"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "config"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "artifact-fresh"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "config": {
+                                      "type": "object",
+                                      "properties": {
+                                        "artifact": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9_-]*$"
+                                        },
+                                        "recordedThisCycle": {
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": [
+                                        "artifact"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "config"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "findings-clear"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "config": {
+                                      "type": "object",
+                                      "properties": {
+                                        "artifact": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9_-]*$"
+                                        },
+                                        "blocking": {
+                                          "minItems": 1,
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string",
+                                            "enum": [
+                                              "critical",
+                                              "high",
+                                              "medium",
+                                              "low"
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "artifact",
+                                        "blocking"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "config"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "findings-open"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "config": {
+                                      "type": "object",
+                                      "properties": {
+                                        "artifact": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9_-]*$"
+                                        },
+                                        "blocking": {
+                                          "minItems": 1,
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string",
+                                            "enum": [
+                                              "critical",
+                                              "high",
+                                              "medium",
+                                              "low"
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "artifact",
+                                        "blocking"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "config"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "human-approval"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "config": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9_-]*$"
+                                        },
+                                        "minApprovals": {
+                                          "type": "integer",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "when": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        }
+                                      },
+                                      "required": [
+                                        "id"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "config"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "evidence-recorded"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "config": {
+                                      "type": "object",
+                                      "properties": {
+                                        "name": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9_-]*$"
+                                        },
+                                        "requireField": {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string"
+                                          },
+                                          "additionalProperties": {}
+                                        },
+                                        "match": {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string"
+                                          },
+                                          "additionalProperties": {
+                                            "anyOf": [
+                                              {
+                                                "type": "boolean"
+                                              },
+                                              {
+                                                "type": "object",
+                                                "propertyNames": {
+                                                  "type": "string"
+                                                },
+                                                "additionalProperties": {}
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "message": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "name"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "config"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "cooldown"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "config": {
+                                      "type": "object",
+                                      "properties": {
+                                        "afterEvidence": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9_-]*$"
+                                        },
+                                        "afterArtifact": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9_-]*$"
+                                        },
+                                        "seconds": {
+                                          "type": "number",
+                                          "exclusiveMinimum": 0
+                                        }
+                                      },
+                                      "required": [
+                                        "seconds"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "config"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "max-cycles"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "config": {
+                                      "type": "object",
+                                      "properties": {
+                                        "stage": {
+                                          "type": "string",
+                                          "pattern": "^[a-z][a-z0-9_-]*$"
+                                        },
+                                        "limit": {
+                                          "type": "integer",
+                                          "exclusiveMinimum": 0,
+                                          "maximum": 9007199254740991
+                                        },
+                                        "invert": {
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": [
+                                        "stage",
+                                        "limit"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "config"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "type": {
+                                      "type": "string",
+                                      "const": "cel"
+                                    },
+                                    "description": {
+                                      "type": "string"
+                                    },
+                                    "config": {
+                                      "type": "object",
+                                      "properties": {
+                                        "expr": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "message": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "expr"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "required": [
+                                    "type",
+                                    "config"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "to"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "tracker": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_-]*$"
+                        },
+                        "entries": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "on": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "const": "enter"
+                                  },
+                                  {
+                                    "type": "string",
+                                    "const": "dispatch"
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "record": {
+                                        "type": "string",
+                                        "pattern": "^[a-z][a-z0-9_-]*$"
+                                      }
+                                    },
+                                    "required": [
+                                      "record"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "approve": {
+                                        "type": "string",
+                                        "pattern": "^[a-z][a-z0-9_-]*$"
+                                      }
+                                    },
+                                    "required": [
+                                      "approve"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "transition": {
+                                        "type": "string",
+                                        "pattern": "^[a-z][a-z0-9_-]*$"
+                                      }
+                                    },
+                                    "required": [
+                                      "transition"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                ]
+                              },
+                              "match": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                                },
+                                "additionalProperties": {
+                                  "type": [
+                                    "string",
+                                    "number",
+                                    "boolean"
+                                  ]
+                                }
+                              },
+                              "cycle": {
+                                "type": "string",
+                                "enum": [
+                                  "first",
+                                  "later"
+                                ]
+                              },
+                              "step": {
+                                "type": "string",
+                                "maxLength": 100,
+                                "pattern": "^[a-z][a-z0-9_]*$"
+                              },
+                              "emoji": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 32
+                              },
+                              "summary": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 2000
+                              },
+                              "status": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9_-]*$"
+                              },
+                              "verbose": {
+                                "type": "boolean"
+                              },
+                              "setsType": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                              },
+                              "linkPr": {
+                                "type": "string",
+                                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                              }
+                            },
+                            "required": [
+                              "on",
+                              "step",
+                              "emoji",
+                              "summary"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "duplicate": {
+                          "type": "object",
+                          "properties": {
+                            "on": {
+                              "type": "object",
+                              "properties": {
+                                "approve": {
+                                  "type": "string",
+                                  "pattern": "^[a-z][a-z0-9_-]*$"
+                                }
+                              },
+                              "required": [
+                                "approve"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "record": {
+                              "type": "string",
+                              "pattern": "^[a-z][a-z0-9_-]*$"
+                            },
+                            "field": {
+                              "type": "string",
+                              "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                            }
+                          },
+                          "required": [
+                            "on",
+                            "record",
+                            "field"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "globalTransitions": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_-]*$"
+                    },
+                    "to": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_-]*$"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "manual": {
+                      "type": "boolean"
+                    },
+                    "gates": {
+                      "type": "array",
+                      "items": {
+                        "oneOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "artifact-exists"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "config": {
+                                "type": "object",
+                                "properties": {
+                                  "artifact": {
+                                    "type": "string",
+                                    "pattern": "^[a-z][a-z0-9_-]*$"
+                                  }
+                                },
+                                "required": [
+                                  "artifact"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "config"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "artifact-fresh"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "config": {
+                                "type": "object",
+                                "properties": {
+                                  "artifact": {
+                                    "type": "string",
+                                    "pattern": "^[a-z][a-z0-9_-]*$"
+                                  },
+                                  "recordedThisCycle": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "artifact"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "config"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "findings-clear"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "config": {
+                                "type": "object",
+                                "properties": {
+                                  "artifact": {
+                                    "type": "string",
+                                    "pattern": "^[a-z][a-z0-9_-]*$"
+                                  },
+                                  "blocking": {
+                                    "minItems": 1,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "enum": [
+                                        "critical",
+                                        "high",
+                                        "medium",
+                                        "low"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "artifact",
+                                  "blocking"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "config"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "findings-open"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "config": {
+                                "type": "object",
+                                "properties": {
+                                  "artifact": {
+                                    "type": "string",
+                                    "pattern": "^[a-z][a-z0-9_-]*$"
+                                  },
+                                  "blocking": {
+                                    "minItems": 1,
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "enum": [
+                                        "critical",
+                                        "high",
+                                        "medium",
+                                        "low"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "artifact",
+                                  "blocking"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "config"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "human-approval"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "config": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "pattern": "^[a-z][a-z0-9_-]*$"
+                                  },
+                                  "minApprovals": {
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "when": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "id"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "config"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "evidence-recorded"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "config": {
+                                "type": "object",
+                                "properties": {
+                                  "name": {
+                                    "type": "string",
+                                    "pattern": "^[a-z][a-z0-9_-]*$"
+                                  },
+                                  "requireField": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {}
+                                  },
+                                  "match": {
+                                    "type": "object",
+                                    "propertyNames": {
+                                      "type": "string"
+                                    },
+                                    "additionalProperties": {
+                                      "anyOf": [
+                                        {
+                                          "type": "boolean"
+                                        },
+                                        {
+                                          "type": "object",
+                                          "propertyNames": {
+                                            "type": "string"
+                                          },
+                                          "additionalProperties": {}
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "config"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "cooldown"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "config": {
+                                "type": "object",
+                                "properties": {
+                                  "afterEvidence": {
+                                    "type": "string",
+                                    "pattern": "^[a-z][a-z0-9_-]*$"
+                                  },
+                                  "afterArtifact": {
+                                    "type": "string",
+                                    "pattern": "^[a-z][a-z0-9_-]*$"
+                                  },
+                                  "seconds": {
+                                    "type": "number",
+                                    "exclusiveMinimum": 0
+                                  }
+                                },
+                                "required": [
+                                  "seconds"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "config"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "max-cycles"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "config": {
+                                "type": "object",
+                                "properties": {
+                                  "stage": {
+                                    "type": "string",
+                                    "pattern": "^[a-z][a-z0-9_-]*$"
+                                  },
+                                  "limit": {
+                                    "type": "integer",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "invert": {
+                                    "type": "boolean"
+                                  }
+                                },
+                                "required": [
+                                  "stage",
+                                  "limit"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "config"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "cel"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "config": {
+                                "type": "object",
+                                "properties": {
+                                  "expr": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "expr"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "type",
+                              "config"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "to"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "stages"
+            ],
+            "additionalProperties": false
+          },
+          "tracker": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The tracker instance work items publish to, e.g. board: a model of the type the definition's tracker kind needs (the built-in tracker, @swamp/stagecraft/tracker, unless it names another)"
+          },
+          "scenarios": {
+            "foreignTemplate": true,
+            "description": "Saved scenarios: work items walked through the definition, which validate runs",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "scenario": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_-]*$"
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "externalRefs": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "steps": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "record": {
+                        "type": "object",
+                        "properties": {
+                          "artifact": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_-]*$"
+                          },
+                          "evidence": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_-]*$"
+                          }
+                        },
+                        "additionalProperties": false
+                      },
+                      "payload": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {}
+                      },
+                      "approve": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_-]*$"
+                      },
+                      "decline": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_-]*$"
+                      },
+                      "move": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_-]*$"
+                      },
+                      "manual": {
+                        "type": "boolean"
+                      },
+                      "override": {
+                        "type": "object",
+                        "properties": {
+                          "stage": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_-]*$"
+                          },
+                          "note": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "stage"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "wait": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "expect": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "refused": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "refused"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "stage": {
+                                "type": "string",
+                                "pattern": "^[a-z][a-z0-9_-]*$"
+                              }
+                            },
+                            "required": [
+                              "stage"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ]
+                      },
+                      "note": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "scenario",
+                "steps"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "tracker"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "1d88bda8-d154-4dbc-99a1-4b8cdbbf72dd",
+      "name": "studio",
+      "type": "@swamp/stagecraft/studio",
+      "methods": [
+        {
+          "name": "serve",
+          "description": "Serve the studio page on 127.0.0.1 until Ctrl-C, and at publicOrigin through a proxy when given: every factory's definition and scenarios, read-only, reloaded as they change; with server, a remote swamp serve's factories instead",
+          "arguments": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "port": {
+                "default": 0,
+                "description": "The port on 127.0.0.1; 0, the default, picks a free one",
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 65535
+              },
+              "publicOrigin": {
+                "description": "The origin a reverse proxy or tunnel publishes the studio at, such as https://studio.example.com. Requests with that Host or Origin are answered too; the studio has no authentication, so the proxy must provide it",
+                "type": "string"
+              },
+              "basePath": {
+                "description": "The path a reverse proxy publishes the studio under, such as /_stagecraft. The page's files, API calls and addresses carry it, and requests are answered with or without it, so the proxy may strip it or pass it through. Leave it out to serve at /",
+                "type": "string"
+              },
+              "server": {
+                "description": "A swamp serve to read instead of this repo, such as wss://swamp.example.com: its factories and work items, read-only, with your own swamp login, refreshed every few seconds. Not with publicOrigin",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          "kindSource": "none"
+        }
+      ],
+      "globalArgumentsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "751e4548-e460-4624-bec3-c0b3586043db",
+      "name": "board",
+      "type": "@swamp/stagecraft/tracker",
+      "methods": [
+        {
+          "name": "describe",
+          "description": "Record what this tracker says of itself (its name, contract version, capabilities and the user publish assigns), so a factory can bind to it",
+          "arguments": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "kind": "read",
+          "kindSource": "inferred"
+        },
+        {
+          "name": "operate",
+          "description": "Make one tracker operation and write its answer (the result, or the failure) as a record under the given name; an answer already there that succeeded is kept and nothing is made again",
+          "arguments": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "fetch_issue",
+                  "create",
+                  "comment",
+                  "set_status",
+                  "relate",
+                  "unrelate",
+                  "post_entry",
+                  "set_type",
+                  "assign",
+                  "link_pr"
+                ],
+                "description": "The operation: fetch_issue, create, comment, set_status, ..."
+              },
+              "request": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "The operation's request: an object, or a JSON object as a string"
+              },
+              "answer": {
+                "type": "string",
+                "pattern": "^answer-[A-Za-z0-9._-]+$",
+                "description": "The record to write the answer under (answer-...)"
+              },
+              "run": {
+                "description": "The run asking, recorded with the answer",
+                "type": "string"
+              }
+            },
+            "required": [
+              "operation",
+              "request",
+              "answer"
+            ],
+            "additionalProperties": false
+          },
+          "kindSource": "none"
+        },
+        {
+          "name": "create",
+          "description": "File a new ticket, numbered by the tracker or under an id you choose",
+          "arguments": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The new ticket's title"
+              },
+              "body": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The new ticket's description, as markdown"
+              },
+              "type": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The new ticket's type, from the tracker's own types"
+              },
+              "id": {
+                "description": "An id of your choosing, such as one that matches a ticket elsewhere (SREMON-2131): shown as written, and lowercased for the ticket's work item key (sremon-2131). It is a label: the built-in tracker never reads or updates that other ticket. Refused when a ticket or work item already has it, or it is this tracker's own <prefix>-<n> form. Absent, the tracker numbers the ticket",
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "title",
+              "body",
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          "kind": "create",
+          "kindSource": "inferred"
+        },
+        {
+          "name": "fetch_issue",
+          "description": "Fetch a ticket by stable id or display identifier and record a snapshot, with the externalRefs to start a work item from it",
+          "arguments": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "issue": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The ticket: its stable id, or its display identifier"
+              }
+            },
+            "required": [
+              "issue"
+            ],
+            "additionalProperties": false
+          },
+          "kindSource": "none"
+        },
+        {
+          "name": "claim",
+          "description": "Start from a ticket: report its work item, or reserve a key for a new one (recorded before it starts) and print the start command",
+          "arguments": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "issue": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The ticket: its stable id, or its display identifier"
+              },
+              "factory": {
+                "description": "The factory to start a new work item under; needed only when the ticket has no work item, or its last one has finished",
+                "type": "string",
+                "minLength": 1
+              },
+              "dryRun": {
+                "description": "Report the ticket's work item, or that it has none, and write nothing",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "issue"
+            ],
+            "additionalProperties": false
+          },
+          "kindSource": "none"
+        },
+        {
+          "name": "comment",
+          "description": "Comment on a ticket; with a delivery key, a repeat of the same key posts nothing",
+          "arguments": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "issue": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The ticket's stable id"
+              },
+              "body": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The comment, as markdown"
+              },
+              "workItem": {
+                "description": "The work item this write is for; with journalVersion, makes it idempotent",
+                "type": "string",
+                "minLength": 1
+              },
+              "journalVersion": {
+                "description": "The length of the work item's journal this write reflects",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "issue",
+              "body"
+            ],
+            "additionalProperties": false
+          },
+          "kindSource": "none"
+        },
+        {
+          "name": "set_status",
+          "description": "Move a ticket to a mapped status (publish is the single writer of a work item's status); already there writes nothing",
+          "arguments": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "issue": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The ticket's stable id"
+              },
+              "status": {
+                "type": "string",
+                "minLength": 1,
+                "description": "A status key, mapped to the tracker's status name by the statuses global argument"
+              },
+              "workItem": {
+                "description": "The work item this write is for; with journalVersion, makes it idempotent",
+                "type": "string",
+                "minLength": 1
+              },
+              "journalVersion": {
+                "description": "The length of the work item's journal this write reflects",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "issue",
+              "status"
+            ],
+            "additionalProperties": false
+          },
+          "kindSource": "none"
+        },
+        {
+          "name": "relate",
+          "description": "Relate one ticket to another (parent_of, blocked_by, related_to, duplicate_of) under the rules every tracker shares; already related writes nothing",
+          "arguments": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "issue": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The relation's subject, by stable id: the parent, the blocked ticket, or the duplicate"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "parent_of",
+                  "blocked_by",
+                  "related_to",
+                  "duplicate_of"
+                ],
+                "description": "parent_of, blocked_by, related_to or duplicate_of"
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The other ticket's stable id: the child, the blocker, or the canonical"
+              },
+              "workItem": {
+                "description": "The work item this write is for; with journalVersion, makes it idempotent",
+                "type": "string",
+                "minLength": 1
+              },
+              "journalVersion": {
+                "description": "The length of the work item's journal this write reflects",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "issue",
+              "type",
+              "to"
+            ],
+            "additionalProperties": false
+          },
+          "kindSource": "none"
+        },
+        {
+          "name": "mark_duplicate",
+          "description": "Mark a ticket a duplicate of a primary: relate it duplicate_of and close it where the tracker does not; it moves no work item, and publish and claim refuse the duplicate until a driver moves its work",
+          "arguments": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "issue": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The duplicate: its stable id, or its display identifier"
+              },
+              "primary": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The primary it duplicates: its stable id, or its display identifier"
+              },
+              "workItem": {
+                "description": "The work item this write is for; with journalVersion, makes it idempotent",
+                "type": "string",
+                "minLength": 1
+              },
+              "journalVersion": {
+                "description": "The length of the work item's journal this write reflects",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "issue",
+              "primary"
+            ],
+            "additionalProperties": false
+          },
+          "kindSource": "none"
+        },
+        {
+          "name": "unrelate",
+          "description": "Remove a relation between two tickets; already absent writes nothing",
+          "arguments": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "issue": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The relation's subject, by stable id: the parent, the blocked ticket, or the duplicate"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "parent_of",
+                  "blocked_by",
+                  "related_to",
+                  "duplicate_of"
+                ],
+                "description": "parent_of, blocked_by, related_to or duplicate_of"
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The other ticket's stable id: the child, the blocker, or the canonical"
+              },
+              "workItem": {
+                "description": "The work item this write is for; with journalVersion, makes it idempotent",
+                "type": "string",
+                "minLength": 1
+              },
+              "journalVersion": {
+                "description": "The length of the work item's journal this write reflects",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "issue",
+              "type",
+              "to"
+            ],
+            "additionalProperties": false
+          },
+          "kindSource": "none"
+        },
+        {
+          "name": "publish",
+          "description": "Replay a work item's journal to its ticket: a comment per event a person needs, and the status when the stage's key changes; a re-run delivers only what is new",
+          "arguments": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "workItem": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The work item's name (its key); its externalRefs name the ticket"
+              }
+            },
+            "required": [
+              "workItem"
+            ],
+            "additionalProperties": false
+          },
+          "kindSource": "none"
+        },
+        {
+          "name": "round",
+          "description": "One round of a run (publish, mark_duplicate, claim, create, fetch_issue), as the shipped workflows drive it: record the answers the tracker's operate wrote for the last round and plan the next",
+          "arguments": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "publish",
+                  "mark_duplicate",
+                  "claim",
+                  "create",
+                  "fetch_issue",
+                  "conformance"
+                ],
+                "description": "What the run does: publish a work item, mark a duplicate, claim a ticket, create one, or fetch one"
+              },
+              "run": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The run's id (a workflow's run.id): a new run starts afresh"
+              },
+              "workItem": {
+                "description": "publish: the work item's key",
+                "type": "string",
+                "minLength": 1
+              },
+              "issue": {
+                "description": "mark_duplicate: the duplicate ticket; claim, fetch_issue: the ticket",
+                "type": "string",
+                "minLength": 1
+              },
+              "primary": {
+                "description": "mark_duplicate: the ticket it duplicates",
+                "type": "string",
+                "minLength": 1
+              },
+              "factory": {
+                "description": "claim: the factory to start a new work item under",
+                "type": "string",
+                "minLength": 1
+              },
+              "dryRun": {
+                "description": "claim: report the ticket's work item, and write nothing",
+                "type": "boolean"
+              },
+              "statusNames": {
+                "description": "conformance: two status names the tracker has, comma-separated; a new ticket starts in neither",
+                "type": "string",
+                "minLength": 1
+              },
+              "createType": {
+                "description": "conformance: a type create accepts",
+                "type": "string",
+                "minLength": 1
+              },
+              "missing": {
+                "description": "conformance: a well-formed stable id of no ticket",
+                "type": "string",
+                "minLength": 1
+              },
+              "entryStatus": {
+                "description": "conformance, for a tracker that keeps history: a status name entries may carry",
+                "type": "string",
+                "minLength": 1
+              },
+              "entryTypes": {
+                "description": "conformance, for a tracker that keeps history: two ticket types, comma-separated; a new ticket is in neither",
+                "type": "string",
+                "minLength": 1
+              },
+              "user": {
+                "description": "conformance, for a tracker that assigns: a user it accepts",
+                "type": "string",
+                "minLength": 1
+              },
+              "title": {
+                "description": "create: the title",
+                "type": "string",
+                "minLength": 1
+              },
+              "body": {
+                "description": "create: the body",
+                "type": "string"
+              },
+              "type": {
+                "description": "create: the type",
+                "type": "string",
+                "minLength": 1
+              },
+              "check": {
+                "description": "Only check that the run finished, and fail if it did not",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "kind",
+              "run"
+            ],
+            "additionalProperties": false
+          },
+          "kindSource": "none"
+        },
+        {
+          "name": "set_type",
+          "description": "Set a ticket's type (publish is the single writer of a work item's type); already that type writes nothing",
+          "arguments": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "issue": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The ticket's id"
+              },
+              "type": {
+                "type": "string",
+                "minLength": 1,
+                "description": "One of the tracker's types"
+              },
+              "workItem": {
+                "description": "The work item this write is for; with journalVersion, makes it idempotent",
+                "type": "string",
+                "minLength": 1
+              },
+              "journalVersion": {
+                "description": "The length of the work item's journal this write reflects",
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "issue",
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          "kindSource": "none"
+        }
+      ],
+      "globalArgumentsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "prefix": {
+            "description": "Leads every ticket id and work-item key: lowercase letters, digits and '-', at most 12 characters, e.g. blog for blog-12 (a trailing '-' is dropped). Defaults to the tracker instance's name, cut to 12",
+            "type": "string",
+            "maxLength": 12,
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "statuses": {
+            "description": "The status keys, which are also the status names: a list, or a JSON list as a string. A new ticket starts in the first, and a ticket may move between any two. Defaults to open, in_progress, shipped, closed",
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "types": {
+            "description": "The ticket types: a list, or a JSON list as a string. Defaults to bug, feature, security",
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+    "factory": "team",
+    "items": [
+        {
+            "key": "team-1",
+            "title": "Swipe history export",
+            "trackerRef": null,
+            "status": "active",
+            "stage": "plan",
+            "cycle": 1,
+            "enteredAt": "2026-11-07T23:25:45.138Z",
+            "waiting": null,
+            "parked": [],
+            "pinnedDigest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798"
+        },
+        {
+            "key": "team-2",
+            "title": "Crash on empty feed",
+            "trackerRef": null,
+            "status": "active",
+            "stage": "plan",
+            "cycle": 1,
+            "enteredAt": "2026-11-07T23:26:24.330Z",
+            "waiting": null,
+            "parked": [],
+            "pinnedDigest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798"
+        },
+        {
+            "key": "team-3",
+            "title": "Undo last swipe",
+            "trackerRef": null,
+            "status": "active",
+            "stage": "plan",
+            "cycle": 1,
+            "enteredAt": "2026-11-07T23:26:25.759Z",
+            "waiting": null,
+            "parked": [],
+            "pinnedDigest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798"
+        },
+        {
+            "key": "team-4",
+            "title": "High-risk content filter",
+            "trackerRef": null,
+            "status": "active",
+            "stage": "plan-review",
+            "cycle": 1,
+            "enteredAt": "2026-11-07T23:26:54.353Z",
+            "waiting": {
+                "since": "2026-11-07T23:26:57.006Z",
+                "exits": [
+                    {
+                        "transition": "approve",
+                        "to": "implement",
+                        "manual": false,
+                        "gateIds": [
+                            "plan-approval"
+                        ]
+                    }
+                ]
+            },
+            "parked": [],
+            "pinnedDigest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798"
+        },
+        {
+            "key": "team-5",
+            "title": "Fix stale cache headers",
+            "trackerRef": null,
+            "status": "active",
+            "stage": "plan-review",
+            "cycle": 1,
+            "enteredAt": "2026-11-07T23:27:03.720Z",
+            "waiting": {
+                "since": "2026-11-07T23:27:06.686Z",
+                "exits": [
+                    {
+                        "transition": "approve",
+                        "to": "implement",
+                        "manual": false,
+                        "gateIds": [
+                            "plan-approval"
+                        ]
+                    }
+                ]
+            },
+            "parked": [],
+            "pinnedDigest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798"
+        },
+        {
+            "key": "team-6",
+            "title": "Rate-limit feed API",
+            "trackerRef": null,
+            "status": "active",
+            "stage": "implement",
+            "cycle": 1,
+            "enteredAt": "2026-11-07T23:27:22.176Z",
+            "waiting": null,
+            "parked": [],
+            "pinnedDigest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798"
+        },
+        {
+            "key": "team-7",
+            "title": "Dark mode tokens",
+            "trackerRef": null,
+            "status": "active",
+            "stage": "plan-review",
+            "cycle": 1,
+            "enteredAt": "2026-11-07T23:30:31.267Z",
+            "waiting": null,
+            "parked": [
+                {
+                    "kind": "dispatch-cap",
+                    "count": 2,
+                    "limit": 2,
+                    "granted": 0
+                }
+            ],
+            "pinnedDigest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798"
+        }
+    ],
+    "problems": []
+}

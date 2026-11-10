@@ -1,0 +1,1346 @@
+{
+  "predicate": "modelType == \"@swamp/stagecraft/work-item\" && name == \"metrics\"",
+  "results": [
+    {
+      "id": "f4c1bf61-91dd-4489-b213-8f303555fc25",
+      "name": "metrics",
+      "version": 7,
+      "isLatest": true,
+      "createdAt": "2026-11-08T05:09:07.665Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "metrics",
+        "modelName": "note-1",
+        "initiatedBy": "user:coffeepy",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "note-1",
+      "modelId": "5505152f-9b1e-4d93-ab21-ff6756eaf0c8",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "metrics",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 5,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 2887,
+      "path": "",
+      "ownerRef": "5505152f-9b1e-4d93-ab21-ff6756eaf0c8",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 1,
+        "key": "note-1",
+        "externalRefs": {},
+        "factory": "note-factory",
+        "definition": {
+          "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+          "version": 1
+        },
+        "status": "terminal",
+        "stage": "done",
+        "journalVersion": 9,
+        "startedAt": "2026-11-08T04:53:49.084Z",
+        "endedAt": "2026-11-08T05:09:07.656Z",
+        "durationMs": 918572,
+        "eras": [
+          {
+            "era": "6632f63c-1e19-40fc-94c6-09675a02aeb8",
+            "startedAt": "2026-11-08T04:53:49.084Z",
+            "endedAt": "2026-11-08T05:09:07.656Z",
+            "endedBy": "terminal",
+            "durationMs": 918572,
+            "visits": [
+              {
+                "stage": "write",
+                "cycle": 1,
+                "enteredAt": "2026-11-08T04:53:49.084Z",
+                "leftAt": "2026-11-08T04:54:14.326Z",
+                "durationMs": 25242,
+                "leftBy": "written",
+                "terminal": false
+              },
+              {
+                "stage": "check",
+                "cycle": 1,
+                "enteredAt": "2026-11-08T04:54:14.326Z",
+                "leftAt": "2026-11-08T04:54:17.147Z",
+                "durationMs": 2821,
+                "leftBy": "passed",
+                "terminal": false
+              },
+              {
+                "stage": "ship",
+                "cycle": 1,
+                "enteredAt": "2026-11-08T04:54:17.147Z",
+                "leftAt": "2026-11-08T05:09:07.656Z",
+                "durationMs": 890509,
+                "leftBy": "shipped",
+                "terminal": false
+              },
+              {
+                "stage": "done",
+                "cycle": 1,
+                "enteredAt": "2026-11-08T05:09:07.656Z",
+                "leftAt": null,
+                "durationMs": null,
+                "leftBy": null,
+                "terminal": true
+              }
+            ],
+            "waits": [
+              {
+                "kind": "exit",
+                "stage": "ship",
+                "cycle": 1,
+                "transition": "shipped",
+                "manual": false,
+                "gateIds": [
+                  "ship-approval"
+                ],
+                "from": "2026-11-08T04:54:17.148Z",
+                "until": "2026-11-08T05:09:06.293Z",
+                "durationMs": 889145,
+                "endedBy": "approved"
+              }
+            ],
+            "dispatches": [],
+            "overrides": [],
+            "summary": {
+              "stages": {
+                "write": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 25242,
+                  "open": false
+                },
+                "check": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 2821,
+                  "open": false
+                },
+                "ship": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 890509,
+                  "open": false
+                },
+                "done": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 0,
+                  "open": false
+                }
+              },
+              "rework": {
+                "reentries": 0,
+                "reviewRounds": {},
+                "declines": 0,
+                "rejections": 0
+              },
+              "waits": {
+                "count": 1,
+                "open": 0,
+                "timeMs": 889145
+              },
+              "dispatches": {
+                "count": 0,
+                "retries": 0
+              },
+              "dispatchOutcomes": {
+                "succeeded": 0,
+                "failed": 0,
+                "interrupted": 0,
+                "open": 0,
+                "none": 0
+              },
+              "overrides": {
+                "cycle": 0,
+                "dispatch": 0
+              },
+              "usage": {
+                "totalTokens": 0,
+                "inputTokens": 0,
+                "outputTokens": 0,
+                "dispatchesWithSplit": 0,
+                "toolUses": 0,
+                "durationMs": 0,
+                "byModel": {},
+                "dispatchesWithUsage": 0,
+                "dispatchesWithoutUsage": 0,
+                "withoutUsageByMode": {},
+                "attested": true
+              }
+            }
+          }
+        ],
+        "summary": {
+          "stages": {
+            "write": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 25242,
+              "open": false
+            },
+            "check": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 2821,
+              "open": false
+            },
+            "ship": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 890509,
+              "open": false
+            },
+            "done": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 0,
+              "open": false
+            }
+          },
+          "rework": {
+            "reentries": 0,
+            "reviewRounds": {},
+            "declines": 0,
+            "rejections": 0
+          },
+          "waits": {
+            "count": 1,
+            "open": 0,
+            "timeMs": 889145
+          },
+          "dispatches": {
+            "count": 0,
+            "retries": 0
+          },
+          "dispatchOutcomes": {
+            "succeeded": 0,
+            "failed": 0,
+            "interrupted": 0,
+            "open": 0,
+            "none": 0
+          },
+          "overrides": {
+            "cycle": 0,
+            "dispatch": 0
+          },
+          "usage": {
+            "totalTokens": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "dispatchesWithSplit": 0,
+            "toolUses": 0,
+            "durationMs": 0,
+            "byModel": {},
+            "dispatchesWithUsage": 0,
+            "dispatchesWithoutUsage": 0,
+            "withoutUsageByMode": {},
+            "attested": true
+          }
+        }
+      }
+    },
+    {
+      "id": "ec911d61-a677-4e7a-96bb-2b85d7b510a2",
+      "name": "metrics",
+      "version": 5,
+      "isLatest": true,
+      "createdAt": "2026-11-08T05:47:05.473Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "metrics",
+        "modelName": "note-2",
+        "initiatedBy": "user:coffeepy",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "note-2",
+      "modelId": "59bc917c-b618-4f10-844c-a6c935730b34",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "metrics",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 5,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 2206,
+      "path": "",
+      "ownerRef": "59bc917c-b618-4f10-844c-a6c935730b34",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 1,
+        "key": "note-2",
+        "externalRefs": {},
+        "factory": "note-factory",
+        "definition": {
+          "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+          "version": 1
+        },
+        "status": "active",
+        "stage": "write",
+        "journalVersion": 5,
+        "startedAt": "2026-11-08T05:46:29.123Z",
+        "endedAt": null,
+        "durationMs": null,
+        "eras": [
+          {
+            "era": "c4ff60ff-e350-4aa9-9cbb-bad2f7421a6f",
+            "startedAt": "2026-11-08T05:46:29.123Z",
+            "endedAt": null,
+            "endedBy": null,
+            "durationMs": null,
+            "visits": [
+              {
+                "stage": "write",
+                "cycle": 1,
+                "enteredAt": "2026-11-08T05:46:29.123Z",
+                "leftAt": "2026-11-08T05:46:58.884Z",
+                "durationMs": 29761,
+                "leftBy": "written",
+                "terminal": false
+              },
+              {
+                "stage": "check",
+                "cycle": 1,
+                "enteredAt": "2026-11-08T05:46:58.884Z",
+                "leftAt": "2026-11-08T05:47:05.426Z",
+                "durationMs": 6542,
+                "leftBy": "failed",
+                "terminal": false
+              },
+              {
+                "stage": "write",
+                "cycle": 2,
+                "enteredAt": "2026-11-08T05:47:05.426Z",
+                "leftAt": null,
+                "durationMs": null,
+                "leftBy": null,
+                "terminal": false
+              }
+            ],
+            "waits": [],
+            "dispatches": [],
+            "overrides": [],
+            "summary": {
+              "stages": {
+                "write": {
+                  "visits": 2,
+                  "reentries": 1,
+                  "timeMs": 29761,
+                  "open": true
+                },
+                "check": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 6542,
+                  "open": false
+                }
+              },
+              "rework": {
+                "reentries": 1,
+                "reviewRounds": {},
+                "declines": 0,
+                "rejections": 0
+              },
+              "waits": {
+                "count": 0,
+                "open": 0,
+                "timeMs": 0
+              },
+              "dispatches": {
+                "count": 0,
+                "retries": 0
+              },
+              "dispatchOutcomes": {
+                "succeeded": 0,
+                "failed": 0,
+                "interrupted": 0,
+                "open": 0,
+                "none": 0
+              },
+              "overrides": {
+                "cycle": 0,
+                "dispatch": 0
+              },
+              "usage": {
+                "totalTokens": 0,
+                "inputTokens": 0,
+                "outputTokens": 0,
+                "dispatchesWithSplit": 0,
+                "toolUses": 0,
+                "durationMs": 0,
+                "byModel": {},
+                "dispatchesWithUsage": 0,
+                "dispatchesWithoutUsage": 0,
+                "withoutUsageByMode": {},
+                "attested": true
+              }
+            }
+          }
+        ],
+        "summary": {
+          "stages": {
+            "write": {
+              "visits": 2,
+              "reentries": 1,
+              "timeMs": 29761,
+              "open": true
+            },
+            "check": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 6542,
+              "open": false
+            }
+          },
+          "rework": {
+            "reentries": 1,
+            "reviewRounds": {},
+            "declines": 0,
+            "rejections": 0
+          },
+          "waits": {
+            "count": 0,
+            "open": 0,
+            "timeMs": 0
+          },
+          "dispatches": {
+            "count": 0,
+            "retries": 0
+          },
+          "dispatchOutcomes": {
+            "succeeded": 0,
+            "failed": 0,
+            "interrupted": 0,
+            "open": 0,
+            "none": 0
+          },
+          "overrides": {
+            "cycle": 0,
+            "dispatch": 0
+          },
+          "usage": {
+            "totalTokens": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "dispatchesWithSplit": 0,
+            "toolUses": 0,
+            "durationMs": 0,
+            "byModel": {},
+            "dispatchesWithUsage": 0,
+            "dispatchesWithoutUsage": 0,
+            "withoutUsageByMode": {},
+            "attested": true
+          }
+        }
+      }
+    },
+    {
+      "id": "dc70101e-cfe4-4b4a-89b2-d7aa2a3e7415",
+      "name": "metrics",
+      "version": 2,
+      "isLatest": true,
+      "createdAt": "2026-11-08T05:47:41.998Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "metrics",
+        "modelName": "note-4",
+        "initiatedBy": "user:coffeepy",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "note-4",
+      "modelId": "9dde0bda-ce11-47c1-865a-a8a8d234f26c",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "metrics",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 5,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 1916,
+      "path": "",
+      "ownerRef": "9dde0bda-ce11-47c1-865a-a8a8d234f26c",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 1,
+        "key": "note-4",
+        "externalRefs": {},
+        "factory": "note-factory",
+        "definition": {
+          "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+          "version": 1
+        },
+        "status": "active",
+        "stage": "write",
+        "journalVersion": 2,
+        "startedAt": "2026-11-08T05:47:13.552Z",
+        "endedAt": null,
+        "durationMs": null,
+        "eras": [
+          {
+            "era": "2b183441-a2d4-469f-8df7-54b91fbc27e3",
+            "startedAt": "2026-11-08T05:47:13.552Z",
+            "endedAt": null,
+            "endedBy": null,
+            "durationMs": null,
+            "visits": [
+              {
+                "stage": "write",
+                "cycle": 1,
+                "enteredAt": "2026-11-08T05:47:13.552Z",
+                "leftAt": null,
+                "durationMs": null,
+                "leftBy": null,
+                "terminal": false
+              }
+            ],
+            "waits": [],
+            "dispatches": [
+              {
+                "stage": "write",
+                "cycle": 1,
+                "dispatches": 1,
+                "retries": 0,
+                "outcomes": {
+                  "succeeded": 0,
+                  "failed": 0,
+                  "interrupted": 0,
+                  "open": 1,
+                  "none": 0
+                }
+              }
+            ],
+            "overrides": [],
+            "summary": {
+              "stages": {
+                "write": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 0,
+                  "open": true
+                }
+              },
+              "rework": {
+                "reentries": 0,
+                "reviewRounds": {},
+                "declines": 0,
+                "rejections": 0
+              },
+              "waits": {
+                "count": 0,
+                "open": 0,
+                "timeMs": 0
+              },
+              "dispatches": {
+                "count": 1,
+                "retries": 0
+              },
+              "dispatchOutcomes": {
+                "succeeded": 0,
+                "failed": 0,
+                "interrupted": 0,
+                "open": 1,
+                "none": 0
+              },
+              "overrides": {
+                "cycle": 0,
+                "dispatch": 0
+              },
+              "usage": {
+                "totalTokens": 0,
+                "inputTokens": 0,
+                "outputTokens": 0,
+                "dispatchesWithSplit": 0,
+                "toolUses": 0,
+                "durationMs": 0,
+                "byModel": {},
+                "dispatchesWithUsage": 0,
+                "dispatchesWithoutUsage": 1,
+                "withoutUsageByMode": {
+                  "interactive": 1
+                },
+                "attested": true
+              }
+            }
+          }
+        ],
+        "summary": {
+          "stages": {
+            "write": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 0,
+              "open": true
+            }
+          },
+          "rework": {
+            "reentries": 0,
+            "reviewRounds": {},
+            "declines": 0,
+            "rejections": 0
+          },
+          "waits": {
+            "count": 0,
+            "open": 0,
+            "timeMs": 0
+          },
+          "dispatches": {
+            "count": 1,
+            "retries": 0
+          },
+          "dispatchOutcomes": {
+            "succeeded": 0,
+            "failed": 0,
+            "interrupted": 0,
+            "open": 1,
+            "none": 0
+          },
+          "overrides": {
+            "cycle": 0,
+            "dispatch": 0
+          },
+          "usage": {
+            "totalTokens": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "dispatchesWithSplit": 0,
+            "toolUses": 0,
+            "durationMs": 0,
+            "byModel": {},
+            "dispatchesWithUsage": 0,
+            "dispatchesWithoutUsage": 1,
+            "withoutUsageByMode": {
+              "interactive": 1
+            },
+            "attested": true
+          }
+        }
+      }
+    },
+    {
+      "id": "9248a425-1613-4193-aa6d-6368dc2ec04d",
+      "name": "metrics",
+      "version": 7,
+      "isLatest": true,
+      "createdAt": "2026-11-08T05:48:05.558Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "metrics",
+        "modelName": "note-5",
+        "initiatedBy": "user:coffeepy",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "note-5",
+      "modelId": "d2ffb9e5-2173-4394-a7cc-d47cee8479d4",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "metrics",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 5,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 2879,
+      "path": "",
+      "ownerRef": "d2ffb9e5-2173-4394-a7cc-d47cee8479d4",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 1,
+        "key": "note-5",
+        "externalRefs": {},
+        "factory": "note-factory",
+        "definition": {
+          "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+          "version": 1
+        },
+        "status": "terminal",
+        "stage": "done",
+        "journalVersion": 9,
+        "startedAt": "2026-11-08T05:47:14.909Z",
+        "endedAt": "2026-11-08T05:48:05.547Z",
+        "durationMs": 50638,
+        "eras": [
+          {
+            "era": "5286f719-5e6b-471d-842e-5d2458a68447",
+            "startedAt": "2026-11-08T05:47:14.909Z",
+            "endedAt": "2026-11-08T05:48:05.547Z",
+            "endedBy": "terminal",
+            "durationMs": 50638,
+            "visits": [
+              {
+                "stage": "write",
+                "cycle": 1,
+                "enteredAt": "2026-11-08T05:47:14.909Z",
+                "leftAt": "2026-11-08T05:47:33.306Z",
+                "durationMs": 18397,
+                "leftBy": "written",
+                "terminal": false
+              },
+              {
+                "stage": "check",
+                "cycle": 1,
+                "enteredAt": "2026-11-08T05:47:33.306Z",
+                "leftAt": "2026-11-08T05:47:39.038Z",
+                "durationMs": 5732,
+                "leftBy": "passed",
+                "terminal": false
+              },
+              {
+                "stage": "ship",
+                "cycle": 1,
+                "enteredAt": "2026-11-08T05:47:39.038Z",
+                "leftAt": "2026-11-08T05:48:05.547Z",
+                "durationMs": 26509,
+                "leftBy": "shipped",
+                "terminal": false
+              },
+              {
+                "stage": "done",
+                "cycle": 1,
+                "enteredAt": "2026-11-08T05:48:05.547Z",
+                "leftAt": null,
+                "durationMs": null,
+                "leftBy": null,
+                "terminal": true
+              }
+            ],
+            "waits": [
+              {
+                "kind": "exit",
+                "stage": "ship",
+                "cycle": 1,
+                "transition": "shipped",
+                "manual": false,
+                "gateIds": [
+                  "ship-approval"
+                ],
+                "from": "2026-11-08T05:47:39.040Z",
+                "until": "2026-11-08T05:48:02.541Z",
+                "durationMs": 23501,
+                "endedBy": "approved"
+              }
+            ],
+            "dispatches": [],
+            "overrides": [],
+            "summary": {
+              "stages": {
+                "write": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 18397,
+                  "open": false
+                },
+                "check": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 5732,
+                  "open": false
+                },
+                "ship": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 26509,
+                  "open": false
+                },
+                "done": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 0,
+                  "open": false
+                }
+              },
+              "rework": {
+                "reentries": 0,
+                "reviewRounds": {},
+                "declines": 0,
+                "rejections": 0
+              },
+              "waits": {
+                "count": 1,
+                "open": 0,
+                "timeMs": 23501
+              },
+              "dispatches": {
+                "count": 0,
+                "retries": 0
+              },
+              "dispatchOutcomes": {
+                "succeeded": 0,
+                "failed": 0,
+                "interrupted": 0,
+                "open": 0,
+                "none": 0
+              },
+              "overrides": {
+                "cycle": 0,
+                "dispatch": 0
+              },
+              "usage": {
+                "totalTokens": 0,
+                "inputTokens": 0,
+                "outputTokens": 0,
+                "dispatchesWithSplit": 0,
+                "toolUses": 0,
+                "durationMs": 0,
+                "byModel": {},
+                "dispatchesWithUsage": 0,
+                "dispatchesWithoutUsage": 0,
+                "withoutUsageByMode": {},
+                "attested": true
+              }
+            }
+          }
+        ],
+        "summary": {
+          "stages": {
+            "write": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 18397,
+              "open": false
+            },
+            "check": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 5732,
+              "open": false
+            },
+            "ship": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 26509,
+              "open": false
+            },
+            "done": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 0,
+              "open": false
+            }
+          },
+          "rework": {
+            "reentries": 0,
+            "reviewRounds": {},
+            "declines": 0,
+            "rejections": 0
+          },
+          "waits": {
+            "count": 1,
+            "open": 0,
+            "timeMs": 23501
+          },
+          "dispatches": {
+            "count": 0,
+            "retries": 0
+          },
+          "dispatchOutcomes": {
+            "succeeded": 0,
+            "failed": 0,
+            "interrupted": 0,
+            "open": 0,
+            "none": 0
+          },
+          "overrides": {
+            "cycle": 0,
+            "dispatch": 0
+          },
+          "usage": {
+            "totalTokens": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "dispatchesWithSplit": 0,
+            "toolUses": 0,
+            "durationMs": 0,
+            "byModel": {},
+            "dispatchesWithUsage": 0,
+            "dispatchesWithoutUsage": 0,
+            "withoutUsageByMode": {},
+            "attested": true
+          }
+        }
+      }
+    },
+    {
+      "id": "1f6c05c4-0eca-4694-9c7f-a1468062bb90",
+      "name": "metrics",
+      "version": 6,
+      "isLatest": true,
+      "createdAt": "2026-11-08T05:48:27.996Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "metrics",
+        "modelName": "note-6",
+        "initiatedBy": "user:coffeepy",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "note-6",
+      "modelId": "461583b0-1d3a-46ae-a1d5-f8177f1bc181",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "metrics",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 5,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 2096,
+      "path": "",
+      "ownerRef": "461583b0-1d3a-46ae-a1d5-f8177f1bc181",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 1,
+        "key": "note-6",
+        "externalRefs": {},
+        "factory": "note-factory",
+        "definition": {
+          "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+          "version": 1
+        },
+        "status": "active",
+        "stage": "write",
+        "journalVersion": 6,
+        "startedAt": "2026-11-08T05:48:12.628Z",
+        "endedAt": null,
+        "durationMs": null,
+        "eras": [
+          {
+            "era": "3ca5be7b-ce2d-4acd-86c9-5cd94107f4c2",
+            "startedAt": "2026-11-08T05:48:12.628Z",
+            "endedAt": null,
+            "endedBy": null,
+            "durationMs": null,
+            "visits": [
+              {
+                "stage": "write",
+                "cycle": 1,
+                "enteredAt": "2026-11-08T05:48:12.628Z",
+                "leftAt": null,
+                "durationMs": null,
+                "leftBy": null,
+                "terminal": false
+              }
+            ],
+            "waits": [
+              {
+                "kind": "dispatch-override",
+                "stage": "write",
+                "cycle": 1,
+                "transition": null,
+                "manual": false,
+                "gateIds": [],
+                "from": "2026-11-08T05:48:27.984Z",
+                "until": null,
+                "durationMs": null,
+                "endedBy": null
+              }
+            ],
+            "dispatches": [
+              {
+                "stage": "write",
+                "cycle": 1,
+                "dispatches": 2,
+                "retries": 1,
+                "outcomes": {
+                  "succeeded": 0,
+                  "failed": 2,
+                  "interrupted": 0,
+                  "open": 0,
+                  "none": 0
+                }
+              }
+            ],
+            "overrides": [],
+            "summary": {
+              "stages": {
+                "write": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 0,
+                  "open": true
+                }
+              },
+              "rework": {
+                "reentries": 0,
+                "reviewRounds": {},
+                "declines": 0,
+                "rejections": 0
+              },
+              "waits": {
+                "count": 1,
+                "open": 1,
+                "timeMs": 0
+              },
+              "dispatches": {
+                "count": 2,
+                "retries": 1
+              },
+              "dispatchOutcomes": {
+                "succeeded": 0,
+                "failed": 2,
+                "interrupted": 0,
+                "open": 0,
+                "none": 0
+              },
+              "overrides": {
+                "cycle": 0,
+                "dispatch": 0
+              },
+              "usage": {
+                "totalTokens": 0,
+                "inputTokens": 0,
+                "outputTokens": 0,
+                "dispatchesWithSplit": 0,
+                "toolUses": 0,
+                "durationMs": 0,
+                "byModel": {},
+                "dispatchesWithUsage": 0,
+                "dispatchesWithoutUsage": 2,
+                "withoutUsageByMode": {
+                  "interactive": 2
+                },
+                "attested": true
+              }
+            }
+          }
+        ],
+        "summary": {
+          "stages": {
+            "write": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 0,
+              "open": true
+            }
+          },
+          "rework": {
+            "reentries": 0,
+            "reviewRounds": {},
+            "declines": 0,
+            "rejections": 0
+          },
+          "waits": {
+            "count": 1,
+            "open": 1,
+            "timeMs": 0
+          },
+          "dispatches": {
+            "count": 2,
+            "retries": 1
+          },
+          "dispatchOutcomes": {
+            "succeeded": 0,
+            "failed": 2,
+            "interrupted": 0,
+            "open": 0,
+            "none": 0
+          },
+          "overrides": {
+            "cycle": 0,
+            "dispatch": 0
+          },
+          "usage": {
+            "totalTokens": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "dispatchesWithSplit": 0,
+            "toolUses": 0,
+            "durationMs": 0,
+            "byModel": {},
+            "dispatchesWithUsage": 0,
+            "dispatchesWithoutUsage": 2,
+            "withoutUsageByMode": {
+              "interactive": 2
+            },
+            "attested": true
+          }
+        }
+      }
+    },
+    {
+      "id": "bd0effaf-c32f-4373-bbf5-e103d075f697",
+      "name": "metrics",
+      "version": 7,
+      "isLatest": true,
+      "createdAt": "2026-11-08T06:15:26.714Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "metrics",
+        "modelName": "note-3",
+        "initiatedBy": "user:coffeepy",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "note-3",
+      "modelId": "cfe17a7f-af34-427b-9724-24b5b58608fa",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "metrics",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 5,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 2892,
+      "path": "",
+      "ownerRef": "cfe17a7f-af34-427b-9724-24b5b58608fa",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 1,
+        "key": "note-3",
+        "externalRefs": {},
+        "factory": "note-factory",
+        "definition": {
+          "digest": "sha256:35fe2f50e5b7c1e175a841200c273e251fdd978fd81b89adfd35e1be6b038b38",
+          "version": 1
+        },
+        "status": "terminal",
+        "stage": "done",
+        "journalVersion": 9,
+        "startedAt": "2026-11-08T05:47:12.166Z",
+        "endedAt": "2026-11-08T06:15:26.703Z",
+        "durationMs": 1694537,
+        "eras": [
+          {
+            "era": "ab4afd04-b161-4e3b-8b6e-c481d929387f",
+            "startedAt": "2026-11-08T05:47:12.166Z",
+            "endedAt": "2026-11-08T06:15:26.703Z",
+            "endedBy": "terminal",
+            "durationMs": 1694537,
+            "visits": [
+              {
+                "stage": "write",
+                "cycle": 1,
+                "enteredAt": "2026-11-08T05:47:12.166Z",
+                "leftAt": "2026-11-08T05:47:20.808Z",
+                "durationMs": 8642,
+                "leftBy": "written",
+                "terminal": false
+              },
+              {
+                "stage": "check",
+                "cycle": 1,
+                "enteredAt": "2026-11-08T05:47:20.808Z",
+                "leftAt": "2026-11-08T05:47:27.030Z",
+                "durationMs": 6222,
+                "leftBy": "passed",
+                "terminal": false
+              },
+              {
+                "stage": "ship",
+                "cycle": 1,
+                "enteredAt": "2026-11-08T05:47:27.030Z",
+                "leftAt": "2026-11-08T06:15:26.703Z",
+                "durationMs": 1679673,
+                "leftBy": "shipped",
+                "terminal": false
+              },
+              {
+                "stage": "done",
+                "cycle": 1,
+                "enteredAt": "2026-11-08T06:15:26.703Z",
+                "leftAt": null,
+                "durationMs": null,
+                "leftBy": null,
+                "terminal": true
+              }
+            ],
+            "waits": [
+              {
+                "kind": "exit",
+                "stage": "ship",
+                "cycle": 1,
+                "transition": "shipped",
+                "manual": false,
+                "gateIds": [
+                  "ship-approval"
+                ],
+                "from": "2026-11-08T05:47:27.032Z",
+                "until": "2026-11-08T06:15:25.221Z",
+                "durationMs": 1678189,
+                "endedBy": "approved"
+              }
+            ],
+            "dispatches": [],
+            "overrides": [],
+            "summary": {
+              "stages": {
+                "write": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 8642,
+                  "open": false
+                },
+                "check": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 6222,
+                  "open": false
+                },
+                "ship": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 1679673,
+                  "open": false
+                },
+                "done": {
+                  "visits": 1,
+                  "reentries": 0,
+                  "timeMs": 0,
+                  "open": false
+                }
+              },
+              "rework": {
+                "reentries": 0,
+                "reviewRounds": {},
+                "declines": 0,
+                "rejections": 0
+              },
+              "waits": {
+                "count": 1,
+                "open": 0,
+                "timeMs": 1678189
+              },
+              "dispatches": {
+                "count": 0,
+                "retries": 0
+              },
+              "dispatchOutcomes": {
+                "succeeded": 0,
+                "failed": 0,
+                "interrupted": 0,
+                "open": 0,
+                "none": 0
+              },
+              "overrides": {
+                "cycle": 0,
+                "dispatch": 0
+              },
+              "usage": {
+                "totalTokens": 0,
+                "inputTokens": 0,
+                "outputTokens": 0,
+                "dispatchesWithSplit": 0,
+                "toolUses": 0,
+                "durationMs": 0,
+                "byModel": {},
+                "dispatchesWithUsage": 0,
+                "dispatchesWithoutUsage": 0,
+                "withoutUsageByMode": {},
+                "attested": true
+              }
+            }
+          }
+        ],
+        "summary": {
+          "stages": {
+            "write": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 8642,
+              "open": false
+            },
+            "check": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 6222,
+              "open": false
+            },
+            "ship": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 1679673,
+              "open": false
+            },
+            "done": {
+              "visits": 1,
+              "reentries": 0,
+              "timeMs": 0,
+              "open": false
+            }
+          },
+          "rework": {
+            "reentries": 0,
+            "reviewRounds": {},
+            "declines": 0,
+            "rejections": 0
+          },
+          "waits": {
+            "count": 1,
+            "open": 0,
+            "timeMs": 1678189
+          },
+          "dispatches": {
+            "count": 0,
+            "retries": 0
+          },
+          "dispatchOutcomes": {
+            "succeeded": 0,
+            "failed": 0,
+            "interrupted": 0,
+            "open": 0,
+            "none": 0
+          },
+          "overrides": {
+            "cycle": 0,
+            "dispatch": 0
+          },
+          "usage": {
+            "totalTokens": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "dispatchesWithSplit": 0,
+            "toolUses": 0,
+            "durationMs": 0,
+            "byModel": {},
+            "dispatchesWithUsage": 0,
+            "dispatchesWithoutUsage": 0,
+            "withoutUsageByMode": {},
+            "attested": true
+          }
+        }
+      }
+    }
+  ],
+  "total": 6,
+  "limited": false
+}

@@ -1,0 +1,1093 @@
+{
+  "predicate": "modelType == \"@swamp/stagecraft/work-item\" && name == \"run\"",
+  "results": [
+    {
+      "id": "d728eadd-0177-436f-bff7-e6db35427ce4",
+      "name": "run",
+      "version": 1,
+      "isLatest": true,
+      "createdAt": "2026-11-07T23:26:24.334Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "run",
+        "modelName": "team-2",
+        "initiatedBy": "user:dev",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "team-2",
+      "modelId": "0fd4ba7a-6c10-4cd9-a507-d175dc261181",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "run",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 20,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 807,
+      "path": "",
+      "ownerRef": "0fd4ba7a-6c10-4cd9-a507-d175dc261181",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 1,
+        "key": "team-2",
+        "title": "Crash on empty feed",
+        "externalRefs": {},
+        "tracker": {
+          "instance": "board",
+          "kind": "builtin"
+        },
+        "factory": "team",
+        "definition": {
+          "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+          "version": 1
+        },
+        "era": "cb72b606-18f7-4e53-baee-692f852d627e",
+        "status": "active",
+        "stage": "plan",
+        "entries": {
+          "plan": 1
+        },
+        "products": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "validations": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "dispatches": [],
+        "approvals": [],
+        "overrides": [],
+        "journal": [
+          {
+            "type": "started",
+            "factory": "team",
+            "definition": {
+              "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+              "version": 1
+            },
+            "at": "2026-11-07T23:26:24.330Z",
+            "era": "cb72b606-18f7-4e53-baee-692f852d627e",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "469f7c74-27d0-4684-9618-3955bc7703f3",
+      "name": "run",
+      "version": 1,
+      "isLatest": true,
+      "createdAt": "2026-11-07T23:25:45.143Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "run",
+        "modelName": "team-1",
+        "initiatedBy": "user:dev",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "team-1",
+      "modelId": "9dee4040-97e0-4480-af3e-eb1b6648d63e",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "run",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 20,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 808,
+      "path": "",
+      "ownerRef": "9dee4040-97e0-4480-af3e-eb1b6648d63e",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 1,
+        "key": "team-1",
+        "title": "Swipe history export",
+        "externalRefs": {},
+        "tracker": {
+          "instance": "board",
+          "kind": "builtin"
+        },
+        "factory": "team",
+        "definition": {
+          "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+          "version": 1
+        },
+        "era": "be906e68-1626-477f-bcd8-025515a32709",
+        "status": "active",
+        "stage": "plan",
+        "entries": {
+          "plan": 1
+        },
+        "products": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "validations": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "dispatches": [],
+        "approvals": [],
+        "overrides": [],
+        "journal": [
+          {
+            "type": "started",
+            "factory": "team",
+            "definition": {
+              "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+              "version": 1
+            },
+            "at": "2026-11-07T23:25:45.138Z",
+            "era": "be906e68-1626-477f-bcd8-025515a32709",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "3ece61b2-8d26-4254-bebe-123563aa15f8",
+      "name": "run",
+      "version": 4,
+      "isLatest": true,
+      "createdAt": "2026-11-07T23:26:57.016Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "run",
+        "modelName": "team-4",
+        "initiatedBy": "user:dev",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "team-4",
+      "modelId": "1e94b857-6f5d-4ad9-ab22-a570e3ea243e",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "run",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 20,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 2434,
+      "path": "",
+      "ownerRef": "1e94b857-6f5d-4ad9-ab22-a570e3ea243e",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 1,
+        "key": "team-4",
+        "title": "High-risk content filter",
+        "externalRefs": {},
+        "tracker": {
+          "instance": "board",
+          "kind": "builtin"
+        },
+        "factory": "team",
+        "definition": {
+          "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+          "version": 1
+        },
+        "era": "b11a4f2c-2b64-48cc-9768-87e38d2db56e",
+        "status": "active",
+        "stage": "plan-review",
+        "entries": {
+          "plan": 1,
+          "plan-review": 1
+        },
+        "products": {
+          "artifacts": {
+            "plan": {
+              "version": 1,
+              "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a",
+              "stage": "plan",
+              "cycle": 1,
+              "at": "2026-11-07T23:26:51.632Z"
+            },
+            "plan-review": {
+              "version": 1,
+              "digest": "sha256:a5475f9d48eebb55065ed96b88cee10ab813bcd3787dc3ab8677d03f7e2a2d33",
+              "stage": "plan-review",
+              "cycle": 1,
+              "at": "2026-11-07T23:26:57.003Z",
+              "subject": {
+                "name": "plan",
+                "version": 1,
+                "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a"
+              }
+            }
+          },
+          "evidence": {}
+        },
+        "validations": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "dispatches": [],
+        "approvals": [],
+        "overrides": [],
+        "journal": [
+          {
+            "at": "2026-11-07T23:26:48.800Z",
+            "era": "b11a4f2c-2b64-48cc-9768-87e38d2db56e",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "started",
+            "factory": "team",
+            "definition": {
+              "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+              "version": 1
+            }
+          },
+          {
+            "at": "2026-11-07T23:26:51.632Z",
+            "era": "b11a4f2c-2b64-48cc-9768-87e38d2db56e",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "recorded",
+            "kind": "artifact",
+            "name": "plan",
+            "version": 1,
+            "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a"
+          },
+          {
+            "at": "2026-11-07T23:26:54.353Z",
+            "era": "b11a4f2c-2b64-48cc-9768-87e38d2db56e",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "advanced",
+            "transition": "submit",
+            "to": "plan-review",
+            "toCycle": 1
+          },
+          {
+            "type": "recorded",
+            "kind": "artifact",
+            "name": "plan-review",
+            "version": 1,
+            "digest": "sha256:a5475f9d48eebb55065ed96b88cee10ab813bcd3787dc3ab8677d03f7e2a2d33",
+            "at": "2026-11-07T23:26:57.003Z",
+            "era": "b11a4f2c-2b64-48cc-9768-87e38d2db56e",
+            "stage": "plan-review",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            }
+          },
+          {
+            "type": "awaiting",
+            "exits": [
+              {
+                "transition": "approve",
+                "to": "implement",
+                "manual": false,
+                "gateIds": [
+                  "plan-approval"
+                ]
+              }
+            ],
+            "at": "2026-11-07T23:26:57.006Z",
+            "era": "b11a4f2c-2b64-48cc-9768-87e38d2db56e",
+            "stage": "plan-review",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "06ef98e7-60d0-4671-901e-a7b0de40e2c9",
+      "name": "run",
+      "version": 4,
+      "isLatest": true,
+      "createdAt": "2026-11-07T23:27:06.693Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "run",
+        "modelName": "team-5",
+        "initiatedBy": "user:dev",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "team-5",
+      "modelId": "1d26e115-227f-49f1-9f93-76d8aa21c3aa",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "run",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 20,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 2433,
+      "path": "",
+      "ownerRef": "1d26e115-227f-49f1-9f93-76d8aa21c3aa",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 1,
+        "key": "team-5",
+        "title": "Fix stale cache headers",
+        "externalRefs": {},
+        "tracker": {
+          "instance": "board",
+          "kind": "builtin"
+        },
+        "factory": "team",
+        "definition": {
+          "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+          "version": 1
+        },
+        "era": "a8f05ff7-2e68-41b5-859d-019ed1519ca8",
+        "status": "active",
+        "stage": "plan-review",
+        "entries": {
+          "plan": 1,
+          "plan-review": 1
+        },
+        "products": {
+          "artifacts": {
+            "plan": {
+              "version": 1,
+              "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a",
+              "stage": "plan",
+              "cycle": 1,
+              "at": "2026-11-07T23:27:01.078Z"
+            },
+            "plan-review": {
+              "version": 1,
+              "digest": "sha256:a5475f9d48eebb55065ed96b88cee10ab813bcd3787dc3ab8677d03f7e2a2d33",
+              "stage": "plan-review",
+              "cycle": 1,
+              "at": "2026-11-07T23:27:06.684Z",
+              "subject": {
+                "name": "plan",
+                "version": 1,
+                "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a"
+              }
+            }
+          },
+          "evidence": {}
+        },
+        "validations": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "dispatches": [],
+        "approvals": [],
+        "overrides": [],
+        "journal": [
+          {
+            "at": "2026-11-07T23:26:58.388Z",
+            "era": "a8f05ff7-2e68-41b5-859d-019ed1519ca8",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "started",
+            "factory": "team",
+            "definition": {
+              "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+              "version": 1
+            }
+          },
+          {
+            "at": "2026-11-07T23:27:01.078Z",
+            "era": "a8f05ff7-2e68-41b5-859d-019ed1519ca8",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "recorded",
+            "kind": "artifact",
+            "name": "plan",
+            "version": 1,
+            "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a"
+          },
+          {
+            "at": "2026-11-07T23:27:03.720Z",
+            "era": "a8f05ff7-2e68-41b5-859d-019ed1519ca8",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "advanced",
+            "transition": "submit",
+            "to": "plan-review",
+            "toCycle": 1
+          },
+          {
+            "type": "recorded",
+            "kind": "artifact",
+            "name": "plan-review",
+            "version": 1,
+            "digest": "sha256:a5475f9d48eebb55065ed96b88cee10ab813bcd3787dc3ab8677d03f7e2a2d33",
+            "at": "2026-11-07T23:27:06.684Z",
+            "era": "a8f05ff7-2e68-41b5-859d-019ed1519ca8",
+            "stage": "plan-review",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            }
+          },
+          {
+            "type": "awaiting",
+            "exits": [
+              {
+                "transition": "approve",
+                "to": "implement",
+                "manual": false,
+                "gateIds": [
+                  "plan-approval"
+                ]
+              }
+            ],
+            "at": "2026-11-07T23:27:06.686Z",
+            "era": "a8f05ff7-2e68-41b5-859d-019ed1519ca8",
+            "stage": "plan-review",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "9948c19d-bbe8-4518-b074-f47f9b050c53",
+      "name": "run",
+      "version": 6,
+      "isLatest": true,
+      "createdAt": "2026-11-07T23:27:22.184Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "run",
+        "modelName": "team-6",
+        "initiatedBy": "user:dev",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "team-6",
+      "modelId": "f658c547-a95d-44aa-8251-5595db767491",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "run",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 20,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 3673,
+      "path": "",
+      "ownerRef": "f658c547-a95d-44aa-8251-5595db767491",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 1,
+        "key": "team-6",
+        "title": "Rate-limit feed API",
+        "externalRefs": {},
+        "tracker": {
+          "instance": "board",
+          "kind": "builtin"
+        },
+        "factory": "team",
+        "definition": {
+          "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+          "version": 1
+        },
+        "era": "5cc14b36-f267-4de6-8c88-902179ced8b8",
+        "status": "active",
+        "stage": "implement",
+        "entries": {
+          "plan": 1,
+          "plan-review": 1,
+          "implement": 1
+        },
+        "products": {
+          "artifacts": {
+            "plan": {
+              "version": 1,
+              "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a",
+              "stage": "plan",
+              "cycle": 1,
+              "at": "2026-11-07T23:27:10.884Z"
+            },
+            "plan-review": {
+              "version": 1,
+              "digest": "sha256:a5475f9d48eebb55065ed96b88cee10ab813bcd3787dc3ab8677d03f7e2a2d33",
+              "stage": "plan-review",
+              "cycle": 1,
+              "at": "2026-11-07T23:27:16.127Z",
+              "subject": {
+                "name": "plan",
+                "version": 1,
+                "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a"
+              }
+            }
+          },
+          "evidence": {}
+        },
+        "validations": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "dispatches": [],
+        "approvals": [
+          {
+            "id": 1,
+            "gateId": "plan-approval",
+            "decision": "approve",
+            "note": "seed data",
+            "era": "5cc14b36-f267-4de6-8c88-902179ced8b8",
+            "stage": "plan-review",
+            "cycle": 1,
+            "at": "2026-11-07T23:27:19.271Z",
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform",
+              "asserted": "dev"
+            },
+            "products": {
+              "artifacts": {
+                "plan": {
+                  "version": 1,
+                  "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a"
+                },
+                "plan-review": {
+                  "version": 1,
+                  "digest": "sha256:a5475f9d48eebb55065ed96b88cee10ab813bcd3787dc3ab8677d03f7e2a2d33"
+                }
+              },
+              "evidence": {}
+            }
+          }
+        ],
+        "overrides": [],
+        "journal": [
+          {
+            "at": "2026-11-07T23:27:08.067Z",
+            "era": "5cc14b36-f267-4de6-8c88-902179ced8b8",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "started",
+            "factory": "team",
+            "definition": {
+              "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+              "version": 1
+            }
+          },
+          {
+            "at": "2026-11-07T23:27:10.884Z",
+            "era": "5cc14b36-f267-4de6-8c88-902179ced8b8",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "recorded",
+            "kind": "artifact",
+            "name": "plan",
+            "version": 1,
+            "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a"
+          },
+          {
+            "at": "2026-11-07T23:27:13.509Z",
+            "era": "5cc14b36-f267-4de6-8c88-902179ced8b8",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "advanced",
+            "transition": "submit",
+            "to": "plan-review",
+            "toCycle": 1
+          },
+          {
+            "at": "2026-11-07T23:27:16.127Z",
+            "era": "5cc14b36-f267-4de6-8c88-902179ced8b8",
+            "stage": "plan-review",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "recorded",
+            "kind": "artifact",
+            "name": "plan-review",
+            "version": 1,
+            "digest": "sha256:a5475f9d48eebb55065ed96b88cee10ab813bcd3787dc3ab8677d03f7e2a2d33"
+          },
+          {
+            "at": "2026-11-07T23:27:16.142Z",
+            "era": "5cc14b36-f267-4de6-8c88-902179ced8b8",
+            "stage": "plan-review",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "awaiting",
+            "exits": [
+              {
+                "transition": "approve",
+                "to": "implement",
+                "manual": false,
+                "gateIds": [
+                  "plan-approval"
+                ]
+              }
+            ]
+          },
+          {
+            "at": "2026-11-07T23:27:19.271Z",
+            "era": "5cc14b36-f267-4de6-8c88-902179ced8b8",
+            "stage": "plan-review",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform",
+              "asserted": "dev"
+            },
+            "type": "approval",
+            "approvalId": 1,
+            "gateId": "plan-approval",
+            "decision": "approve"
+          },
+          {
+            "at": "2026-11-07T23:27:19.273Z",
+            "era": "5cc14b36-f267-4de6-8c88-902179ced8b8",
+            "stage": "plan-review",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform",
+              "asserted": "dev"
+            },
+            "type": "awaiting",
+            "exits": []
+          },
+          {
+            "type": "advanced",
+            "transition": "approve",
+            "to": "implement",
+            "toCycle": 1,
+            "at": "2026-11-07T23:27:22.176Z",
+            "era": "5cc14b36-f267-4de6-8c88-902179ced8b8",
+            "stage": "plan-review",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "87863f40-8aa3-459b-a207-a26501bc84e3",
+      "name": "run",
+      "version": 3,
+      "isLatest": true,
+      "createdAt": "2026-11-07T23:29:58.355Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "run",
+        "modelName": "team-3",
+        "initiatedBy": "user:dev",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "team-3",
+      "modelId": "000a93a0-3695-4bb3-b5c7-28a6b610507b",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "run",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 20,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 1577,
+      "path": "",
+      "ownerRef": "000a93a0-3695-4bb3-b5c7-28a6b610507b",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 1,
+        "key": "team-3",
+        "title": "Undo last swipe",
+        "externalRefs": {},
+        "tracker": {
+          "instance": "board",
+          "kind": "builtin"
+        },
+        "factory": "team",
+        "definition": {
+          "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+          "version": 1
+        },
+        "era": "7b48e23b-97be-4398-82db-553d5fcfdc9b",
+        "status": "active",
+        "stage": "plan",
+        "entries": {
+          "plan": 1
+        },
+        "products": {
+          "artifacts": {
+            "plan": {
+              "version": 2,
+              "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a",
+              "stage": "plan",
+              "cycle": 1,
+              "at": "2026-11-07T23:29:58.342Z"
+            }
+          },
+          "evidence": {}
+        },
+        "validations": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "dispatches": [],
+        "approvals": [],
+        "overrides": [],
+        "journal": [
+          {
+            "at": "2026-11-07T23:26:25.759Z",
+            "era": "7b48e23b-97be-4398-82db-553d5fcfdc9b",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "started",
+            "factory": "team",
+            "definition": {
+              "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+              "version": 1
+            }
+          },
+          {
+            "at": "2026-11-07T23:26:47.291Z",
+            "era": "7b48e23b-97be-4398-82db-553d5fcfdc9b",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "recorded",
+            "kind": "artifact",
+            "name": "plan",
+            "version": 1,
+            "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a"
+          },
+          {
+            "type": "recorded",
+            "kind": "artifact",
+            "name": "plan",
+            "version": 2,
+            "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a",
+            "at": "2026-11-07T23:29:58.342Z",
+            "era": "7b48e23b-97be-4398-82db-553d5fcfdc9b",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "5de071e1-7d0d-4452-aa3f-a4b51fa677ac",
+      "name": "run",
+      "version": 6,
+      "isLatest": true,
+      "createdAt": "2026-11-07T23:30:39.424Z",
+      "namespace": "",
+      "tags": {
+        "type": "resource",
+        "specName": "run",
+        "modelName": "team-7",
+        "initiatedBy": "user:dev",
+        "_swamp.kind": "resource"
+      },
+      "modelName": "team-7",
+      "modelId": "2588e6a2-2868-4054-b2f4-bb596dd36774",
+      "modelType": "@swamp/stagecraft/work-item",
+      "specName": "run",
+      "dataType": "resource",
+      "contentType": "application/json",
+      "lifetime": "infinite",
+      "garbageCollection": 20,
+      "lifecycle": "active",
+      "ownerType": "model-method",
+      "streaming": false,
+      "size": 9485,
+      "path": "",
+      "ownerRef": "2588e6a2-2868-4054-b2f4-bb596dd36774",
+      "workflowRunId": "",
+      "workflowName": "",
+      "jobName": "",
+      "stepName": "",
+      "source": "",
+      "content": {
+        "schemaVersion": 1,
+        "key": "team-7",
+        "title": "Dark mode tokens",
+        "externalRefs": {},
+        "tracker": {
+          "instance": "board",
+          "kind": "builtin"
+        },
+        "factory": "team",
+        "definition": {
+          "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+          "version": 1
+        },
+        "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+        "status": "active",
+        "stage": "plan-review",
+        "entries": {
+          "plan": 1,
+          "plan-review": 1
+        },
+        "products": {
+          "artifacts": {
+            "plan": {
+              "version": 1,
+              "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a",
+              "stage": "plan",
+              "cycle": 1,
+              "at": "2026-11-07T23:30:28.567Z"
+            }
+          },
+          "evidence": {}
+        },
+        "validations": {
+          "artifacts": {},
+          "evidence": {}
+        },
+        "dispatches": [
+          {
+            "id": 1,
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "stage": "plan-review",
+            "cycle": 1,
+            "at": "2026-11-07T23:30:33.945Z",
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "mode": "dispatch",
+            "inputs": {
+              "planSummary": "Ship it"
+            },
+            "prompt": "You are an adversarial reviewer. Try to refute this plan:\nShip it\nCheck its steps against the code and its testing strategy against the\nrisks.\nRate a finding critical or high only if the plan would ship a\ndefect, lose data, break a stated rule, or make the declared checks\nmeaningless. Gaps in process, logistics or manual verification that\nthe automated checks already cover are medium at most. Judge the\nplan against the size of the change: do not ask for verification\nmachinery bigger than the change, and give the smallest adequate fix\nfor each finding. Report findings with severities, and do not soften\nthe severity of a real defect.\n",
+            "subagentPrompts": [
+              {
+                "skill": "adversarial-review",
+                "resultPaths": {
+                  "plan-review": "/var/folders/ys/43szdb6x5sj83l3sqs909qmr0000gn/T/stagecraft-4728c59c19d15376/team-7-d1-1-plan-review.json"
+                },
+                "prompt": "You are an adversarial reviewer. Try to refute this plan:\nShip it\nCheck its steps against the code and its testing strategy against the\nrisks.\nRate a finding critical or high only if the plan would ship a\ndefect, lose data, break a stated rule, or make the declared checks\nmeaningless. Gaps in process, logistics or manual verification that\nthe automated checks already cover are medium at most. Judge the\nplan against the size of the change: do not ask for verification\nmachinery bigger than the change, and give the smallest adequate fix\nfor each finding. Report findings with severities, and do not soften\nthe severity of a real defect.\n\n---\n\nFollow the adversarial-review skill.\n\nRead these products fresh from the store. Each command prints\nthe product's payload as one JSON object. If it exits non-zero\nwith an error (the record is missing or not alone), stop and\nreport that; never guess the product.\n- plan: swamp data query 'modelName == \"team-7\" && name == \"artifact-plan\"' --select content --single --json\n\nWrite your result as JSON, one file per product, holding the\npayload and nothing else. These files are the only thing you may\nwrite.\n- artifact plan-review: write it to /var/folders/ys/43szdb6x5sj83l3sqs909qmr0000gn/T/stagecraft-4728c59c19d15376/team-7-d1-1-plan-review.json\n  Its schema:\n    {\n      \"type\": \"object\",\n      \"required\": [\n        \"findings\"\n      ],\n      \"properties\": {\n        \"findings\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"required\": [\n              \"id\",\n              \"severity\",\n              \"description\"\n            ],\n            \"additionalProperties\": false,\n            \"properties\": {\n              \"id\": {\n                \"type\": \"string\",\n                \"minLength\": 1\n              },\n              \"severity\": {\n                \"enum\": [\n                  \"critical\",\n                  \"high\",\n                  \"medium\",\n                  \"low\"\n                ]\n              },\n              \"description\": {\n                \"type\": \"string\",\n                \"minLength\": 1\n              },\n              \"category\": {\n                \"type\": \"string\"\n              },\n              \"resolved\": {\n                \"type\": \"boolean\"\n              },\n              \"resolutionNote\": {\n                \"type\": \"string\"\n              }\n            }\n          }\n        }\n      }\n    }\n"
+              }
+            ]
+          },
+          {
+            "id": 2,
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "stage": "plan-review",
+            "cycle": 1,
+            "at": "2026-11-07T23:30:36.603Z",
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "mode": "dispatch",
+            "inputs": {
+              "planSummary": "Ship it"
+            },
+            "prompt": "You are an adversarial reviewer. Try to refute this plan:\nShip it\nCheck its steps against the code and its testing strategy against the\nrisks.\nRate a finding critical or high only if the plan would ship a\ndefect, lose data, break a stated rule, or make the declared checks\nmeaningless. Gaps in process, logistics or manual verification that\nthe automated checks already cover are medium at most. Judge the\nplan against the size of the change: do not ask for verification\nmachinery bigger than the change, and give the smallest adequate fix\nfor each finding. Report findings with severities, and do not soften\nthe severity of a real defect.\n",
+            "subagentPrompts": [
+              {
+                "skill": "adversarial-review",
+                "resultPaths": {
+                  "plan-review": "/var/folders/ys/43szdb6x5sj83l3sqs909qmr0000gn/T/stagecraft-e533151d756b04c3/team-7-d2-1-plan-review.json"
+                },
+                "prompt": "You are an adversarial reviewer. Try to refute this plan:\nShip it\nCheck its steps against the code and its testing strategy against the\nrisks.\nRate a finding critical or high only if the plan would ship a\ndefect, lose data, break a stated rule, or make the declared checks\nmeaningless. Gaps in process, logistics or manual verification that\nthe automated checks already cover are medium at most. Judge the\nplan against the size of the change: do not ask for verification\nmachinery bigger than the change, and give the smallest adequate fix\nfor each finding. Report findings with severities, and do not soften\nthe severity of a real defect.\n\n---\n\nFollow the adversarial-review skill.\n\nRead these products fresh from the store. Each command prints\nthe product's payload as one JSON object. If it exits non-zero\nwith an error (the record is missing or not alone), stop and\nreport that; never guess the product.\n- plan: swamp data query 'modelName == \"team-7\" && name == \"artifact-plan\"' --select content --single --json\n\nWrite your result as JSON, one file per product, holding the\npayload and nothing else. These files are the only thing you may\nwrite.\n- artifact plan-review: write it to /var/folders/ys/43szdb6x5sj83l3sqs909qmr0000gn/T/stagecraft-e533151d756b04c3/team-7-d2-1-plan-review.json\n  Its schema:\n    {\n      \"type\": \"object\",\n      \"required\": [\n        \"findings\"\n      ],\n      \"properties\": {\n        \"findings\": {\n          \"type\": \"array\",\n          \"items\": {\n            \"type\": \"object\",\n            \"required\": [\n              \"id\",\n              \"severity\",\n              \"description\"\n            ],\n            \"additionalProperties\": false,\n            \"properties\": {\n              \"id\": {\n                \"type\": \"string\",\n                \"minLength\": 1\n              },\n              \"severity\": {\n                \"enum\": [\n                  \"critical\",\n                  \"high\",\n                  \"medium\",\n                  \"low\"\n                ]\n              },\n              \"description\": {\n                \"type\": \"string\",\n                \"minLength\": 1\n              },\n              \"category\": {\n                \"type\": \"string\"\n              },\n              \"resolved\": {\n                \"type\": \"boolean\"\n              },\n              \"resolutionNote\": {\n                \"type\": \"string\"\n              }\n            }\n          }\n        }\n      }\n    }\n"
+              }
+            ]
+          }
+        ],
+        "approvals": [],
+        "overrides": [],
+        "journal": [
+          {
+            "at": "2026-11-07T23:30:25.929Z",
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "started",
+            "factory": "team",
+            "definition": {
+              "digest": "sha256:826afa8715611b60f14f8133bef68523cfbb16106d402a613047be92b4a26798",
+              "version": 1
+            }
+          },
+          {
+            "at": "2026-11-07T23:30:28.567Z",
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "recorded",
+            "kind": "artifact",
+            "name": "plan",
+            "version": 1,
+            "digest": "sha256:cbeca73d1156adc1a3340b9fe9d97e47c3b00e9ebf031847ad5d09361d10919a"
+          },
+          {
+            "at": "2026-11-07T23:30:31.267Z",
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "stage": "plan",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "advanced",
+            "transition": "submit",
+            "to": "plan-review",
+            "toCycle": 1
+          },
+          {
+            "at": "2026-11-07T23:30:33.945Z",
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "stage": "plan-review",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "dispatched",
+            "dispatchId": 1
+          },
+          {
+            "at": "2026-11-07T23:30:36.603Z",
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "stage": "plan-review",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            },
+            "type": "dispatched",
+            "dispatchId": 2
+          },
+          {
+            "type": "awaiting",
+            "exits": [],
+            "dispatchOverride": {
+              "count": 2,
+              "limit": 2,
+              "granted": 0
+            },
+            "at": "2026-11-07T23:30:39.415Z",
+            "era": "2f57792e-1b96-44cb-89ff-4314087b456a",
+            "stage": "plan-review",
+            "cycle": 1,
+            "actor": {
+              "principal": "user:dev",
+              "source": "platform"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "total": 7,
+  "limited": false
+}

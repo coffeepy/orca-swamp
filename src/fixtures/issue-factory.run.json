@@ -1,0 +1,488 @@
+{
+  "id": "ee6e9038-d4ef-432a-815e-7ab33a57f58f",
+  "workflowId": "3183ce29-9427-402e-842d-ef9faf7a86fb",
+  "workflowName": "issue-factory",
+  "inputs": {
+    "issueId": "ISSUE-101",
+    "mode": "fast",
+    "risk": ""
+  },
+  "status": "succeeded",
+  "jobs": [
+    {
+      "name": "factory",
+      "status": "succeeded",
+      "steps": [
+        {
+          "name": "intake",
+          "status": "succeeded",
+          "startedAt": "2026-10-26T19:25:08.945Z",
+          "completedAt": "2026-10-26T19:25:09.136Z",
+          "duration": 191,
+          "dataArtifacts": [
+            {
+              "dataId": "8b8734e7-b8bb-41e8-95a4-b5fbe5769232",
+              "name": "intake",
+              "version": 1,
+              "tags": {
+                "type": "resource",
+                "specName": "intake",
+                "modelName": "factory-intake",
+                "app": "swipenews",
+                "team": "platform",
+                "source": "step-output",
+                "workflow": "issue-factory",
+                "workflowId": "3183ce29-9427-402e-842d-ef9faf7a86fb",
+                "workflowRunId": "ee6e9038-d4ef-432a-815e-7ab33a57f58f",
+                "job": "factory",
+                "step": "intake",
+                "initiatedBy": "user:coffeepy"
+              },
+              "attributes": {
+                "issueId": "ISSUE-101",
+                "title": "Fix left-swipe ('Pass') incrementing savedCount instead of passedCount",
+                "issueType": "bug",
+                "risk": "low",
+                "description": "When a user swipes left ('Pass') on a news card, swipeCard() in src/engine.ts erroneously increments state.savedCount instead of state.passedCount. Fix the state update on left swipe and add a unit test in tests/engine_test.ts asserting passedCount increments and savedCount remains 0.",
+                "baseCommit": "a43875c323360e886379a1e2e7426ed3fe6318cf",
+                "worktreePath": "/home/dev/swamp-factory-demo/swipenews-factory/.swamp/worktrees/ISSUE-101",
+                "preparedAt": "2026-10-26T19:25:09.116Z"
+              }
+            },
+            {
+              "dataId": "89816e18-97cb-45be-a74e-a54fd9de42d8",
+              "name": "report-swamp-method-summary",
+              "version": 1,
+              "tags": {
+                "type": "report",
+                "reportName": "@swamp/method-summary",
+                "reportScope": "method",
+                "modelName": "factory-intake"
+              }
+            },
+            {
+              "dataId": "427d09d8-32d3-4b89-8e63-34ac61601090",
+              "name": "report-swamp-method-summary-json",
+              "version": 1,
+              "tags": {
+                "type": "report",
+                "reportName": "@swamp/method-summary",
+                "reportScope": "method",
+                "modelName": "factory-intake"
+              }
+            }
+          ],
+          "outputs": {
+            "issueId": "ISSUE-101",
+            "title": "Fix left-swipe ('Pass') incrementing savedCount instead of passedCount",
+            "issueType": "bug",
+            "risk": "low",
+            "description": "When a user swipes left ('Pass') on a news card, swipeCard() in src/engine.ts erroneously increments state.savedCount instead of state.passedCount. Fix the state update on left swipe and add a unit test in tests/engine_test.ts asserting passedCount increments and savedCount remains 0.",
+            "baseCommit": "a43875c323360e886379a1e2e7426ed3fe6318cf",
+            "worktreePath": "/home/dev/swamp-factory-demo/swipenews-factory/.swamp/worktrees/ISSUE-101",
+            "preparedAt": "2026-10-26T19:25:09.116Z"
+          }
+        },
+        {
+          "name": "build",
+          "status": "succeeded",
+          "startedAt": "2026-10-26T19:25:09.140Z",
+          "completedAt": "2026-10-26T19:25:09.250Z",
+          "duration": 110,
+          "dataArtifacts": [
+            {
+              "dataId": "b2d13bbe-2559-4763-b4df-6616ae395c22",
+              "name": "build",
+              "version": 1,
+              "tags": {
+                "type": "resource",
+                "specName": "build",
+                "modelName": "factory-builder",
+                "app": "swipenews",
+                "team": "platform",
+                "source": "step-output",
+                "workflow": "issue-factory",
+                "workflowId": "3183ce29-9427-402e-842d-ef9faf7a86fb",
+                "workflowRunId": "ee6e9038-d4ef-432a-815e-7ab33a57f58f",
+                "job": "factory",
+                "step": "build",
+                "initiatedBy": "user:coffeepy"
+              },
+              "attributes": {
+                "issueId": "ISSUE-101",
+                "mode": "fast",
+                "changedFiles": [
+                  "src/engine.ts",
+                  "tests/engine_test.ts"
+                ],
+                "diffStat": "src/engine.ts        |  9 +++------\n tests/engine_test.ts | 11 +++++++++++\n 2 files changed, 14 insertions(+), 6 deletions(-)",
+                "summary": "Fixed left-swipe state mutation in src/engine.ts (passedCount increments instead of savedCount) and added ISSUE-101 regression test."
+              }
+            },
+            {
+              "dataId": "7b4acdbd-2c78-429f-946e-8a043311b7cb",
+              "name": "report-swamp-method-summary",
+              "version": 1,
+              "tags": {
+                "type": "report",
+                "reportName": "@swamp/method-summary",
+                "reportScope": "method",
+                "modelName": "factory-builder"
+              }
+            },
+            {
+              "dataId": "f1dd9c6d-a865-4757-83bb-8b1e5f73b6af",
+              "name": "report-swamp-method-summary-json",
+              "version": 1,
+              "tags": {
+                "type": "report",
+                "reportName": "@swamp/method-summary",
+                "reportScope": "method",
+                "modelName": "factory-builder"
+              }
+            }
+          ],
+          "outputs": {
+            "issueId": "ISSUE-101",
+            "mode": "fast",
+            "changedFiles": [
+              "src/engine.ts",
+              "tests/engine_test.ts"
+            ],
+            "diffStat": "src/engine.ts        |  9 +++------\n tests/engine_test.ts | 11 +++++++++++\n 2 files changed, 14 insertions(+), 6 deletions(-)",
+            "summary": "Fixed left-swipe state mutation in src/engine.ts (passedCount increments instead of savedCount) and added ISSUE-101 regression test."
+          }
+        },
+        {
+          "name": "quality-gate",
+          "status": "succeeded",
+          "startedAt": "2026-10-26T19:25:09.253Z",
+          "completedAt": "2026-10-26T19:25:10.388Z",
+          "duration": 1135,
+          "dataArtifacts": [
+            {
+              "dataId": "423caa05-4425-430a-95ce-c910805c36b4",
+              "name": "quality",
+              "version": 1,
+              "tags": {
+                "type": "resource",
+                "specName": "quality",
+                "modelName": "factory-quality",
+                "app": "swipenews",
+                "team": "platform",
+                "source": "step-output",
+                "workflow": "issue-factory",
+                "workflowId": "3183ce29-9427-402e-842d-ef9faf7a86fb",
+                "workflowRunId": "ee6e9038-d4ef-432a-815e-7ab33a57f58f",
+                "job": "factory",
+                "step": "quality-gate",
+                "initiatedBy": "user:coffeepy"
+              },
+              "attributes": {
+                "issueId": "ISSUE-101",
+                "fmtPassed": true,
+                "lintPassed": true,
+                "typecheckPassed": true,
+                "testsPassed": true,
+                "testCount": 3,
+                "allPassed": true,
+                "failures": []
+              }
+            },
+            {
+              "dataId": "443fbec2-58e3-4d1c-b3ec-f66dca4b435c",
+              "name": "report-swamp-method-summary",
+              "version": 1,
+              "tags": {
+                "type": "report",
+                "reportName": "@swamp/method-summary",
+                "reportScope": "method",
+                "modelName": "factory-quality"
+              }
+            },
+            {
+              "dataId": "1534ec4b-cad4-460c-8a44-8d89ff8e8b15",
+              "name": "report-swamp-method-summary-json",
+              "version": 1,
+              "tags": {
+                "type": "report",
+                "reportName": "@swamp/method-summary",
+                "reportScope": "method",
+                "modelName": "factory-quality"
+              }
+            }
+          ],
+          "outputs": {
+            "issueId": "ISSUE-101",
+            "fmtPassed": true,
+            "lintPassed": true,
+            "typecheckPassed": true,
+            "testsPassed": true,
+            "testCount": 3,
+            "allPassed": true,
+            "failures": []
+          }
+        },
+        {
+          "name": "assert-quality",
+          "status": "succeeded",
+          "startedAt": "2026-10-26T19:25:10.394Z",
+          "completedAt": "2026-10-26T19:25:10.409Z",
+          "duration": 15,
+          "assertResult": {
+            "passed": true,
+            "expr": "data.latest(\"factory-quality\", \"quality\").attributes.allPassed == true && data.latest(\"factory-quality\", \"quality\").attributes.testCount >= 3",
+            "message": "All deterministic quality gates (fmt, lint, typecheck, and >=3 unit tests) must pass",
+            "severity": "high"
+          }
+        },
+        {
+          "name": "adversary-audit",
+          "status": "succeeded",
+          "startedAt": "2026-10-26T19:25:10.438Z",
+          "completedAt": "2026-10-26T19:25:10.492Z",
+          "duration": 54,
+          "dataArtifacts": [
+            {
+              "dataId": "738e9bfb-edbe-48b3-b76d-7575d77e3e05",
+              "name": "adversary",
+              "version": 1,
+              "tags": {
+                "type": "resource",
+                "specName": "adversary",
+                "modelName": "factory-adversary",
+                "app": "swipenews",
+                "team": "platform",
+                "source": "step-output",
+                "workflow": "issue-factory",
+                "workflowId": "3183ce29-9427-402e-842d-ef9faf7a86fb",
+                "workflowRunId": "ee6e9038-d4ef-432a-815e-7ab33a57f58f",
+                "job": "factory",
+                "step": "adversary-audit",
+                "initiatedBy": "user:coffeepy"
+              },
+              "attributes": {
+                "issueId": "ISSUE-101",
+                "verdict": "pass",
+                "score": "4/4",
+                "rubric": [
+                  {
+                    "category": "spec_compliance",
+                    "status": "pass",
+                    "detail": "swipeCard('left') increments passedCount and preserves savedCount."
+                  },
+                  {
+                    "category": "state_invariants",
+                    "status": "pass",
+                    "detail": "savedCount == saved.length and passedCount == passed.length hold across all transitions."
+                  },
+                  {
+                    "category": "boundary_safety",
+                    "status": "pass",
+                    "detail": "20x overflow swipes on exhausted deck and empty-history undo are idempotent."
+                  },
+                  {
+                    "category": "xss_dom_safety",
+                    "status": "pass",
+                    "detail": "DOM uses textContent/replaceChildren exclusively; static server blocks '..' traversal."
+                  }
+                ],
+                "findings": []
+              }
+            },
+            {
+              "dataId": "f3fc9711-6de3-4421-9d59-7b9c3e6f2878",
+              "name": "report-swamp-method-summary",
+              "version": 1,
+              "tags": {
+                "type": "report",
+                "reportName": "@swamp/method-summary",
+                "reportScope": "method",
+                "modelName": "factory-adversary"
+              }
+            },
+            {
+              "dataId": "d110ad46-9371-44dd-bcae-66050d5c5ea3",
+              "name": "report-swamp-method-summary-json",
+              "version": 1,
+              "tags": {
+                "type": "report",
+                "reportName": "@swamp/method-summary",
+                "reportScope": "method",
+                "modelName": "factory-adversary"
+              }
+            }
+          ],
+          "outputs": {
+            "issueId": "ISSUE-101",
+            "verdict": "pass",
+            "score": "4/4",
+            "rubric": [
+              {
+                "category": "spec_compliance",
+                "status": "pass",
+                "detail": "swipeCard('left') increments passedCount and preserves savedCount."
+              },
+              {
+                "category": "state_invariants",
+                "status": "pass",
+                "detail": "savedCount == saved.length and passedCount == passed.length hold across all transitions."
+              },
+              {
+                "category": "boundary_safety",
+                "status": "pass",
+                "detail": "20x overflow swipes on exhausted deck and empty-history undo are idempotent."
+              },
+              {
+                "category": "xss_dom_safety",
+                "status": "pass",
+                "detail": "DOM uses textContent/replaceChildren exclusively; static server blocks '..' traversal."
+              }
+            ],
+            "findings": []
+          }
+        },
+        {
+          "name": "assert-adversary",
+          "status": "succeeded",
+          "startedAt": "2026-10-26T19:25:10.497Z",
+          "completedAt": "2026-10-26T19:25:10.505Z",
+          "duration": 8,
+          "assertResult": {
+            "passed": true,
+            "expr": "data.latest(\"factory-adversary\", \"adversary\").attributes.verdict == \"pass\" && data.latest(\"factory-adversary\", \"adversary\").attributes.score == \"4/4\"",
+            "message": "Adversary red-team audit must pass all 4 rubric categories (4/4)",
+            "severity": "high"
+          }
+        },
+        {
+          "name": "human-signoff",
+          "status": "skipped",
+          "completedAt": "2026-10-26T19:25:10.511Z",
+          "skipReason": {
+            "kind": "guarded",
+            "expression": "data.latest(\"factory-intake\", \"intake\").attributes.risk != \"high\""
+          }
+        },
+        {
+          "name": "ship",
+          "status": "succeeded",
+          "startedAt": "2026-10-26T19:25:10.518Z",
+          "completedAt": "2026-10-26T19:25:12.886Z",
+          "duration": 2368,
+          "dataArtifacts": [
+            {
+              "dataId": "f6455251-49c4-4e54-8be5-f861d0d55240",
+              "name": "release",
+              "version": 1,
+              "tags": {
+                "type": "resource",
+                "specName": "release",
+                "modelName": "factory-ship",
+                "app": "swipenews",
+                "team": "platform",
+                "source": "step-output",
+                "workflow": "issue-factory",
+                "workflowId": "3183ce29-9427-402e-842d-ef9faf7a86fb",
+                "workflowRunId": "ee6e9038-d4ef-432a-815e-7ab33a57f58f",
+                "job": "factory",
+                "step": "ship",
+                "initiatedBy": "user:coffeepy"
+              },
+              "attributes": {
+                "issueId": "ISSUE-101",
+                "commitSha": "88f4000",
+                "commitMessage": "fix(ISSUE-101): Fix left-swipe ('Pass') incrementing savedCount instead of passedCount",
+                "branch": "main",
+                "shippedAt": "2026-10-26T19:25:12.867Z"
+              }
+            },
+            {
+              "dataId": "74792c54-6938-4e74-abda-0fe050ae3f4a",
+              "name": "report-swamp-method-summary",
+              "version": 1,
+              "tags": {
+                "type": "report",
+                "reportName": "@swamp/method-summary",
+                "reportScope": "method",
+                "modelName": "factory-ship"
+              }
+            },
+            {
+              "dataId": "dd001b9c-4041-4c11-b530-97a6a92d14bd",
+              "name": "report-swamp-method-summary-json",
+              "version": 1,
+              "tags": {
+                "type": "report",
+                "reportName": "@swamp/method-summary",
+                "reportScope": "method",
+                "modelName": "factory-ship"
+              }
+            }
+          ],
+          "outputs": {
+            "issueId": "ISSUE-101",
+            "commitSha": "88f4000",
+            "commitMessage": "fix(ISSUE-101): Fix left-swipe ('Pass') incrementing savedCount instead of passedCount",
+            "branch": "main",
+            "shippedAt": "2026-10-26T19:25:12.867Z"
+          }
+        }
+      ],
+      "startedAt": "2026-10-26T19:25:08.944Z",
+      "completedAt": "2026-10-26T19:25:12.894Z",
+      "duration": 3950
+    }
+  ],
+  "startedAt": "2026-10-26T19:25:08.936Z",
+  "completedAt": "2026-10-26T19:25:12.899Z",
+  "duration": 3963,
+  "path": "/home/dev/swamp-factory-demo/swipenews-factory/.swamp/workflow-runs/3183ce29-9427-402e-842d-ef9faf7a86fb/workflow-run-ee6e9038-d4ef-432a-815e-7ab33a57f58f.yaml",
+  "workflowDataArtifacts": [
+    {
+      "dataId": "1c1cb318-7cfb-4b02-8c1c-3f18d9f2d020",
+      "name": "report-swamp-workflow-summary",
+      "version": 1,
+      "tags": {
+        "type": "report",
+        "reportName": "@swamp/workflow-summary",
+        "reportScope": "workflow",
+        "modelName": "issue-factory"
+      }
+    },
+    {
+      "dataId": "a2d828d7-1857-4a68-82b7-6badfe6c6e37",
+      "name": "report-swamp-workflow-summary-json",
+      "version": 1,
+      "tags": {
+        "type": "report",
+        "reportName": "@swamp/workflow-summary",
+        "reportScope": "workflow",
+        "modelName": "issue-factory"
+      }
+    },
+    {
+      "dataId": "59ccf10c-2e19-4168-bd9c-adb6fcd47030",
+      "name": "report-coffeepy-factory-report",
+      "version": 1,
+      "tags": {
+        "type": "report",
+        "reportName": "@coffeepy/factory-report",
+        "reportScope": "workflow",
+        "modelName": "issue-factory"
+      }
+    },
+    {
+      "dataId": "72cc8712-21b7-4743-9df6-8ad46b676b40",
+      "name": "report-coffeepy-factory-report-json",
+      "version": 1,
+      "tags": {
+        "type": "report",
+        "reportName": "@coffeepy/factory-report",
+        "reportScope": "workflow",
+        "modelName": "issue-factory"
+      }
+    }
+  ],
+  "initiatedBy": "user:coffeepy"
+}
