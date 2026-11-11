@@ -1,6 +1,9 @@
-import { HISTORY_LENGTH, isLive, RECENT_LENGTH, repoKey, type LogText, type RecentRun, type Repo, type Run, type RunId, type RunStatus, type Step, type WorkflowSummary } from './domain'
+import { HISTORY_LENGTH, inFlight, isLive, RECENT_LENGTH, repoKey, retryFrom, runActions, withVitals, type InputField, type LogText, type RecentRun, type Repo, type Run, type RunAction, type RunId, type RunStatus, type Step, type WorkflowSummary } from './domain'
 import type { Inbox, InboxItem } from './inbox'
 import {
+  ACTION_LOOK,
+  actionCommand,
+  actionLabel,
   ago,
   approveCommand,
   home,
@@ -40,6 +43,9 @@ import {
   isFinished,
   TICKET_LABEL,
   ticketWhen,
+  reasonWord,
+  whyHere,
+  dispatchRun,
   type Cell,
   startCommand,
   duration,
@@ -55,8 +61,15 @@ import {
   stepsOf,
   stepTime,
   stepTone,
+  PACE_LOOK,
+  paceLabel,
+  paceProgress,
+  paceRow,
+  brief,
   type Tone
 } from './present'
+import { LOG, logText, type LogChunk, type LogLine } from './log'
+import { paceOf, usualTimes } from './pace'
 import type { AgentTerminal, ListData } from './protocol'
 import type { Resolution } from './repo'
 import type { Board, Factories, FactorySummary, Product, Stage, TicketStatus, WorkItem, WorkItemDetail } from './stagecraft'
@@ -89,6 +102,12 @@ const state = {
   notes: {} as Record<string, string>,
   busy: false,
   actionError: undefined as string | undefined,
+  /** The run control whose request runs or ran last, so its button says it is busy and its error shows beside it. */
+  acted: undefined as string | undefined,
+  /** The run action a first press asked about; a second press on the same action runs it. */
+  confirm: undefined as RunAction | undefined,
+  /** The Run form, open for one workflow that declares inputs: the text typed for each. */
+  form: undefined as { workflow: string; fields: InputField[]; values: Record<string, string> } | undefined,
   search: '',
   /** How the Workflows tab narrows and orders its runs, kept for each repo, and how many of them it draws. */
   runs: ALL_RUNS as RunsView,
@@ -395,7 +414,39 @@ const matches = (...fields: (string | undefined)[]) => {
 
 const runTone = (s: RunStatus): string => TONE_VAR[runLook(s).tone]
 
-function workflowCard(w: WorkflowSummary, now: number): string {
+const off = (): string => (state.busy ? 'disabled' : '')
+/** A run control's label, or what it is doing while its request runs. */
+const controlText = (id: string, label: string, busy: string): string => esc(state.busy && state.acted === id ? busy : label)
+const controlError = (id: string): string => (state.actionError && state.acted === id ? `<div class="ctl-error">${esc(state.actionError)}</div>` : '')
+
+/** Run on a workflow: it starts at once, or opens the form when the workflow declares inputs. */
+const runButton = (workflow: string): string =>
+  `<button class="btn-outline ctl" data-action="run" data-workflow="${esc(workflow)}" title="Start a new run" ${off()}>${controlText(`run:${workflow}`, 'Run', 'Asking swamp…')}</button>`
+
+/** The open Run form of `workflow`: one field per declared input, the required ones marked, the defaults filled in. */
+function runForm(workflow: string): string {
+  const form = state.form
+  if (form?.workflow !== workflow) return ''
+  const field = (f: InputField) => {
+    const attrs = `class="note" id="input-${esc(f.name)}" data-input="field" data-field="${esc(f.name)}" ${f.required ? 'required' : ''} ${off()}`
+    const value = form.values[f.name] ?? ''
+    const control = f.options
+      ? `<select ${attrs}>${['', ...f.options].map((o) => `<option value="${esc(o)}" ${o === value ? 'selected' : ''}>${esc(o || (f.required ? 'Choose…' : 'Default'))}</option>`).join('')}</select>`
+      : `<input ${attrs} value="${esc(value)}" ${f.type === 'string' ? '' : `placeholder="${esc(f.type)}"`}>`
+    return `<label class="field"><span><span class="mono" style="color:var(--text)">${esc(f.name)}</span>${f.required ? ' <span style="color:var(--gold)">required</span>' : ''}</span>
+      ${control}
+      ${f.description ? `<span style="font-size:11.5px;line-height:1.4">${esc(f.description)}</span>` : ''}</label>`
+  }
+  return `<div class="run-form">
+    ${form.fields.map(field).join('')}
+    <div class="ctls">
+      <button class="btn-accent ctl" style="padding:0 14px" data-action="runStart" ${off()}>${controlText(`run:${workflow}`, 'Start run', 'Starting…')}</button>
+      <button class="btn-outline ctl" data-action="runClose" ${off()}>Cancel</button>
+    </div>
+  </div>`
+}
+
+function workflowCard(w: WorkflowSummary, now: number, usual?: number): string {
   const look = w.latest ? runLook(w.latest.status) : { tone: 'muted' as Tone, text: 'Never run' }
   const history = w.runs.map((r) => r.status).reverse()
   const bars = [...Array(Math.max(0, 10 - history.length)).fill('none'), ...history]
@@ -410,9 +461,10 @@ function workflowCard(w: WorkflowSummary, now: number): string {
       ${bars.map((h) => `<span class="bar" style="background:${h === 'none' ? 'var(--dim-fill)' : runTone(h)}"></span>`).join('')}
     </div>
     <div class="muted" style="display:flex;gap:12px;font-size:12px">
-      <span>${w.steps} step${w.steps === 1 ? '' : 's'}</span>${w.latest?.trigger ? `<span>${esc(w.latest.trigger)}</span>` : ''}
+      <span>${w.steps} step${w.steps === 1 ? '' : 's'}</span>${w.latest?.trigger ? `<span>${esc(w.latest.trigger)}</span>` : ''}${usual === undefined ? '' : `<span title="The median of its latest passed runs">usually ${brief(usual)}</span>`}
       <span style="margin-left:auto">${w.latest ? ago(w.latest.startedAt, now) : ''}</span>
     </div>
+    ${w.latest ? '' : `<div class="ctls">${runButton(w.name)}</div>${runForm(w.name)}${controlError(`run:${w.name}`)}`}
   </${w.latest ? 'button' : 'div'}>`
 }
 
@@ -427,22 +479,31 @@ function recentRow(o: { place: Place | null; color: string; name: string; detail
   </${tag}>`
 }
 
-const runRow = (r: RecentRun, name: string, now: number, current?: RunId): string =>
-  recentRow({
+/** A run's color and what its row says of its pace; a run in flight that is slow, quiet or gone takes that pace's color. */
+function rowPace(r: RecentRun, now: number, usual?: number): { color: string; text?: string } {
+  const pace = paceOf(r, usual, now)
+  return { color: pace && pace.state !== 'on-pace' ? TONE_VAR[PACE_LOOK[pace.state].tone] : runTone(r.status), text: pace && paceRow(pace) }
+}
+
+function runRow(r: RecentRun, name: string, now: number, usual?: number, current?: RunId): string {
+  const pace = rowPace(r, now, usual)
+  return recentRow({
     place: r.runId === current ? null : { tab: 'workflows', workflow: r.workflow, runId: r.runId },
-    color: runTone(r.status),
+    color: pace.color,
     name,
     detail: r.input ?? shortId(r.runId),
-    status: `${runLook(r.status).text.toLowerCase()} · ${since(r.startedAt, now)}`
+    status: `${runLook(r.status).text.toLowerCase()} · ${pace.text ?? since(r.startedAt, now)}`
   })
+}
 
 /** One run under its workflow's heading: what it ran on, then its id, how it ended and how long it took. */
-function runLine(r: RecentRun, now: number): string {
+function runLine(r: RecentRun, now: number, usual?: number): string {
   const look = runLook(r.status)
+  const pace = rowPace(r, now, usual)
   const ended = look.text.toLowerCase() + (r.status === 'failed' && r.failedStep ? ` at ${r.failedStep}` : '')
-  const facts = [r.input && shortId(r.runId), ended, duration(r.durationMs)].filter(Boolean)
+  const facts = [r.input && shortId(r.runId), ended, pace.text ?? duration(r.durationMs)].filter(Boolean)
   return `<button class="recent" ${goTo({ tab: 'workflows', workflow: r.workflow, runId: r.runId })}>
-    <span class="dot" style="background:${TONE_VAR[look.tone]}" aria-hidden="true"></span>
+    <span class="dot" style="background:${pace.color}" aria-hidden="true"></span>
     <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
       <span class="mono ellipsis" style="font-size:12px">${esc(r.input ?? shortId(r.runId))}</span>
       <span class="muted ellipsis" style="font-size:11.5px">${esc(facts.join(' · '))}</span>
@@ -479,6 +540,7 @@ function listScreen(data: ListData): string {
   const searching = !!state.search.trim()
   const filtering = searching || view.status !== 'all' || view.when !== 'all'
   const workflows = workflowsShown(data.workflows, runs, view, state.search)
+  const usual = usualTimes(data.runs)
   const cards =
     workflows.length === 0
       ? filtering && data.workflows.length
@@ -488,7 +550,7 @@ function listScreen(data: ListData): string {
           .map(
             (g) => `<section class="section">
         <div class="label">${esc(g.title.toUpperCase())} · ${g.workflows.length}</div>
-        ${g.workflows.map((w) => workflowCard(w, now)).join('')}
+        ${g.workflows.map((w) => workflowCard(w, now, usual.get(w.name))).join('')}
       </section>`
           )
           .join('')
@@ -496,7 +558,7 @@ function listScreen(data: ListData): string {
     ? `<section class="section" style="gap:2px">
         <div class="label" style="margin-bottom:6px">RUNS · ${runs.length}</div>
         ${runGroups(runs, state.runsLimit)
-          .map((g) => `<div class="label mono" style="margin-top:10px" title="${esc(g.workflow)}">${esc(shortName(g.workflow))}</div>${g.runs.map((r) => runLine(r, now)).join('')}`)
+          .map((g) => `<div class="label mono" style="margin-top:10px" title="${esc(g.workflow)}">${esc(shortName(g.workflow))}</div>${g.runs.map((r) => runLine(r, now, usual.get(g.workflow))).join('')}`)
           .join('')}
         ${runs.length > state.runsLimit ? `<button class="btn-outline" style="min-height:32px;margin-top:8px" data-action="moreRuns">Show more · ${runs.length - state.runsLimit} left</button>` : ''}
       </section>`
@@ -583,8 +645,16 @@ function stepDetail(run: Run, step: Step, withTitle: boolean): string {
   </section>`
 }
 
+/** "Retry from here" on a step the failed run can start again from: always on a failed step, and on one that passed on hover, on focus and once pressed. */
+function fromButton(run: Run, s: Step, job: string | undefined): string {
+  if (job === undefined) return ''
+  const id = `from:${job}/${s.name}`
+  return `<button class="btn-outline from${s.status === 'failed' || state.acted === id ? '' : ' quiet'}" data-action="runAct" data-run-action="retry" data-job="${esc(job)}" data-step="${esc(s.name)}" title="${esc(actionCommand('retry', run, s.name))}" ${off()}>${controlText(id, 'Retry from here', 'Starting…')}</button>${controlError(id)}`
+}
+
 function timeline(run: Run, steps: Step[]): string {
   const now = Date.now()
+  const from = retryFrom(run)
   return `<ol class="timeline">
     ${steps
       .map((s, i) => {
@@ -596,13 +666,13 @@ function timeline(run: Run, steps: Step[]): string {
             ${i < steps.length - 1 ? `<div style="flex:1;min-height:14px;width:2px;margin:3px 0;background:${lineColor}"></div>` : ''}
           </div>
           <div style="flex:1;min-width:0;padding-bottom:10px;display:flex;flex-direction:column;gap:6px">
-            <button class="step-row" data-action="select" data-step="${esc(s.name)}" aria-expanded="${open}">
+            <div class="with-from"><button class="step-row" data-action="select" data-step="${esc(s.name)}" aria-expanded="${open}">
               <span class="step-text">
                 <span><span class="mono" style="font-size:12.5px;color:${s.status === 'pending' || s.status === 'skipped' ? 'var(--muted)' : 'var(--text)'}">${esc(s.name)}</span>${kindTag(s)}</span>
                 ${s.description && !open ? `<span class="muted ellipsis" style="font-size:12px">${esc(s.description)}</span>` : ''}
               </span>
               <span class="muted" style="font-size:12px;white-space:nowrap">${esc(stepTime(s, now))}</span>
-            </button>
+            </button>${fromButton(run, s, from.get(s))}</div>
             ${open ? stepDetail(run, s, false) : ''}
           </div>
         </li>`
@@ -611,7 +681,12 @@ function timeline(run: Run, steps: Step[]): string {
   </ol>`
 }
 
-function stepCard(s: Step, wide: boolean, now: number): string {
+function stepCard(s: Step, wide: boolean, now: number, retry: string): string {
+  const card = stepNode(s, wide, now)
+  return retry ? `<div class="with-from${wide ? '' : ' col'}">${card}${retry}</div>` : card
+}
+
+function stepNode(s: Step, wide: boolean, now: number): string {
   const tone = stepTone(s)
   const border =
     tone === 'fail' ? 'border-color:var(--fail);background:var(--fail-bg)' : tone === 'wait' ? 'border-color:var(--gold);background:var(--gold-bg)' : tone === 'run' ? 'border-color:var(--run)' : ''
@@ -653,15 +728,17 @@ const started = (s: Step) => s.status !== 'pending' && s.status !== 'skipped'
 
 function graph(run: Run): string {
   const now = Date.now()
+  const from = retryFrom(run)
+  const card = (s: Step, wide: boolean) => stepCard(s, wide, now, fromButton(run, s, from.get(s)))
   const out: string[] = []
   run.jobs.forEach((job, j) => {
     if (run.jobs.length > 1) out.push(`<div class="label" style="margin:${j ? 12 : 0}px 0 6px">${esc(job.name.toUpperCase())}${job.description ? `<span style="font-weight:400"> · ${esc(job.description)}</span>` : ''}</div>`)
     job.stages.forEach((stage, i) => {
       const next = job.stages[i + 1]
-      if (stage.length === 1) out.push(stepCard(stage[0], true, now))
+      if (stage.length === 1) out.push(card(stage[0], true))
       else {
         const cols = Math.min(stage.length, 2)
-        out.push(`<div class="parallel" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${stage.map((s) => stepCard(s, false, now)).join('')}</div>`)
+        out.push(`<div class="parallel" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${stage.map((s) => card(s, false)).join('')}</div>`)
       }
       if (!next) return
       const solid = next.some(started)
@@ -692,7 +769,7 @@ function gateCard(run: Run, step: Extract<Step, { status: 'waiting' }>): string 
       <button class="btn-gold" style="flex:1;min-height:38px" data-action="decide" data-decision="approve" data-step="${esc(step.name)}" ${busy}>${state.busy ? 'Working…' : 'Approve'}</button>
       <button class="btn-outline" style="flex:1;min-height:38px" data-action="decide" data-decision="reject" data-step="${esc(step.name)}" ${busy}>Reject</button>
     </div>
-    ${state.actionError ? `<div style="color:var(--fail);font-size:12px">${esc(state.actionError)}</div>` : ''}
+    ${state.actionError && !state.acted ? `<div style="color:var(--fail);font-size:12px">${esc(state.actionError)}</div>` : ''}
     <div class="mono muted" style="font-size:11.5px;overflow-wrap:anywhere">runs: ${esc(approveCommand(run.workflow, step.name, run.id))}</div>`
     }
   </div>`
@@ -707,16 +784,38 @@ function failureActions(run: Run, step: Extract<Step, { status: 'failed' }>): st
   return `<div style="display:flex;flex-direction:column;gap:8px">
     <button class="btn-accent" data-action="send" ${agent ? '' : 'disabled'}${off ? ` title="${esc(off)}"` : ''}>${flash('send', 'Send failure to agent terminal')}</button>
     <button class="btn-outline" style="min-height:36px" data-action="copy">${flash('copy', 'Copy retry command')}</button>
-    ${state.actionError ? `<div style="color:var(--fail);font-size:12px">${esc(state.actionError)}</div>` : ''}
+    ${state.actionError && !state.acted ? `<div style="color:var(--fail);font-size:12px">${esc(state.actionError)}</div>` : ''}
     <div class="muted" style="font-size:11.5px;line-height:1.5">${
       off
         ? esc(off)
         : agent
         ? `Send types the failure into <b style="color:var(--text);font-weight:500">${esc(agent.title)}</b> in ${esc(agent.workspace)}, without pressing Enter.`
         : 'Open a terminal in this workspace to send the failure to an agent.'
-    } Retry runs <span class="mono" style="overflow-wrap:anywhere">${esc(retryCommand(run, step.name))}</span>. The panel does not retry by itself.</div>
+    } The retry command is <span class="mono" style="overflow-wrap:anywhere">${esc(retryCommand(run, step.name))}</span>.</div>
   </div>`
 }
+
+/**
+ * The run's controls: what its status offers, then Run for a new run of the workflow. An action that needs it shows
+ * its question and its swamp command in place of the buttons until a second press or a way out.
+ */
+function runBar(run: Run): string {
+  const actions = runActions(run)
+  const button = (action: RunAction, cls: string) =>
+    `<button class="${cls} ctl" data-action="runAct" data-run-action="${action}" ${action === 'again' ? 'title="Start a new run with this run’s inputs"' : ''} ${off()}>${controlText(action, actionLabel(action, run.status), ACTION_LOOK[action].busy)}</button>`
+  const asked = state.confirm && state.confirm !== 'again' && actions.includes(state.confirm) ? state.confirm : undefined
+  const row = asked
+    ? `<div class="ask" role="alert">
+        <span>${esc(ACTION_LOOK[asked].confirm)}</span>
+        <div class="ctls">${button(asked, 'btn-danger')}<button class="btn-outline ctl" data-action="unconfirm" ${off()}>${asked === 'stop' ? 'Keep running' : 'Cancel'}</button></div>
+        <span class="mono muted" style="font-size:11.5px">runs: ${esc(actionCommand(asked, run))}</span>
+      </div>`
+    : `<div class="ctls">${actions.map((a) => button(a, 'btn-outline')).join('')}${runButton(run.workflow)}</div>`
+  return row + runForm(run.workflow) + [...actions, `run:${run.workflow}`].map(controlError).join('')
+}
+
+/** Where `render` puts the live log's element. */
+const LOG_SLOT = '<div id="log-slot"></div>'
 
 function runScreen(run: Run): string {
   const now = Date.now()
@@ -728,6 +827,21 @@ function runScreen(run: Run): string {
   const meta = [`run ${shortId(run.id)}`, ago(run.startedAt, now), run.status !== 'running' ? duration(run.durationMs) : '']
     .filter(Boolean)
     .join(' · ')
+  const usual = usualTimes(state.list.data?.runs ?? []).get(run.workflow)
+  // While the run moves, what it is doing now comes before its steps; once it ended, its steps and its failure do.
+  const following = inFlight(run.status)
+  // A line the run logged is activity too, and for a remote repo the only sign of it between two steps.
+  const logged = tail.key === tailKey(run) ? tail.lines.at(-1)?.at : undefined
+  const pace = paceOf(withVitals(run, logged ? { activeAt: logged } : {}), usual, now)
+  const look = pace && PACE_LOOK[pace.state]
+  const paceLine = pace
+    ? `<div role="status" style="display:flex;flex-direction:column;gap:3px;font-size:12px;line-height:1.45">
+        <div><span class="muted">${esc(paceProgress(pace))}</span>${look!.label ? `<span style="color:${TONE_VAR[look!.tone]};font-weight:600"> · ${esc(paceLabel(pace))}</span>` : ''}</div>
+        ${look!.hint ? `<div class="muted">${esc(look!.hint)}</div>` : ''}
+      </div>`
+    : !inFlight(run.status) && usual !== undefined
+      ? `<div class="muted" style="font-size:12px">usually ${brief(usual)}</div>`
+      : ''
   return `<div class="body" style="gap:12px;flex:1">
     <div style="display:flex;align-items:center;gap:8px">
       <button class="back" data-action="back" aria-label="Back">‹</button>
@@ -740,9 +854,13 @@ function runScreen(run: Run): string {
         .join('')}
       <span class="muted" style="font-size:11.5px;padding:3px ${Object.keys(run.inputs).length ? 8 : 0}px">${esc(meta)}</span>
     </div>
+    ${paceLine}
+    ${runBar(run)}
+    ${following ? LOG_SLOT : ''}
     ${parallel ? graph(run) : timeline(run, steps)}
     ${gates.length ? `<div style="margin-top:auto;display:flex;flex-direction:column;gap:12px">${gates.map((g) => gateCard(run, g)).join('')}</div>` : ''}
     ${failed ? failureActions(run, failed) : ''}
+    ${following ? '' : LOG_SLOT}
     ${runsOf(run)}
   </div>`
 }
@@ -752,9 +870,10 @@ function runsOf(run: Run): string {
   const runs = state.list.data?.workflows.find((w) => w.name === run.workflow)?.runs ?? []
   if (runs.length < 2) return ''
   const now = Date.now()
+  const usual = usualTimes(state.list.data?.runs ?? []).get(run.workflow)
   return `<section class="section" style="gap:2px;margin-top:6px">
     <div class="label" style="margin-bottom:6px">RECENT RUNS</div>
-    ${runs.map((r) => runRow(r, shortId(r.runId), now, run.id)).join('')}
+    ${runs.map((r) => runRow(r, shortId(r.runId), now, usual, run.id)).join('')}
   </section>`
 }
 
@@ -879,8 +998,8 @@ function ticketGrid(columns: Stage[], items: WorkItem[], now: number, single = f
     return { w, col, cells }
   })
   const place = (w: WorkItem): Place => ({ tab: 'stagecraft', factory: w.factory, item: w.key })
-  const line = (w: WorkItem, col: number) => `<button class="tline" data-action="seeStage" data-col="${col}" ${single ? '' : placeAttr(place(w))} style="color:${TICKET_COLOR[w.status]}">
-      <span class="tlabel">${esc(TICKET_LABEL[w.status])} · </span><span class="when ellipsis">${esc(ticketWhen(w, now))}</span><span class="where ellipsis">${esc(w.stage)}</span><span class="off" aria-hidden="true">›</span>
+  const line = (w: WorkItem, col: number) => `<button class="tline" data-action="seeStage" data-col="${col}" ${single ? '' : placeAttr(place(w))} style="color:${TICKET_COLOR[w.status]}" title="${esc(whyHere(w, now).text)}">
+      <span class="tlabel">${esc(reasonWord(w))} · </span><span class="when ellipsis">${esc(ticketWhen(w, now))}</span><span class="where ellipsis">${esc(w.stage)}</span><span class="off" aria-hidden="true">›</span>
     </button>`
   return `<div class="pager" hidden>
       <span class="pager-text" style="flex:1"></span>
@@ -1072,13 +1191,25 @@ function itemScreen(d: Decided): string {
   const stage = d.stages.find((s) => s.id === item.stage)
   const runs = stage?.workflow
   const pending = [...held.values()].flatMap((x) => x.gateIds.map((g) => ({ gate: g, exit: x })))
-  const status = item.waiting
-    ? `<div style="font-weight:600;color:var(--gold)">PERSON · waiting on ${esc(pending.map((p) => p.gate).join(', '))}</div>`
-    : item.parked
-      ? `<div style="font-weight:600;color:var(--warm)">PARKED · dispatch cap ${item.parked.count}/${item.parked.limit}, a person must grant an override</div>`
-      : isFinished(item.status)
-        ? `<div style="font-weight:600;color:var(--muted)">FINISHED · ${esc(item.stage)}</div>`
-        : `<div style="font-weight:600;color:var(--muted)">AGENT · working in ${esc(item.stage)}</div>`
+  const why = whyHere(item, now)
+  const sent = 'dispatch' in item.reason && item.reason.dispatch.workflow ? item.reason.dispatch : undefined
+  const sentRun = sent && dispatchRun(state.list.data?.runs ?? [], sent)
+  const held_ = since(item.reason.since, now)
+  const whyBlock = `<section class="card" style="display:flex;flex-direction:column;gap:6px;border-left:3px solid ${TICKET_COLOR[item.status]}">
+      <div class="label">WHY IT IS HERE</div>
+      <div style="font-weight:600;line-height:1.4;color:${item.status === 'queued' ? 'var(--text)' : TICKET_COLOR[item.status]}">${esc(why.text)}</div>
+      ${why.why ? `<div class="mono muted clamp" style="font-size:11.5px;line-height:1.45;overflow-wrap:anywhere" title="${esc(why.why)}">${esc(why.why)}</div>` : ''}
+      ${held_ || why.next ? `<div class="muted" style="font-size:12px;line-height:1.5">${esc([held_ && `For ${held_}.`, why.next].filter(Boolean).join(' '))}</div>` : ''}
+      ${
+        sent
+          ? `<div><button class="btn-outline" style="min-height:30px;padding:0 12px" ${goTo({ tab: 'workflows', workflow: sent.workflow!, ...(sentRun && { runId: sentRun.runId }) })}>${
+              sentRun ? `Open the run${sentRun.failedStep ? ` · failed at ${esc(sentRun.failedStep)}` : ''}` : `Open ${esc(sent.workflow!)}`
+            }</button></div>`
+          : item.reason.kind === 'gate' && state.itemTab !== 'now'
+            ? `<div><button class="btn-outline" style="min-height:30px;padding:0 12px" data-action="itemTab" data-tab="now">Decide</button></div>`
+            : ''
+      }
+    </section>`
   const tab = (id: ItemTab, label: string) =>
     `<button role="tab" aria-selected="${state.itemTab === id}" class="tab" style="font-size:13px;padding:8px 12px" data-action="itemTab" data-tab="${id}">${label}</button>`
   const products = d.products.length
@@ -1088,7 +1219,6 @@ function itemScreen(d: Decided): string {
     <div style="display:flex;flex-direction:column;gap:4px">
       <div class="muted" style="font-size:12px">In <span class="mono" style="color:var(--text)">${esc(item.stage)}</span>${runs ? ` · runs <span class="mono" style="color:var(--text)">${esc(runs)}</span>` : ''} · cycle ${item.cycle} · ${esc(since(item.enteredAt, now))}</div>
       ${stage?.description ? `<div class="muted" style="font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere">${esc(stage.description)}</div>` : ''}
-      ${status}
     </div>
     ${
       d.exits.length
@@ -1155,6 +1285,7 @@ function itemScreen(d: Decided): string {
       <span class="mono muted">${esc(item.key)}</span>
       <span class="ellipsis" style="font-weight:600;flex:1">${esc(item.title)}</span>
     </div>
+    ${whyBlock}
     <div class="section" style="gap:6px">${ticketGrid(d.stages, [item], now, true)}${LEGEND}</div>
     <div role="tablist" class="tabs">${tab('now', 'Now')}${tab('timeline', 'Timeline')}</div>
     ${state.itemTab === 'now' ? now_ : timeline}
@@ -1266,6 +1397,190 @@ root.className = 'root'
 const focusKey = (el: Element | null): string =>
   el instanceof HTMLElement && root.contains(el) ? el.id || (el.dataset.action ? JSON.stringify(el.dataset) : '') : ''
 
+// The run screen's live log. Its element is made once and outlives every redraw: `render` redraws the page around
+// it and new lines are appended to it, so its scroll position and a selection in it survive the poll.
+const newTail = (key: string) => ({
+  key,
+  lines: [] as LogLine[],
+  /** The byte offsets the lines span; `next` is none before the first answer. */
+  from: 0,
+  next: undefined as number | undefined,
+  done: false,
+  error: undefined as string | undefined,
+  asking: false,
+  /** The view follows the newest line until the person scrolls up. */
+  pinned: true,
+  top: 0,
+  /** The log tag of the step whose lines show; every line without one. */
+  filter: undefined as string | undefined,
+  /** A line to scroll to on the next draw: a failed run's first error. */
+  seek: undefined as HTMLElement | undefined,
+  /** The step each log tag belongs to, which names a line better than its model, whose name may hold the run's id. */
+  steps: new Map<string, string>()
+})
+let tail = newTail('')
+const tailKey = (run: Run): string => `${repoDir() ? repoKey(repoDir()!) : ''}\0${run.id}`
+
+const logBox = document.createElement('section')
+logBox.className = 'section'
+logBox.innerHTML = `<div class="log-head"></div>
+  <div class="log-wrap"><div class="log live" role="log" aria-label="Run log" tabindex="0"><div class="log-top"></div><div class="lines"></div></div>
+  <button class="btn-outline jump" data-action="logJump" hidden>Jump to latest ↓</button></div>`
+const [logHead, logScroll, logTop, logLines, logJump] = ['.log-head', '.log', '.log-top', '.lines', '.jump'].map((q) => logBox.querySelector<HTMLElement>(q)!)
+const atBottom = (): boolean => logScroll.scrollHeight - logScroll.scrollTop - logScroll.clientHeight < 24
+logScroll.addEventListener(
+  'scroll',
+  () => {
+    tail.pinned = atBottom()
+    tail.top = logScroll.scrollTop
+    logJump.hidden = tail.pinned
+  },
+  { passive: true }
+)
+
+const clock = (at?: string): string => (at ? `${new Date(at).toLocaleTimeString('en-GB')} ` : '')
+// Log text is what a workflow printed: every part of it is escaped.
+const lineHtml = (l: LogLine): string =>
+  `<div class="ll ${l.level}"${l.tag ? ` data-tag="${esc(l.tag)}"` : ''}${tail.filter && l.tag !== tail.filter ? ' hidden' : ''}><span class="lt">${clock(l.at)}</span>${l.tag ? `<span class="lg">${esc(tail.steps.get(l.tag) ?? l.tag.split('·')[0])} </span>` : ''}${l.level === 'info' ? verdicts(esc(l.text)) : esc(l.text)}</div>`
+
+function takeChunk(chunk: LogChunk, earlier: boolean, run: Run): void {
+  const first = tail.next === undefined
+  if (chunk.reset) {
+    tail.lines = []
+    logLines.innerHTML = ''
+  }
+  // Asked of the element itself: a scroll event may not have told `pinned` of the last wheel turn yet.
+  if (logBox.isConnected && !first) tail.pinned = atBottom()
+  const html = chunk.lines.map(lineHtml).join('')
+  const height = logScroll.scrollHeight
+  if (earlier) {
+    tail.lines.unshift(...chunk.lines)
+    tail.from = chunk.from
+    logLines.insertAdjacentHTML('afterbegin', html)
+    logScroll.scrollTop += logScroll.scrollHeight - height
+    return
+  }
+  tail.lines.push(...chunk.lines)
+  logLines.insertAdjacentHTML('beforeend', html)
+  if (first || chunk.reset) tail.from = chunk.from
+  tail.next = chunk.next
+  tail.done = chunk.done
+  // A person reading older lines keeps them for twice as long before the oldest go.
+  const over = tail.lines.length - LOG.keepLines * (tail.pinned ? 1 : 2)
+  if (over > 0) {
+    const before = logScroll.scrollHeight
+    tail.lines.splice(0, over)
+    for (let i = 0; i < over; i++) logLines.firstElementChild!.remove()
+    tail.from = tail.lines[0].pos
+    if (!tail.pinned) logScroll.scrollTop -= before - logScroll.scrollHeight
+  }
+  if (first && run.status === 'failed') {
+    const error = tail.lines.findIndex((l) => l.level === 'error')
+    if (error >= 0) tail.seek = logLines.children[error] as HTMLElement
+  }
+  if (tail.pinned) logScroll.scrollTop = logScroll.scrollHeight
+}
+
+/** Reads what the run logged since the last read, or with `earlier` the lines before the oldest one held. */
+async function loadTail(run: Run, dir: Repo, earlier = false): Promise<void> {
+  if (tail.key !== tailKey(run)) {
+    tail = newTail(tailKey(run))
+    logLines.innerHTML = ''
+    logJump.hidden = true
+  }
+  const t = tail
+  t.steps = new Map(stepsOf(run).flatMap((s) => (s.logTag ? [[s.logTag, s.name]] : [])))
+  // A run that ended is read to its end once, and one whose process is gone will write no more.
+  if (t.asking || (!earlier && t.next !== undefined && (run.gone || (t.done && !inFlight(run.status))))) return
+  t.asking = true
+  try {
+    // A backlog longer than one answer is read in a few asks now, not one per poll.
+    for (let i = 0; i < 4; i++) {
+      const chunk = await orca.plugin.request('log.tail', { repo: dir, runId: run.id, ...(earlier ? { before: t.from } : t.next !== undefined && { after: t.next }) })
+      if (t !== tail) return
+      takeChunk(chunk, earlier, run)
+      if (earlier || chunk.next >= chunk.size) break
+    }
+    t.error = undefined
+  } catch (e) {
+    t.error = failure(e).message
+  } finally {
+    t.asking = false
+    if (t === tail) syncLog()
+  }
+}
+
+let logDrawn = ['', '']
+/** Draws what surrounds the log's lines, and with `place` puts its scroll back after its element moved. */
+function syncLog(place = false): void {
+  const run = state.run.data
+  if (!run || !logBox.isConnected || tail.key !== tailKey(run)) return
+  const step = stepsOf(run).find((s) => s.name === state.selected)
+  const filter = step?.logTag
+  if (filter !== tail.filter) {
+    tail.filter = filter
+    for (const el of Array.from(logLines.children) as HTMLElement[]) el.hidden = !!filter && el.dataset.tag !== filter
+    tail.pinned = place = true
+  }
+  logBox.toggleAttribute('data-filtered', !!filter)
+  const shown = filter ? tail.lines.filter((l) => l.tag === filter).length : tail.lines.length
+  const live = inFlight(run.status)
+  const status = tail.error
+    ? `<span style="color:var(--fail)">${esc(tail.error)}</span>`
+    : tail.next === undefined
+      ? 'Reading the log…'
+      : run.gone
+        ? 'not following: the run’s process is gone'
+        : live
+          ? '<span style="color:var(--run)">following</span>'
+          : `${shown} line${shown === 1 ? '' : 's'}`
+  const head = `<span class="label">LOG</span><span class="muted" role="status" style="font-size:12px">${status}</span>
+    ${step && filter ? `<button class="log-filter" data-action="select" data-step="${esc(step.name)}" title="Show every step’s lines">${esc(step.name)} ✕</button>` : ''}
+    <button class="btn-outline" style="margin-left:auto;min-height:26px;padding:0 10px" data-action="logCopy" data-flash="logCopy" ${shown ? '' : 'disabled'}>${state.flash?.action === 'logCopy' ? esc(state.flash.text) : 'Copy'}</button>`
+  const none = filter ? 'This step wrote no log lines.' : live ? 'No log lines yet.' : 'This run wrote no log lines.'
+  const top =
+    tail.from > 0
+      ? tail.lines.length < LOG.keepLines
+        ? `<button class="btn-outline" style="min-height:24px;padding:0 10px;margin-bottom:6px" data-action="logEarlier">Show earlier</button>`
+        : `<div class="muted" style="margin-bottom:6px">Showing the newest ${tail.lines.length} lines.</div>`
+      : shown || tail.next === undefined
+        ? ''
+        : `<span class="muted">${none}</span>`
+  if (head !== logDrawn[0]) logHead.innerHTML = head
+  if (top !== logDrawn[1]) logTop.innerHTML = top
+  logDrawn = [head, top]
+  if (tail.seek) {
+    logScroll.scrollTop = Math.max(0, tail.seek.offsetTop - 32)
+    tail.seek = undefined
+  } else if (place) logScroll.scrollTop = tail.pinned ? logScroll.scrollHeight : tail.top
+  logJump.hidden = tail.pinned = atBottom()
+}
+
+/**
+ * Redraws the page as `html` around `keep`, which stays in the document in the place of `html`'s `#log-slot`: an
+ * element taken out and put back would lose its scroll position and the selection in it. False when it is not on
+ * the page now or `html` has no place for it.
+ */
+function redrawAround(keep: HTMLElement, html: string): boolean {
+  if (!root.contains(keep)) return false
+  const page = document.createElement('div')
+  page.innerHTML = html
+  const slot = page.querySelector('#log-slot')
+  const depth = (el: Element | null, top: Element): number => (el === top || !el ? 0 : 1 + depth(el.parentElement, top))
+  if (!slot || depth(slot, page) !== depth(keep, root)) return false
+  for (let [from, to]: Element[] = [keep, slot]; from !== root; [from, to] = [from.parentElement!, to.parentElement!]) {
+    const [was, now] = [from.parentElement!, to.parentElement!]
+    const old = Array.from(was.childNodes).filter((n) => n !== from)
+    const kids = Array.from(now.childNodes)
+    const at = kids.indexOf(to)
+    from.before(...kids.slice(0, at))
+    from.after(...kids.slice(at + 1))
+    for (const n of old) n.remove()
+    if (was !== root) for (const a of Array.from(now.attributes)) was.setAttribute(a.name, a.value)
+  }
+  return true
+}
+
 let drawn: string | undefined
 function render(): void {
   savePlace()
@@ -1275,8 +1590,16 @@ function render(): void {
   const scrolled = new Map(Array.from(root.querySelectorAll<HTMLElement>('[data-keep-scroll]'), (el) => [el.dataset.keepScroll, [el.scrollTop, el.scrollLeft]]))
   const html = view()
   // The same page again is left alone, so a refresh does not drop the text a person selected in a log.
-  if (html === drawn) return syncGrid()
-  root.innerHTML = drawn = html
+  if (html === drawn) {
+    syncLog()
+    return syncGrid()
+  }
+  const kept = redrawAround(logBox, html)
+  if (!kept) root.innerHTML = html
+  drawn = html
+  const slot = kept ? null : root.querySelector('#log-slot')
+  slot?.replaceWith(logBox)
+  syncLog(!!slot)
   for (const el of Array.from(root.querySelectorAll<HTMLElement>('[data-keep-scroll]'))) [el.scrollTop, el.scrollLeft] = scrolled.get(el.dataset.keepScroll) ?? [0, 0]
   const nowCol = root.querySelector<HTMLElement>('[data-now-col]')?.dataset.nowCol
   if (nowCol && !scrolled.has('ticket-stages')) showStage(Number(nowCol), 'instant')
@@ -1396,7 +1719,7 @@ async function refresh(): Promise<void> {
       if (run.status === 'failed' && state.agent === undefined && !remoteOff(dir, 'send')) {
         state.agent = await orca.plugin.request('agent.terminal', {}).catch(() => null)
       }
-      await loadLogs(run)
+      await Promise.all([loadLogs(run), loadTail(run, dir)])
     }
   }
   render()
@@ -1496,6 +1819,9 @@ function clearScreen(): void {
   state.logs = { key: '', value: undefined, error: undefined }
   state.notes = {}
   state.actionError = undefined
+  state.acted = undefined
+  state.confirm = undefined
+  state.form = undefined
   state.agent = undefined
 }
 
@@ -1510,12 +1836,17 @@ function flash(action: string, text: string): void {
   }, 2000)
 }
 
-/** Runs a button's request; `fn` gets a check that is false once the person has moved to another screen. */
-async function act(fn: (here: () => boolean) => Promise<void>): Promise<void> {
+/**
+ * Runs a button's request; `fn` gets a check that is false once the person has moved to another screen. `control`
+ * names the run control pressed, whose button then says it is busy and shows the error.
+ */
+async function act(fn: (here: () => boolean) => Promise<void>, control?: string): Promise<void> {
   const gen = generation
   const here = () => gen === generation
   state.busy = true
   state.actionError = undefined
+  state.acted = control
+  state.confirm = undefined
   render()
   try {
     await fn(here)
@@ -1524,6 +1855,14 @@ async function act(fn: (here: () => boolean) => Promise<void>): Promise<void> {
   }
   state.busy = false
   render()
+}
+
+/** Starts a run and goes to it, or to the workflow's latest run when swamp has not listed the new one yet. */
+async function startRun(repo: Repo, input: { workflow: string; inputs?: Record<string, string>; again?: RunId }, here: () => boolean): Promise<void> {
+  const { runId } = await orca.plugin.request('run.start', { repo, ...input }, { timeoutMs: 60_000 })
+  // The new run belongs on top of the lists, which are otherwise read again at the idle rate.
+  listAt = { gen: -1, at: 0 }
+  if (here()) go({ tab: 'workflows', workflow: input.workflow, ...(runId && { runId }) })
 }
 
 function pin(key: string): void {
@@ -1615,6 +1954,56 @@ const actions: Record<string, (el: HTMLElement) => void> = {
       delete state.notes[step]
     })
   },
+  run: (el) => {
+    const dir = repoDir()
+    const workflow = el.dataset.workflow!
+    if (!dir) return
+    void act(async (here) => {
+      const fields = await orca.plugin.request('workflow.inputs', { repo: dir, workflow })
+      if (!here()) return
+      if (!fields.length) return startRun(dir, { workflow }, here)
+      state.form = { workflow, fields, values: Object.fromEntries(fields.flatMap((f) => (f.default === undefined ? [] : [[f.name, f.default]]))) }
+    }, `run:${workflow}`)
+  },
+  runStart: () => {
+    const dir = repoDir()
+    const form = state.form
+    if (!dir || !form) return
+    void act((here) => startRun(dir, { workflow: form.workflow, inputs: form.values }, here), `run:${form.workflow}`)
+  },
+  runClose: () => {
+    state.form = undefined
+    state.actionError = undefined
+    render()
+  },
+  unconfirm: () => {
+    state.confirm = undefined
+    render()
+  },
+  runAct: (el) => {
+    const run = state.run.data
+    const dir = repoDir()
+    if (!run || !dir) return
+    const action = el.dataset.runAction as RunAction
+    const from = el.dataset.step ? { job: el.dataset.job!, step: el.dataset.step } : undefined
+    if (!from && ACTION_LOOK[action].confirm && state.confirm !== action) {
+      Object.assign(state, { confirm: action, actionError: undefined })
+      return render()
+    }
+    void act(
+      async (here) => {
+        if (action === 'again') return startRun(dir, { workflow: run.workflow, again: run.id }, here)
+        try {
+          const data = await orca.plugin.request('run.act', { repo: dir, workflow: run.workflow, runId: run.id, action, ...(from && { from }) }, { timeoutMs: 90_000 })
+          if (here()) state.run = { data }
+        } finally {
+          listAt = { gen: -1, at: 0 }
+        }
+      },
+      from ? `from:${from.job}/${from.step}` : action
+      // Read again after a refusal too: the run may have moved before swamp refused.
+    ).then(() => void refresh())
+  },
   send: () => {
     const run = state.run.data
     const dir = repoDir()
@@ -1701,6 +2090,18 @@ const actions: Record<string, (el: HTMLElement) => void> = {
         state.studio.error = failure(e).message
       }
     })
+  },
+  logJump: () => {
+    logScroll.scrollTop = logScroll.scrollHeight
+    logJump.hidden = tail.pinned = true
+  },
+  logEarlier: () => {
+    const [run, dir] = [state.run.data, repoDir()]
+    if (run && dir) void loadTail(run, dir, true)
+  },
+  logCopy: (el) => {
+    el.dataset.text = logText(tail.filter ? tail.lines.filter((l) => l.tag === tail.filter) : tail.lines)
+    actions.copyText(el)
   },
   copyText: (el) => {
     const text = el.dataset.text!
@@ -1790,6 +2191,7 @@ root.addEventListener('input', (e) => {
     state.runsLimit = RUNS_FIRST
     render()
   } else if (el.dataset.input === 'note') state.notes[el.dataset.step ?? ''] = el.value
+  else if (el.dataset.input === 'field' && state.form) state.form.values[el.dataset.field!] = el.value
 })
 root.addEventListener('change', (e) => {
   const el = e.target as HTMLSelectElement
@@ -1867,6 +2269,16 @@ button.wf:hover, .row-btn:hover, .recent:hover, .node:hover { border-color: var(
 .tab { background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 7px 12px; font-size: 12px; }
 .tab[aria-selected="true"] { border-bottom-color: var(--accent); color: var(--text); }
 .log { margin: 0; padding: 10px 12px; font: 11.5px/1.6 var(--mono); color: var(--muted); white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; }
+.log-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 28px; }
+.log-wrap { position: relative; border: 1px solid var(--border); border-radius: 8px; background: var(--deep); overflow: hidden; }
+.log.live { position: relative; min-height: 44px; max-height: 360px; color: var(--text); user-select: text; }
+.ll.warn { color: var(--warm); }
+.ll.error { color: var(--fail); }
+.lt, .lg { color: var(--dim); }
+[data-filtered] .lg { display: none; }
+.log-filter { border: 1px solid var(--border-strong); border-radius: 6px; background: var(--raised); color: var(--text); font-size: 11.5px; padding: 2px 8px; }
+.jump[hidden] { display: none; }
+.jump { position: absolute; right: 14px; bottom: 8px; min-height: 26px; padding: 0 10px; background: var(--raised); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); }
 .node { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--raised); text-align: left; }
 .node-col { flex-direction: column; align-items: stretch; gap: 4px; }
 .parallel { width: 100%; display: grid; gap: 10px; }
@@ -1875,6 +2287,22 @@ button.wf:hover, .row-btn:hover, .recent:hover, .node:hover { border-color: var(
 .btn-gold { border-radius: 8px; border: none; background: var(--gold); color: var(--on-gold); font-weight: 600; }
 .btn-outline { border-radius: 8px; border: 1px solid var(--border-strong); background: none; color: var(--text); }
 .btn-outline:hover { background: var(--raised); }
+.btn-danger { border-radius: 8px; border: 1px solid var(--fail); background: var(--fail-bg); color: var(--fail); font-weight: 600; }
+.ctls { display: flex; flex-wrap: wrap; gap: 8px; }
+.ctl { min-height: 30px; padding: 0 12px; font-size: 12.5px; }
+.btn-accent.ctl { min-height: 30px; }
+.ctl-error { color: var(--fail); font-size: 12px; white-space: pre-wrap; }
+.ask { border: 1px solid var(--border-strong); border-radius: 10px; padding: 10px 12px; background: var(--raised); display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; line-height: 1.45; }
+.run-form { border: 1px solid var(--border-strong); border-radius: 10px; padding: 12px; background: var(--raised); display: flex; flex-direction: column; gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.with-from { display: flex; align-items: flex-start; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.with-from > .node { flex: 1; width: auto; min-width: 0; }
+.with-from > .step-row { flex: 1; width: auto; min-width: 0; }
+.with-from.col { flex-direction: column; align-items: stretch; gap: 4px; }
+.with-from .ctl-error { flex-basis: 100%; }
+.from { min-height: 24px; padding: 0 8px; font-size: 11.5px; white-space: nowrap; flex-shrink: 0; }
+.from.quiet { opacity: 0; }
+.with-from:hover .from.quiet, .from.quiet:focus-visible { opacity: 1; }
 .btn-accent { min-height: 38px; border-radius: 8px; border: none; background: var(--accent); color: var(--on-accent); font-weight: 600; }
 .stale { margin: 0 16px; padding: 8px 10px; border-radius: 8px; font-size: 12px; color: var(--gold); background: var(--gold-bg); }
 .segs { margin: 0 16px; display: flex; background: var(--raised); border-radius: 8px; padding: 3px; }
@@ -1945,7 +2373,8 @@ document.body.append(root)
 
 function nextDelay(): number {
   if (state.place.tab !== 'workflows') return IDLE_MS
-  if ('workflow' in state.place) return state.run.data && isLive(state.run.data) ? LIVE_MS : IDLE_MS
+  // A run whose process is gone will not move by itself, so it is not read at the fast rate.
+  if ('workflow' in state.place) return state.run.data && isLive(state.run.data) && !state.run.data.gone ? LIVE_MS : IDLE_MS
   return state.list.data?.workflows.some((w) => w.latest?.status === 'running' || w.latest?.status === 'pending') ? LIVE_MS : IDLE_MS
 }
 

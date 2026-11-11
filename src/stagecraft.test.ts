@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { assert, test } from 'orca/testing'
-import { cellsOf, storedNote, ticketWhen } from './present'
+import { PACE } from './pace'
+import { cellsOf, dispatchRun, reasonWord, storedNote, ticketWhen, whyHere } from './present'
 import { SwampFailure } from './domain'
 import { digestOf, FACTORY_TYPE, olderPayloadsQuery, parseBoard, parseFactories, parseWorkItemDetail, parseWorkItems, studioUrl } from './stagecraft'
 
@@ -137,6 +138,7 @@ test('a findings payload with a null entry still summarizes its real findings', 
 // note-factory in the swamp-test sandbox, driven by hand: note-2 sent back from check, note-3 waiting at ship,
 // note-4 with a dispatch open, note-6 parked at its dispatch cap, note-1 and note-5 shipped.
 const NOTE_NOW = '2026-11-08T06:00:00.000Z'
+const NOW_MS = Date.parse(NOTE_NOW)
 const notes = () => parseBoard(fx('sc.note-factory'), fx('sc.note-runs'), NOTE_NOW)
 
 test('each ticket has one status: waiting on a person, parked, a dispatch open, queued, or finished', () => {
@@ -178,11 +180,126 @@ test('the grid shows passed stages, the current one, the one a ticket was sent b
   assert.deepEqual(row('note-6'), [{ kind: 'now' }, { kind: 'ahead' }, { kind: 'ahead' }])
 })
 
-test('the line under a ticket says how long it waited, how many tries it used, or which try it is on', () => {
-  const at = (key: string) => ticketWhen(notes().items.find((i) => i.key === key)!, Date.parse(NOTE_NOW))
-  assert.equal(at('note-2'), '2nd try')
-  assert.equal(at('note-6'), '2 of 2 tries')
-  assert.match(at('note-3'), /^\d+m$/)
+// Three tickets as two real factories recorded them: the plan dispatch failed, the plan dispatch was interrupted, and
+// the security review succeeded with nothing advancing the ticket after it.
+const STUCK_NOW = '2026-11-11T05:00:00.000Z'
+const stuck = () => parseWorkItems(fx('sc.stuck-runs'), STUCK_NOW)
+const note = (key: string) => notes().items.find((i) => i.key === key)!
+const shop = (key: string) => stuck().find((i) => i.key === key)!
+const line = (i: ReturnType<typeof note>, now: string) => `${reasonWord(i)} · ${ticketWhen(i, Date.parse(now))}`
+
+test('a ticket held at a gate says which gate a person must decide and since when', () => {
+  const i = note('note-3')
+  assert.deepEqual(i.reason, { kind: 'gate', since: i.waiting!.since, gates: ['ship-approval'] })
+  assert.match(line(i, NOTE_NOW), /^needs you · \d+m$/)
+  assert.match(whyHere(i, NOW_MS).text, /person must decide ship-approval/)
+})
+
+test('a ticket at its dispatch cap is parked since the cap was hit, and says a person must grant an override', () => {
+  const i = note('note-6')
+  assert.deepEqual(i.reason, { kind: 'parked', since: '2026-11-08T05:48:27.984Z', count: 2, limit: 2 })
+  assert.equal(line(i, NOTE_NOW), 'parked · 2 of 2 tries')
+  assert.match(whyHere(i, NOW_MS).next, /grant a dispatch override/)
+})
+
+test('a ticket with a dispatch open is working since that dispatch, and its line stays the quiet one', () => {
+  const i = note('note-4')
+  assert.deepEqual(i.reason, { kind: 'working', since: '2026-11-08T05:47:41.988Z', dispatch: { id: 1, mode: 'interactive', at: '2026-11-08T05:47:41.988Z' }, activeAt: '2026-11-08T05:47:41.988Z' })
+  assert.match(line(i, NOTE_NOW), /^working · \d+m$/)
+  assert.match(whyHere(i, NOW_MS).text, /is in progress/)
+})
+
+/** note-4, whose dispatch is open, read at `now`, with a journal event of `type` at each of `events` after the dispatch. */
+function openDispatch(now: string, events: string[] = [], type = 'usage') {
+  const runs = fx('sc.note-runs') as RunRecords
+  const record = runs.results.find((r) => r.content.key === 'note-4')!.content as { journal: Record<string, unknown>[] }
+  for (const at of events) record.journal.push({ ...record.journal.at(-1)!, type, at })
+  return parseWorkItems(runs, now).find((i) => i.key === 'note-4')!
+}
+const after = (iso: string, ms: number): string => new Date(Date.parse(iso) + ms).toISOString()
+const SENT = '2026-11-08T05:47:41.988Z'
+
+test('a working ticket whose dispatch recorded nothing for longer than the threshold counts as stuck and reads "no activity"', () => {
+  const now = after(SENT, 3 * 86_400_000)
+  const i = openDispatch(now)
+  assert.equal(i.status, 'stuck')
+  assert.equal(i.reason.kind, 'working')
+  assert.equal(line(i, now), 'no activity · 3d')
+  const why = whyHere(i, Date.parse(now))
+  assert.equal(why.text, 'The work for write has shown no activity for 3d.')
+  assert.match(why.next, /still open .* may have stopped/)
+  assert.doesNotMatch(why.text + why.next, /failed/)
+})
+
+test('the threshold is counted from the last journal event of the stage entry, not from the dispatch', () => {
+  const last = after(SENT, 3 * 86_400_000)
+  const justUnder = openDispatch(after(last, PACE.ticketQuietMs), [after(SENT, 60_000), last])
+  assert.equal(justUnder.status, 'working')
+  assert.ok(justUnder.reason.kind === 'working' && justUnder.reason.activeAt === last && justUnder.reason.since === SENT)
+  assert.match(line(justUnder, after(last, PACE.ticketQuietMs)), /^working · /)
+  const over = openDispatch(after(last, PACE.ticketQuietMs + 60_000), [last], 'checkpoint')
+  assert.equal(over.status, 'stuck')
+  assert.equal(line(over, after(last, PACE.ticketQuietMs + 60_000)), 'no activity · 2h')
+})
+
+test('a quiet ticket sent to a workflow points at that run', () => {
+  const runs = fx('sc.note-runs') as RunRecords
+  const record = runs.results.find((r) => r.content.key === 'note-4')!.content as { dispatches: Record<string, unknown>[] }
+  Object.assign(record.dispatches.at(-1)!, { mode: 'workflow', workflow: 'write-it' })
+  const now = after(SENT, 86_400_000)
+  const i = parseWorkItems(runs, now).find((x) => x.key === 'note-4')!
+  assert.match(whyHere(i, Date.parse(now)).next, /Open the run of write-it/)
+})
+
+test('a ticket whose dispatch failed is stuck since it failed, with the reason its driver wrote', () => {
+  const i = shop('shop-1')
+  assert.equal(i.status, 'stuck')
+  assert.equal(i.reason.kind, 'failed')
+  assert.equal(i.reason.since, '2026-11-07T04:02:41.438Z')
+  assert.equal(line(i, STUCK_NOW), 'failed · 4d')
+  assert.match(whyHere(i, NOW_MS).why!, /^Provider failure/)
+  assert.match(whyHere(i, NOW_MS).next, /dispatch the stage's work again/)
+})
+
+test('a ticket whose dispatch was interrupted is stuck and says so, not failed', () => {
+  const i = shop('shop-2')
+  assert.equal(i.status, 'stuck')
+  assert.equal(i.reason.kind, 'interrupted')
+  assert.equal(line(i, STUCK_NOW), 'interrupted · 4d')
+  assert.match(whyHere(i, NOW_MS).text, /was interrupted/)
+})
+
+test('a ticket whose work passed but did not advance says so, counted from when the work ended', () => {
+  const i = shop('shop-3')
+  assert.equal(i.status, 'queued')
+  assert.deepEqual(i.reason, { kind: 'passed', since: '2026-11-03T19:46:47.362Z', dispatch: { id: 3, mode: 'dispatch', at: '2026-11-03T19:42:57.112Z' } })
+  assert.equal(line(i, STUCK_NOW), 'not advanced · 7d')
+})
+
+test('a ticket with nothing sent for its stage entry is idle since it entered, and one sent back says where from', () => {
+  const i = note('note-2')
+  assert.deepEqual(i.reason, { kind: 'idle', since: i.enteredAt })
+  assert.match(line(i, NOTE_NOW), /^idle · \d+m$/)
+  assert.match(whyHere(i, NOW_MS).text, /came back to write from check/)
+})
+
+test('a finished ticket is done, and its line keeps its status word', () => {
+  const i = note('note-1')
+  assert.equal(i.reason.kind, 'done')
+  assert.equal(reasonWord(i), 'done')
+})
+
+test('a failed dispatch to a workflow stage names the workflow, and its run is the first one started after the dispatch', () => {
+  const runs = fx('sc.stuck-runs') as RunRecords
+  const record = runs.results.find((r) => r.content.key === 'shop-1')!.content as { dispatches: Record<string, unknown>[] }
+  Object.assign(record.dispatches[0], { mode: 'workflow', workflow: 'plan-it' })
+  const i = parseWorkItems(runs, STUCK_NOW).find((x) => x.key === 'shop-1')!
+  assert.ok(i.reason.kind === 'failed' && i.reason.dispatch.workflow === 'plan-it')
+  assert.match(whyHere(i, NOW_MS).next, /Open the run of plan-it/)
+  const run = (runId: string, workflow: string, startedAt: string) => ({ runId, workflow, startedAt, status: 'failed' }) as Parameters<typeof dispatchRun>[0][number]
+  const history = [run('later', 'plan-it', '2026-11-07T09:00:00.000Z'), run('mine', 'plan-it', '2026-11-07T04:01:30.000Z'), run('other', 'ship-it', '2026-11-07T04:01:29.900Z'), run('before', 'plan-it', '2026-11-07T03:00:00.000Z')]
+  assert.equal(dispatchRun(history, i.reason.dispatch)?.runId, 'mine')
+  assert.equal(dispatchRun(history.slice(3), i.reason.dispatch), undefined)
 })
 
 test('a stage that runs a workflow names it, and other stages name none', () => {

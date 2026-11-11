@@ -2,6 +2,7 @@
 // work item's state is its `run` record, read with `swamp data query`.
 import { createHash } from 'node:crypto'
 import { arr, HISTORY_LENGTH, num, obj, plain, str, SwampFailure, type Json } from './domain'
+import { PACE } from './pace'
 
 export const FACTORY_TYPE = '@swamp/stagecraft/factory'
 export const WORK_ITEM_TYPE = '@swamp/stagecraft/work-item'
@@ -19,17 +20,54 @@ export type HeldExit = { transition: string; to: string; manual: boolean; gateId
 
 export type Expected = { stage: string; cycle: number; era: string }
 
+/** One send of a stage's work. `workflow` names the swamp workflow a stage of mode `workflow` was sent to run. */
+export type Dispatch = { id: number; mode: string; at: string; workflow?: string }
+
 /**
- * Where a ticket stands, for every view that colors or filters by it: waiting on a person, parked at its dispatch
- * cap, a dispatch open now, active with none of those, or finished.
+ * Why a ticket is where it is, from its run record alone. Exactly one holds, and `since` is when it began to.
+ * `why` is what the driver wrote when the dispatch ended; for a parked ticket, of its last dispatch.
+ * `activeAt` is when the journal last recorded anything for the stage entry: the dispatch itself, or a later event.
+ */
+export type Reason = { since?: string } & (
+  | { kind: 'gate'; gates: string[] }
+  | { kind: 'parked'; count: number; limit: number; why?: string }
+  | { kind: 'working'; dispatch: Dispatch; activeAt: string }
+  | { kind: 'failed' | 'interrupted'; dispatch: Dispatch; why?: string }
+  /** The stage's work succeeded and nothing advanced the ticket. */
+  | { kind: 'passed'; dispatch: Dispatch }
+  /** Nothing was sent for this stage entry. */
+  | { kind: 'idle' }
+  | { kind: 'done' }
+)
+
+/**
+ * Where a ticket stands, for every view that colors or filters by it: waiting on a person, stuck (parked at its
+ * dispatch cap, its last dispatch failed or was interrupted, or its open dispatch has shown no activity for
+ * PACE.ticketQuietMs), a dispatch open now, active with none of those, or finished.
  */
 export type TicketStatus = 'needs-you' | 'stuck' | 'working' | 'queued' | 'done' | 'abandoned'
+
+const STATUS: Record<Exclude<Reason['kind'], 'done'>, TicketStatus> = {
+  gate: 'needs-you',
+  parked: 'stuck',
+  failed: 'stuck',
+  interrupted: 'stuck',
+  working: 'working',
+  passed: 'queued',
+  idle: 'queued'
+}
+
+function statusOf(reason: Reason, stage: string, now: string): TicketStatus {
+  if (reason.kind === 'done') return isAbandonStage(stage) ? 'abandoned' : 'done'
+  return reason.kind === 'working' && Date.parse(now) - Date.parse(reason.activeAt) > PACE.ticketQuietMs ? 'stuck' : STATUS[reason.kind]
+}
 
 export type WorkItem = {
   key: string
   title: string
   factory: string
   status: TicketStatus
+  reason: Reason
   stage: string
   cycle: number
   era: string
@@ -152,11 +190,23 @@ function entered(run: Run): { at?: string; from?: string } {
   return { at: str(advanced?.at) ?? (cycleOf(run) === 1 ? str(era[0]?.at) : undefined), from: str(advanced?.stage) }
 }
 
-/** The stage entry's latest dispatch has no outcome yet. */
-function dispatchOpen(run: Run): boolean {
+/** The one reason a ticket is where it is. `parkedAt` is when the `awaiting` event that parked it was written. */
+function reasonOf(run: Run, waiting: WorkItem['waiting'], parked: WorkItem['parked'], parkedAt: string | undefined, enteredAt: string | undefined): Reason {
+  if (run.status === 'terminal') return { kind: 'done', since: enteredAt }
+  if (waiting) return { kind: 'gate', since: waiting.since, gates: [...new Set(waiting.exits.flatMap((x) => x.gateIds))] }
   const events = entryEvents(run)
-  const last = findLast(events, (e) => e.type === 'dispatched')
-  return !!last && !events.some((e) => e.type === 'outcome' && e.dispatchId === last.dispatchId)
+  const sent = findLast(events, (e) => e.type === 'dispatched')
+  const ended = sent && events.find((e) => e.type === 'outcome' && e.dispatchId === sent.dispatchId)
+  // The journal says when and how; only the dispatch record holds the mode, the workflow and the driver's reason.
+  const record = arr(run.dispatches ?? [], 'run.dispatches').find((d) => sent && (d as Json | null)?.id === sent.dispatchId) as Json | undefined
+  const why = str((record?.outcome as Json | undefined)?.reason)
+  if (parked) return { kind: 'parked', since: parkedAt, ...parked, ...(why && { why }) }
+  if (!sent) return { kind: 'idle', since: enteredAt }
+  const workflow = str(record?.workflow)
+  const dispatch: Dispatch = { id: num(sent.dispatchId) ?? 0, mode: str(record?.mode) ?? '', at: str(sent.at) ?? '', ...(workflow && { workflow }) }
+  if (!ended) return { kind: 'working', since: dispatch.at, dispatch, activeAt: str(events.at(-1)?.at) ?? dispatch.at }
+  if (ended.outcome === 'succeeded') return { kind: 'passed', since: str(ended.at), dispatch }
+  return { kind: ended.outcome === 'interrupted' ? 'interrupted' : 'failed', since: str(ended.at), dispatch, ...(why && { why }) }
 }
 
 function workItem(run: Run, now: string): WorkItem {
@@ -169,14 +219,24 @@ function workItem(run: Run, now: string): WorkItem {
   const parked = hold && !grantedSince ? { count: num(hold.count) ?? 0, limit: num(hold.limit) ?? 0 } : null
   const stage = str(run.stage) ?? '?'
   const { at, from } = entered(run)
-  const finished: TicketStatus = isAbandonStage(stage) ? 'abandoned' : 'done'
-  const status: TicketStatus =
-    run.status === 'terminal' ? finished : held.length ? 'needs-you' : parked ? 'stuck' : dispatchOpen(run) ? 'working' : 'queued'
+  const waiting: WorkItem['waiting'] = held.length
+    ? {
+        since: held.map((x) => str(x.readyAt) ?? str(awaiting!.at)!).sort()[0],
+        exits: held.map((x) => ({
+          transition: str(x.transition) ?? '?',
+          to: str(x.to) ?? '?',
+          manual: x.manual === true,
+          gateIds: arr(x.gateIds ?? [], 'gateIds').map(String)
+        }))
+      }
+    : null
+  const reason = reasonOf(run, waiting, parked, str(awaiting?.at), at)
   return {
     key: str(run.key) ?? '?',
     title: str(run.title) ?? str(run.key) ?? '?',
     factory: str(run.factory) ?? '?',
-    status,
+    status: statusOf(reason, stage, now),
+    reason,
     stage,
     cycle: cycleOf(run),
     era: str(run.era) ?? '',
@@ -184,17 +244,7 @@ function workItem(run: Run, now: string): WorkItem {
     startedAt: str(run.journal[0]?.at) ?? '',
     enteredAt: at,
     from,
-    waiting: held.length
-      ? {
-          since: held.map((x) => str(x.readyAt) ?? str(awaiting!.at)!).sort()[0],
-          exits: held.map((x) => ({
-            transition: str(x.transition) ?? '?',
-            to: str(x.to) ?? '?',
-            manual: x.manual === true,
-            gateIds: arr(x.gateIds ?? [], 'gateIds').map(String)
-          }))
-        }
-      : null,
+    waiting,
     parked
   }
 }

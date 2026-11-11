@@ -1,10 +1,10 @@
-import { execFileSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { execFileSync, spawnSync } from 'node:child_process'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { assert, test } from 'orca/testing'
 import { SwampFailure, type Repo, type RepoDir, type RunId, type SshHost } from './domain'
-import { probeRemote, sshTryCommand, startResume, swamp } from './swamp'
+import { probeRemote, runFile, runVitals, sshTryCommand, startBackground, swamp } from './swamp'
 
 // A stand-in `ssh` on PATH logs its argv, then hands the command string to the remote person's login shell
 // ($LOGIN_SHELL) with stdin attached, as sshd does. The remote home holds a stand-in swamp that answers what it got.
@@ -162,14 +162,34 @@ test('a socket folder that cannot be created or written still lets swamp run', a
 test('resume on a remote host starts in the background and ssh returns before it finishes', async () => {
   const log = join(fake, 'remote-swamp.log')
   writeFileSync(log, '')
-  const errors: Error[] = []
+  const errors: unknown[] = []
   const started = Date.now()
   await withEnv({ FAKE_SWAMP: 'slow' }, async () => {
-    startResume(remoteRepo(remoteHome), 'gated', 'r-9' as RunId, (e) => errors.push(e))
+    startBackground(remoteRepo(remoteHome), { cmd: 'resume', workflow: 'gated', runId: 'r-9' as RunId, from: { job: 'main', step: 'sign off' } }, (e) => e && errors.push(e))
     while (!readFileSync(log, 'utf8') && Date.now() - started < 5000) await new Promise((r) => setTimeout(r, 50))
   })
   assert.deepEqual(errors, [])
-  assert.deepEqual(JSON.parse(readFileSync(log, 'utf8')).args, ['workflow', 'resume', 'gated', '--run', 'r-9', '--json', '--no-color'])
+  assert.deepEqual(JSON.parse(readFileSync(log, 'utf8')).args, ['workflow', 'resume', 'gated', '--run', 'r-9', '--from', 'sign off', '--job', 'main', '--json', '--no-color'])
+})
+
+test('a run started on a remote host gets each input as one argument, whatever shell code its value holds', async () => {
+  const log = join(fake, 'remote-swamp.log')
+  writeFileSync(log, '')
+  const inputs = { issue: `'; touch ${join(fake, 'pwned')}; echo '`, note: '$(touch pwned) `id` @/etc/passwd\nline two', count: 3, tags: ['a b', 'c'] }
+  const exits: unknown[] = []
+  startBackground(remoteRepo(remoteHome), { cmd: 'run', workflow: 'deploy', inputs }, (e) => exits.push(e))
+  const started = Date.now()
+  while (!exits.length && Date.now() - started < 15_000) await new Promise((r) => setTimeout(r, 50))
+  assert.deepEqual(exits, [undefined], 'the start reported no failure')
+  assert.deepEqual(JSON.parse(readFileSync(log, 'utf8')).args, [
+    'workflow', 'run', 'deploy',
+    '--input', `issue:json=${JSON.stringify(inputs.issue)}`,
+    '--input', `note:json=${JSON.stringify(inputs.note)}`,
+    '--input', 'count:json=3',
+    '--input', 'tags:json=["a b","c"]',
+    '--json', '--no-color'
+  ])
+  assert.ok(!existsSync(join(fake, 'pwned')) && !existsSync(join(remoteHome, 'pwned')), 'no input value ran as shell code')
 })
 
 const localSwamp = join(fake, 'local-swamp')
@@ -192,3 +212,52 @@ test('swamp installed in ~/.local/bin after the worker started is found', async 
   })
 })
 
+test('a background swamp that refuses says why, and one that ends with an error and no words is marked as such', async () => {
+  const exit = (mode: string) =>
+    withEnv({ SWAMPLING_BIN: localSwamp, FAKE_SWAMP: mode }, async () => {
+      const exits: (SwampFailure | undefined)[] = []
+      startBackground({ kind: 'local', dir: fake as RepoDir }, { cmd: 'run', workflow: 'w', inputs: {} }, (e) => exits.push(e))
+      // The started swamp does not keep this process alive, so the wait does.
+      while (!exits.length) await new Promise((r) => setTimeout(r, 20))
+      return exits[0]
+    })
+  const refused = await exit('noisy')
+  assert.equal(refused?.message, 'Workflow not found: nope')
+  assert.equal(refused?.silent, undefined)
+  const ended = await exit('silent')
+  assert.equal(ended?.silent, true, 'swamp run exits with an error and no words when the run itself fails')
+  assert.equal(await exit(''), undefined)
+})
+
+/** A run record as swamp writes it, naming `pid` as its owner, with its log beside it; each file last changed at the time given. */
+function runFiles(pid: number, changed: { yaml: string; log?: string }): string {
+  const dir = mkdtempSync(join(tmpdir(), 'swampling-run-'))
+  const file = runFile(dir, 'wf-1', 'run-1')
+  mkdirSync(join(file, '..'), { recursive: true })
+  writeFileSync(file, `id: run-1\nstatus: running\njobs:\n  - jobName: main\n    steps:\n      - stepName: nap\n        output:\n          pid: 1\ntags: {}\npid: ${pid}\nlogFile: x\n`)
+  utimesSync(file, new Date(changed.yaml), new Date(changed.yaml))
+  if (changed.log) {
+    writeFileSync(file.replace(/\.yaml$/, '.log'), 'a line\n')
+    utimesSync(file.replace(/\.yaml$/, '.log'), new Date(changed.log), new Date(changed.log))
+  }
+  return file
+}
+
+test('a run whose swamp process is alive is not gone, and its last activity is the later of its record and its log', () => {
+  const file = runFiles(process.pid, { yaml: '2026-11-11T10:00:00.000Z', log: '2026-11-11T10:07:00.000Z' })
+  assert.deepEqual(runVitals(file), { activeAt: '2026-11-11T10:07:00.000Z' })
+  assert.deepEqual(runVitals(runFiles(process.pid, { yaml: '2026-11-11T10:02:00.000Z' })), { activeAt: '2026-11-11T10:02:00.000Z' })
+})
+
+test('a run whose swamp process no longer exists is gone; a process of another user is alive', () => {
+  const ended = spawnSync(process.execPath, ['-e', '']).pid!
+  assert.deepEqual(runVitals(runFiles(ended, { yaml: '2026-11-11T10:00:00.000Z' })), { activeAt: '2026-11-11T10:00:00.000Z', gone: true })
+  // pid 1 belongs to root, so the check is refused rather than answered "no such process".
+  assert.ok(!('gone' in runVitals(runFiles(1, { yaml: '2026-11-11T10:00:00.000Z' }))))
+})
+
+test('a record that is not there, or an id that is not a plain name, gives no vitals instead of an error', () => {
+  assert.deepEqual(runVitals(join(tmpdir(), 'swampling-none', 'workflow-run-x.yaml')), {})
+  assert.equal(runFile('/repo', '../..', 'run-1'), '')
+  assert.deepEqual(runVitals(runFile('/repo', 'wf', '../../etc/passwd')), {})
+})

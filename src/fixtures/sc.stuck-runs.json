@@ -1,0 +1,549 @@
+{
+ "predicate": "modelType == \"@swamp/stagecraft/work-item\" && name == \"run\"",
+ "results": [
+  {
+   "name": "run",
+   "modelName": "shop-1",
+   "modelType": "@swamp/stagecraft/work-item",
+   "content": {
+    "schemaVersion": 1,
+    "key": "shop-1",
+    "title": "Ticket shop-1",
+    "externalRefs": {},
+    "tracker": null,
+    "factory": "shop",
+    "definition": {
+     "digest": "sha256:b33e072668b878b330c9c1a77f63679955e524d07dce9e748847e8390e51c1df",
+     "version": 1
+    },
+    "era": "cb4c3f9b-588e-4bbb-88b3-c87f534274f7",
+    "status": "active",
+    "stage": "plan",
+    "entries": {
+     "plan": 1
+    },
+    "products": {
+     "artifacts": {},
+     "evidence": {}
+    },
+    "validations": {},
+    "dispatches": [
+     {
+      "id": 1,
+      "era": "cb4c3f9b-588e-4bbb-88b3-c87f534274f7",
+      "stage": "plan",
+      "cycle": 1,
+      "at": "2026-11-07T04:01:29.356Z",
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "mode": "dispatch",
+      "inputs": {},
+      "outcome": {
+       "value": "failed",
+       "at": "2026-11-07T04:02:41.438Z",
+       "actor": {
+        "principal": "user:someone",
+        "source": "platform"
+       },
+       "reason": "Provider failure before the first model turn: stream error, connection reset."
+      }
+     }
+    ],
+    "approvals": [],
+    "overrides": [],
+    "journal": [
+     {
+      "at": "2026-11-07T03:48:56.260Z",
+      "era": "cb4c3f9b-588e-4bbb-88b3-c87f534274f7",
+      "stage": "plan",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "started",
+      "factory": "shop",
+      "definition": {
+       "digest": "sha256:b33e072668b878b330c9c1a77f63679955e524d07dce9e748847e8390e51c1df",
+       "version": 1
+      }
+     },
+     {
+      "at": "2026-11-07T04:01:29.356Z",
+      "era": "cb4c3f9b-588e-4bbb-88b3-c87f534274f7",
+      "stage": "plan",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "dispatched",
+      "dispatchId": 1
+     },
+     {
+      "at": "2026-11-07T04:02:39.640Z",
+      "era": "cb4c3f9b-588e-4bbb-88b3-c87f534274f7",
+      "stage": "plan",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "usage",
+      "dispatchId": 1
+     },
+     {
+      "at": "2026-11-07T04:02:41.438Z",
+      "era": "cb4c3f9b-588e-4bbb-88b3-c87f534274f7",
+      "stage": "plan",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "outcome",
+      "dispatchId": 1,
+      "outcome": "failed"
+     }
+    ]
+   }
+  },
+  {
+   "name": "run",
+   "modelName": "shop-2",
+   "modelType": "@swamp/stagecraft/work-item",
+   "content": {
+    "schemaVersion": 1,
+    "key": "shop-2",
+    "title": "Ticket shop-2",
+    "externalRefs": {},
+    "tracker": null,
+    "factory": "shop",
+    "definition": {
+     "digest": "sha256:77ec2e14c3671763501e40bde62779ff3d8a7f7bcd73c145aa6b1690a615c0bd",
+     "version": 1
+    },
+    "era": "441e13ba-262c-4848-acf2-105513a59cc4",
+    "status": "active",
+    "stage": "plan",
+    "entries": {
+     "plan": 1
+    },
+    "products": {
+     "artifacts": {},
+     "evidence": {}
+    },
+    "validations": {},
+    "dispatches": [
+     {
+      "id": 1,
+      "era": "441e13ba-262c-4848-acf2-105513a59cc4",
+      "stage": "plan",
+      "cycle": 1,
+      "at": "2026-11-07T04:31:42.923Z",
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "mode": "dispatch",
+      "inputs": {},
+      "outcome": {
+       "value": "interrupted",
+       "at": "2026-11-07T04:32:25.458Z",
+       "actor": {
+        "principal": "user:someone",
+        "source": "platform"
+       },
+       "reason": "Cancelled by the person before any model ran."
+      }
+     }
+    ],
+    "approvals": [],
+    "overrides": [],
+    "journal": [
+     {
+      "at": "2026-11-07T04:31:11.601Z",
+      "era": "441e13ba-262c-4848-acf2-105513a59cc4",
+      "stage": "plan",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "started",
+      "factory": "shop",
+      "definition": {
+       "digest": "sha256:77ec2e14c3671763501e40bde62779ff3d8a7f7bcd73c145aa6b1690a615c0bd",
+       "version": 1
+      }
+     },
+     {
+      "at": "2026-11-07T04:31:42.924Z",
+      "era": "441e13ba-262c-4848-acf2-105513a59cc4",
+      "stage": "plan",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "dispatched",
+      "dispatchId": 1
+     },
+     {
+      "at": "2026-11-07T04:32:25.458Z",
+      "era": "441e13ba-262c-4848-acf2-105513a59cc4",
+      "stage": "plan",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "outcome",
+      "dispatchId": 1,
+      "outcome": "interrupted"
+     }
+    ]
+   }
+  },
+  {
+   "name": "run",
+   "modelName": "shop-3",
+   "modelType": "@swamp/stagecraft/work-item",
+   "content": {
+    "schemaVersion": 1,
+    "key": "shop-3",
+    "title": "Ticket shop-3",
+    "externalRefs": {},
+    "tracker": null,
+    "factory": "shop",
+    "definition": {
+     "digest": "sha256:ed0bfa6ef53dfeecff6add2c60c486a99595acbff601b42e1e8c2d438a329439",
+     "version": 1
+    },
+    "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+    "status": "active",
+    "stage": "security",
+    "entries": {
+     "implement": 1,
+     "capture": 1,
+     "conventions": 1,
+     "style": 1,
+     "security": 1
+    },
+    "products": {
+     "artifacts": {},
+     "evidence": {}
+    },
+    "validations": {},
+    "dispatches": [
+     {
+      "id": 1,
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "implement",
+      "cycle": 1,
+      "at": "2026-11-03T17:19:47.462Z",
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "mode": "dispatch",
+      "inputs": {},
+      "outcome": {
+       "value": "succeeded",
+       "at": "2026-11-03T17:28:46.888Z",
+       "actor": {
+        "principal": "user:someone",
+        "source": "platform"
+       }
+      }
+     },
+     {
+      "id": 2,
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "conventions",
+      "cycle": 1,
+      "at": "2026-11-03T17:29:22.922Z",
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "mode": "dispatch",
+      "inputs": {},
+      "outcome": {
+       "value": "succeeded",
+       "at": "2026-11-03T17:30:42.991Z",
+       "actor": {
+        "principal": "user:someone",
+        "source": "platform"
+       }
+      }
+     },
+     {
+      "id": 3,
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "security",
+      "cycle": 1,
+      "at": "2026-11-03T19:42:57.112Z",
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "mode": "dispatch",
+      "inputs": {},
+      "outcome": {
+       "value": "succeeded",
+       "at": "2026-11-03T19:46:47.362Z",
+       "actor": {
+        "principal": "user:someone",
+        "source": "platform"
+       }
+      }
+     }
+    ],
+    "approvals": [],
+    "overrides": [],
+    "journal": [
+     {
+      "at": "2026-11-03T17:19:43.455Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "implement",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "started",
+      "factory": "shop",
+      "definition": {
+       "digest": "sha256:ed0bfa6ef53dfeecff6add2c60c486a99595acbff601b42e1e8c2d438a329439",
+       "version": 1
+      }
+     },
+     {
+      "at": "2026-11-03T17:19:47.462Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "implement",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "dispatched",
+      "dispatchId": 1
+     },
+     {
+      "at": "2026-11-03T17:28:45.213Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "implement",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "recorded",
+      "kind": "artifact",
+      "name": "change-summary",
+      "version": 1,
+      "digest": "sha256:0a54c949a66cd9f1756a8030c40c22d5fbe0b93cbabc2efb4feb06671f64464b"
+     },
+     {
+      "at": "2026-11-03T17:28:46.888Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "implement",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "outcome",
+      "dispatchId": 1,
+      "outcome": "succeeded"
+     },
+     {
+      "at": "2026-11-03T17:28:49.775Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "implement",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "advanced",
+      "transition": "submit-for-review",
+      "to": "capture",
+      "toCycle": 1
+     },
+     {
+      "at": "2026-11-03T17:29:13.851Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "capture",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "recorded",
+      "kind": "artifact",
+      "name": "snapshot",
+      "version": 1,
+      "digest": "sha256:6b96d5dfc4cb0518aa16c7918007fb0db3d90e928191e92613c07423c519e896"
+     },
+     {
+      "at": "2026-11-03T17:29:17.064Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "capture",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "recorded",
+      "kind": "evidence",
+      "name": "captured",
+      "version": 1,
+      "digest": "sha256:45397fe2fdf52cdd5d80b4bb90a6bddc56cd0102641adca91e67a256ba9ae129"
+     },
+     {
+      "at": "2026-11-03T17:29:19.943Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "capture",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "advanced",
+      "transition": "review-conventions",
+      "to": "conventions",
+      "toCycle": 1
+     },
+     {
+      "at": "2026-11-03T17:29:22.922Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "conventions",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "dispatched",
+      "dispatchId": 2
+     },
+     {
+      "at": "2026-11-03T17:30:41.249Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "conventions",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "recorded",
+      "kind": "artifact",
+      "name": "conventions-review",
+      "version": 1,
+      "digest": "sha256:9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36"
+     },
+     {
+      "at": "2026-11-03T17:30:42.991Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "conventions",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "outcome",
+      "dispatchId": 2,
+      "outcome": "succeeded"
+     },
+     {
+      "at": "2026-11-03T17:30:46.238Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "conventions",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "advanced",
+      "transition": "review-style",
+      "to": "style",
+      "toCycle": 1
+     },
+     {
+      "at": "2026-11-03T17:31:05.403Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "style",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "recorded",
+      "kind": "artifact",
+      "name": "style-review",
+      "version": 1,
+      "digest": "sha256:8183d2ebdaee818d1f86959dd581ac158c7890246ea755b25bdff128c0cc78dc"
+     },
+     {
+      "at": "2026-11-03T17:31:08.308Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "style",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "advanced",
+      "transition": "review-security",
+      "to": "security",
+      "toCycle": 1
+     },
+     {
+      "at": "2026-11-03T19:42:57.112Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "security",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "dispatched",
+      "dispatchId": 3
+     },
+     {
+      "at": "2026-11-03T19:46:45.602Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "security",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "recorded",
+      "kind": "artifact",
+      "name": "security-review",
+      "version": 1,
+      "digest": "sha256:c224e9ac664197e2f28c60026aa5be3bcbc8745eee806ada2b8c958c002ade82"
+     },
+     {
+      "at": "2026-11-03T19:46:47.362Z",
+      "era": "c344ac4b-ffd7-4603-8f44-e36f3c316994",
+      "stage": "security",
+      "cycle": 1,
+      "actor": {
+       "principal": "user:someone",
+       "source": "platform"
+      },
+      "type": "outcome",
+      "dispatchId": 3,
+      "outcome": "succeeded"
+     }
+    ]
+   }
+  }
+ ]
+}

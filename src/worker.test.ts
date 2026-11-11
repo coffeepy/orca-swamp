@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -597,4 +597,191 @@ test('the inbox lists what waits in every workspace repo and the one on screen, 
   await worker.request('inbox.list', { fresh: true })
   assert.equal(reads(), 8, 'a fresh ask reads every repo again')
   assert.deepEqual(worker.refusals, [])
+})
+
+const NAPPER = JSON.stringify({ name: 'napper', jobs: [], inputs: { required: ['label'], properties: { label: { type: 'string' }, seconds: { type: 'integer', default: 30 } } } })
+const failedRun = (change: object = {}) => JSON.stringify({ ...JSON.parse(read('breaks.run-failed')), ...change })
+const call = (calls: string[][], verb: string) => calls.find((c) => c[1] === verb)
+
+test('Run starts the workflow in the background with each form value as one typed input, and answers the new run', async () => {
+  const { repo, calls } = localRepo({
+    'workflow get napper': NAPPER,
+    'workflow history get napper': ['{"id":"old-run"}', '{"id":"new-run"}'],
+    'workflow run': { stdout: '{}', delay: 3000 }
+  })
+  const worker = await mountWorker(main, { host: host(folder()) })
+  assert.deepEqual((await worker.request('workflow.inputs', { repo, workflow: 'napper' })).map((f) => `${f.name}${f.required ? '*' : ''}=${f.default ?? ''}`), ['label*=', 'seconds=30'])
+  const label = `@notes.txt'; rm -rf "$HOME" #`
+  assert.deepEqual(await worker.request('run.start', { repo, workflow: 'napper', inputs: { label, seconds: '5' } }), { runId: 'new-run' })
+  assert.deepEqual(call(calls(), 'run'), ['workflow', 'run', 'napper', '--input', `label:json=${JSON.stringify(label)}`, '--input', 'seconds:json=5', '--json', '--no-color'])
+})
+
+test('Run again starts a new run with the inputs swamp recorded for the old one, types kept', async () => {
+  const { repo, calls } = localRepo({
+    'workflow history get old-run': JSON.stringify({ id: 'old-run', workflowName: 'napper', inputs: { label: 'x', seconds: 5, loud: false } }),
+    'workflow history get napper': ['{"id":"old-run"}', '{"id":"new-run"}']
+  })
+  const worker = await mountWorker(main, { host: host(folder()) })
+  assert.deepEqual(await worker.request('run.start', { repo, workflow: 'napper', again: 'old-run' as never }), { runId: 'new-run' })
+  assert.deepEqual(call(calls(), 'run'), ['workflow', 'run', 'napper', '--input', 'label:json="x"', '--input', 'seconds:json=5', '--input', 'loud:json=false', '--json', '--no-color'])
+  await assert.rejects(worker.request('run.start', { repo, workflow: 'flaky', again: 'old-run' as never }), /belongs to workflow napper/)
+})
+
+test('a start swamp refuses shows what swamp said, and one that leaves no new run answers no run id', async () => {
+  const refusal = { stderr: '{\n  "error": "Input validation failed:\\n  label is required"\n}\n', exit: 1 }
+  const { repo } = localRepo({ 'workflow get napper': NAPPER, 'workflow history get napper': '{"id":"old-run"}', 'workflow run': [refusal, '{}'] })
+  const worker = await mountWorker(main, { host: host(folder()) })
+  await assert.rejects(worker.request('run.start', { repo, workflow: 'napper' }), /label is required/)
+  assert.deepEqual(await worker.request('run.start', { repo, workflow: 'napper', inputs: { label: 'x' } }), {})
+})
+
+test('Stop cancels that run by id; Retry resumes it, from one step of one job when asked; Recover runs recover first', async () => {
+  const { repo, calls } = localRepo({
+    'workflow get breaks': read('breaks.def'),
+    [`workflow history get ${BROKEN_RUN}`]: [failedRun(), failedRun({ status: 'running' }), failedRun({ status: 'running' }), failedRun({ status: 'cancelled' })],
+    'workflow resume': { stdout: '{}', delay: 3000 }
+  })
+  const worker = await mountWorker(main, { host: host(folder()) })
+  const act = (more: object) => worker.request('run.act', { repo, workflow: 'breaks', runId: BROKEN_RUN, ...more } as never)
+  assert.equal((await act({ action: 'retry', from: { job: 'main', step: 'right' } })).status, 'running', 'the answer waits until resume has taken the run')
+  assert.deepEqual(call(calls(), 'resume'), ['workflow', 'resume', 'breaks', '--run', BROKEN_RUN, '--from', 'right', '--job', 'main', '--json', '--no-color'])
+  await act({ action: 'recover' })
+  const after = calls().slice(calls().findIndex((c) => c[1] === 'recover'))
+  assert.deepEqual(after[0], ['workflow', 'recover', 'breaks', '--run', BROKEN_RUN, '--acknowledge-unknown', '--json', '--no-color'])
+  assert.deepEqual(after.find((c) => c[1] === 'resume'), ['workflow', 'resume', 'breaks', '--run', BROKEN_RUN, '--json', '--no-color'], 'resume follows recover')
+  assert.equal((await act({ action: 'stop' })).status, 'cancelled')
+  assert.deepEqual(call(calls(), 'cancel'), ['workflow', 'cancel', 'breaks', '--run', BROKEN_RUN, '--json', '--no-color'])
+})
+
+test('a retry swamp refuses shows what swamp said; a retried run that fails again is shown, not reported as an error', async () => {
+  const refusal = { stderr: '{"error":"Run x is not suspended or failed (status: succeeded)."}', exit: 1 }
+  const { repo } = localRepo({
+    'workflow get breaks': read('breaks.def'),
+    [`workflow history get ${BROKEN_RUN}`]: failedRun(),
+    'workflow resume': [refusal, { exit: 1 }],
+    'workflow recover': { stderr: '{"error":"Interrupted run x not found"}', exit: 1 }
+  })
+  const worker = await mountWorker(main, { host: host(folder()) })
+  const act = (action: string) => worker.request('run.act', { repo, workflow: 'breaks', runId: BROKEN_RUN, action } as never)
+  await assert.rejects(act('retry'), /not suspended or failed/)
+  assert.equal((await act('retry')).status, 'failed')
+  await assert.rejects(act('recover'), /Interrupted run x not found/)
+})
+
+test('run controls refuse a word that is not theirs before swamp runs anything', async () => {
+  const { repo, calls } = localRepo({ 'workflow get napper': NAPPER, 'workflow history get napper': '{"id":"old-run"}' })
+  const worker = await mountWorker(main, { host: host(folder()) })
+  const act = (more: object) => worker.request('run.act', { repo, workflow: 'breaks', runId: BROKEN_RUN, action: 'retry', ...more } as never)
+  await assert.rejects(act({ action: 'delete' }), /action/)
+  await assert.rejects(act({ action: 'again' }), /action/)
+  await assert.rejects(act({ runId: '--all' }), /run id/)
+  await assert.rejects(act({ workflow: '--all' }), /workflow/)
+  await assert.rejects(act({ from: { job: 'main', step: '--input' } }), /step/)
+  await assert.rejects(act({ from: { step: 'right' } }), /job/)
+  await assert.rejects(act({ from: 'right' }), /job/)
+  await assert.rejects(act({ action: 'stop', from: { job: 'main', step: 'right' } }), /only a retry/)
+  const start = (more: object) => worker.request('run.start', { repo, workflow: 'napper', ...more } as never)
+  await assert.rejects(start({ workflow: '--last-evaluated' }), /workflow/)
+  await assert.rejects(start({ again: '--help' }), /run id/)
+  await assert.rejects(start({ inputs: ['label=x'] }), /inputs/)
+  await assert.rejects(start({ inputs: { label: 7 } }), /not text/)
+  await assert.rejects(worker.request('workflow.inputs', { repo, workflow: '-x' }), /workflow/)
+  assert.deepEqual(calls(), [], 'nothing malformed reached swamp')
+  await assert.rejects(start({ inputs: { 'label=x --server': 'y' } }), /no input/)
+  assert.ok(!verbs(calls()).includes('workflow run'), 'an input the workflow does not declare starts nothing')
+})
+
+test('a running run of a local repo whose swamp process died is marked gone on its row and its screen, with no further swamp call', async () => {
+  const running = { ...JSON.parse(read('breaks.run-failed')), status: 'running' }
+  const { repo, calls } = localRepo({
+    'workflow search': JSON.stringify({ results: [{ name: 'breaks', stepCount: 2 }] }),
+    'workflow history search': JSON.stringify({ results: [{ runId: BROKEN_RUN, workflowId: 'wf-breaks', workflowName: 'breaks', status: 'running', startedAt: '2026-11-11T10:00:00.000Z' }] }),
+    'workflow approvals': JSON.stringify({ approvals: [], expired: [] }),
+    'workflow get breaks': read('breaks.def'),
+    [`workflow history get ${BROKEN_RUN}`]: ''
+  })
+  const dir = (repo as { dir: string }).dir
+  const file = join(dir, '.swamp/workflow-runs/wf-breaks', `workflow-run-${BROKEN_RUN}.yaml`)
+  mkdirSync(join(file, '..'), { recursive: true })
+  writeFileSync(file, `id: ${BROKEN_RUN}\nstatus: running\npid: ${spawnSync(process.execPath, ['-e', '']).pid}\n`)
+  writeFileSync(join(dir, 'answers.json'), JSON.stringify({ ...JSON.parse(readFileSync(join(dir, 'answers.json'), 'utf8')), [`workflow history get ${BROKEN_RUN}`]: JSON.stringify({ ...running, path: file }) }))
+  const worker = await mountWorker(main, { host: host(folder()) })
+  const list = await worker.request('workflows.list', { repo })
+  assert.equal(list.runs[0].gone, true)
+  assert.equal(list.workflows[0].runs[0].gone, true)
+  assert.ok(Date.parse(list.runs[0].activeAt!) > Date.parse('2026-11-11T10:00:00.000Z'))
+  const listCalls = calls().length
+  assert.equal(listCalls, 4, 'search, history, approvals and version')
+  const run = await worker.request('run.get', { repo, workflow: 'breaks', runId: BROKEN_RUN })
+  assert.equal(run.gone, true)
+  assert.equal(calls().length - listCalls, 2, 'the definition and the run')
+  writeFileSync(file, `id: ${BROKEN_RUN}\nstatus: running\npid: ${process.pid}\n`)
+  assert.ok(!('gone' in (await worker.request('run.get', { repo, workflow: 'breaks', runId: BROKEN_RUN }))))
+})
+
+const LOG_RUN = '7c1f0a52-3b6e-4d18-9a47-5e2d8c90b113' as never
+/** A local repo whose swamp names the workflow of LOG_RUN, with that run's record and log on disk. */
+function logRepo(log: string | undefined, workflowId = 'wf-bake') {
+  const made = localRepo({ [`workflow history get ${LOG_RUN}`]: JSON.stringify({ id: LOG_RUN, workflowId, workflowName: 'bake', status: 'running' }) })
+  const dir = (made.repo as { dir: string }).dir
+  const record = join(dir, '.swamp/workflow-runs/wf-bake', `workflow-run-${LOG_RUN}.yaml`)
+  mkdirSync(join(record, '..'), { recursive: true })
+  const logFile = record.replace(/\.yaml$/, '.log')
+  if (log !== undefined) {
+    writeFileSync(record, `id: ${LOG_RUN}\nstatus: running\n`)
+    writeFileSync(logFile, log)
+  }
+  return { ...made, record, logFile }
+}
+const logLineAt = (n: number) => `2026-11-11T10:00:${String(n).padStart(2, '0')}.000Z [INF] model·method·run·bake-mix·execute: tick ${n}\n`
+
+test('log.tail reads a run\'s log file from the cursor: only the new lines each time, with one swamp call to find the file', async () => {
+  const { repo, calls, record, logFile } = logRepo(logLineAt(1) + logLineAt(2))
+  const worker = await mountWorker(main, { host: host(folder()) })
+  const first = await worker.request('log.tail', { repo, runId: LOG_RUN })
+  assert.deepEqual(first.lines.map((l) => l.text), ['tick 1', 'tick 2'])
+  assert.deepEqual(first.lines[0], { pos: 0, at: '2026-11-11T10:00:01.000Z', level: 'info', tag: 'bake-mix·execute', text: 'tick 1' })
+  assert.equal(first.done, false)
+  writeFileSync(logFile, logLineAt(1) + logLineAt(2) + logLineAt(3))
+  const second = await worker.request('log.tail', { repo, runId: LOG_RUN, after: first.next })
+  assert.deepEqual(second.lines.map((l) => l.text), ['tick 3'])
+  assert.ok(second.next > first.next)
+  writeFileSync(record, `id: ${LOG_RUN}\nstatus: succeeded\n`)
+  const last = await worker.request('log.tail', { repo, runId: LOG_RUN, after: second.next })
+  assert.deepEqual([last.lines, last.next, last.done], [[], second.next, true])
+  assert.deepEqual(verbs(calls()), ['workflow history'], 'the workflow id is asked for once')
+})
+
+test('log.tail refuses what is not a run id, a byte offset or a limit, before any file or swamp is touched', async () => {
+  const { repo, calls } = logRepo(logLineAt(1))
+  const worker = await mountWorker(main, { host: host(folder()) })
+  const ask = (more: object) => worker.request('log.tail', { repo, runId: LOG_RUN, ...more } as never)
+  for (const after of [-1, 1.5, '5', null, Number.MAX_SAFE_INTEGER + 2]) await assert.rejects(ask({ after }), /not a byte offset/)
+  await assert.rejects(ask({ before: -3 }), /not a byte offset/)
+  await assert.rejects(ask({ after: 0, before: 9 }), /not both/)
+  await assert.rejects(ask({ limit: 'all' }), /not a number/)
+  for (const runId of ['../../../etc/passwd', 'a/b', '--help', '', 'x'.repeat(65), 'a b']) await assert.rejects(ask({ runId }), /run id|not a name/)
+  await assert.rejects(worker.request('log.tail', { repo: { kind: 'local', dir: 'relative' } as never, runId: LOG_RUN }), /repo/)
+  assert.deepEqual(calls(), [])
+})
+
+test('log.tail clamps the limit: a tiny one still answers whole lines and a huge one stays under the cap', async () => {
+  const { repo, logFile } = logRepo(Array.from({ length: 59 }, (_, i) => logLineAt(i)).join(''))
+  const worker = await mountWorker(main, { host: host(folder()) })
+  const tiny = await worker.request('log.tail', { repo, runId: LOG_RUN, after: 0, limit: 1 })
+  assert.ok(tiny.lines.length >= 5 && tiny.next <= 1024, `a limit of 1 reads 1 KiB, and read ${tiny.next} bytes`)
+  writeFileSync(logFile, logLineAt(1).repeat(8000))
+  const huge = await worker.request('log.tail', { repo, runId: LOG_RUN, after: 0, limit: 1e12 })
+  assert.ok(huge.next <= 256 * 1024 && huge.next > 200 * 1024, `a huge limit reads 256 KiB, and read ${huge.next} bytes`)
+  assert.ok(huge.size > huge.next)
+  const newest = await worker.request('log.tail', { repo, runId: LOG_RUN })
+  assert.ok(newest.next - newest.from <= 48 * 1024 && newest.from > 0, 'a first read tails the newest 48 KiB')
+})
+
+test('log.tail builds the file path from ids it checks, and says so when the run keeps no files in the repo', async () => {
+  const outside = logRepo(logLineAt(1), '../../../../outside')
+  const worker = await mountWorker(main, { host: host(folder()) })
+  await assert.rejects(worker.request('log.tail', { repo: outside.repo, runId: LOG_RUN }), /named no workflow/)
+  const none = logRepo(undefined)
+  await assert.rejects(worker.request('log.tail', { repo: none.repo, runId: LOG_RUN }), /outside the repo/)
 })
