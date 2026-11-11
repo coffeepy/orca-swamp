@@ -4,7 +4,8 @@ import type { Resolution } from './repo'
 import type { Board, Factories, WorkItemDetail } from './stagecraft'
 import type { ThemeId } from './theme'
 
-export type ListData = { workflows: WorkflowSummary[]; gates: Gate[]; recent: RecentRun[]; version: string }
+/** `runs` is every run of the repo, newest first, at most RUNS_LIMIT. */
+export type ListData = { workflows: WorkflowSummary[]; gates: Gate[]; runs: RecentRun[]; version: string }
 export type AgentTerminal = { id: string; title: string; workspace: string }
 
 declare module 'orca' {
@@ -16,7 +17,7 @@ declare module 'orca' {
     'repo.resolve': { input: { fresh?: boolean }; output: Resolution }
     /** Remembers `repo` as the focused workspace's repo and resolves again. */
     'repo.pin': { input: { repo: Repo }; output: Resolution }
-    /** Each workflow with its run history, every gate waiting in the repo, the newest runs, and the swamp version. */
+    /** Each workflow with its run history, every gate waiting in the repo, every run, and the swamp version. */
     'workflows.list': { input: { repo: Repo }; output: ListData }
     /** One run; the latest when `runId` is omitted. */
     'run.get': { input: { repo: Repo; workflow: string; runId?: RunId }; output: Run }

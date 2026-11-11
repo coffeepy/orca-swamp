@@ -16,6 +16,16 @@ import {
   resolutionIn,
   withPlace,
   withResolution,
+  ALL_RUNS,
+  parseRunsView,
+  RUN_CHIPS,
+  RUN_SORTS,
+  runGroups,
+  runsShown,
+  runsViewIn,
+  WHEN_LABEL,
+  workflowsShown,
+  type RunsView,
   type Places,
   type Resolutions,
   type Place,
@@ -63,6 +73,9 @@ const IDLE_MS = 10_000
 // ponytail: the Factories badge refreshes once a minute while Workflows shows, to keep swamp calls down.
 const BADGE_MS = 60_000
 const INBOX_MS = 30_000
+// ponytail: the runs list grows by a button, with no virtual scrolling; the worker sends 500 runs at most.
+const RUNS_FIRST = 20
+const RUNS_MORE = 50
 
 const state = {
   resolution: {} as Loadable<Resolution>,
@@ -77,6 +90,9 @@ const state = {
   busy: false,
   actionError: undefined as string | undefined,
   search: '',
+  /** How the Workflows tab narrows and orders its runs, kept for each repo, and how many of them it draws. */
+  runs: ALL_RUNS as RunsView,
+  runsLimit: RUNS_FIRST,
   agent: undefined as AgentTerminal | null | undefined,
   flash: undefined as { action: string; text: string } | undefined,
   factories: {} as Loadable<Factories>,
@@ -127,11 +143,11 @@ function restorePlace(): void {
   } catch {}
   // Until the repo is known, the panel starts where it was last, which is right for a plain frame reload.
   const last = places.at(-1)
-  if (last) [state.place, placeOf] = [last.place, last.repo]
+  if (last) [state.place, placeOf, state.runs] = [last.place, last.repo, last.runs ?? ALL_RUNS]
 }
 function savePlace(): void {
   if (!placeOf) return
-  places = withPlace(places, placeOf, state.place)
+  places = withPlace(places, placeOf, state.place, state.runs)
   try {
     localStorage.setItem(PLACE_KEY, JSON.stringify(places))
   } catch {}
@@ -420,15 +436,81 @@ const runRow = (r: RecentRun, name: string, now: number, current?: RunId): strin
     status: `${runLook(r.status).text.toLowerCase()} · ${since(r.startedAt, now)}`
   })
 
+/** One run under its workflow's heading: what it ran on, then its id, how it ended and how long it took. */
+function runLine(r: RecentRun, now: number): string {
+  const look = runLook(r.status)
+  const ended = look.text.toLowerCase() + (r.status === 'failed' && r.failedStep ? ` at ${r.failedStep}` : '')
+  const facts = [r.input && shortId(r.runId), ended, duration(r.durationMs)].filter(Boolean)
+  return `<button class="recent" ${goTo({ tab: 'workflows', workflow: r.workflow, runId: r.runId })}>
+    <span class="dot" style="background:${TONE_VAR[look.tone]}" aria-hidden="true"></span>
+    <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+      <span class="mono ellipsis" style="font-size:12px">${esc(r.input ?? shortId(r.runId))}</span>
+      <span class="muted ellipsis" style="font-size:11.5px">${esc(facts.join(' · '))}</span>
+    </span>
+    <span class="muted" style="font-size:12px;white-space:nowrap">${ago(r.startedAt, now)}</span>
+  </button>`
+}
+
+/** The status chips with their counts, the time window, and the sort, which one button steps through. */
+function runControls(counts: Record<RunsView['status'], number>): string {
+  const v = state.runs
+  const chip = (part: Partial<RunsView>, on: boolean, color: string, html: string, more = '') =>
+    `<button class="fchip tight" aria-pressed="${on}" style="--c:${color}" data-action="runs" data-view="${esc(JSON.stringify(part))}" ${more}>${html}</button>`
+  const sorts = Object.keys(RUN_SORTS) as RunsView['sort'][]
+  const next = sorts[(sorts.indexOf(v.sort) + 1) % sorts.length]
+  return `<div style="display:flex;flex-direction:column;gap:6px">
+    <div class="chips" role="group" aria-label="Run status">
+      ${(Object.keys(RUN_CHIPS) as RunsView['status'][])
+        .map((s) => chip({ status: s }, v.status === s, s === 'all' ? 'var(--accent)' : TONE_VAR[RUN_CHIPS[s].tone], `${RUN_CHIPS[s].label} <span class="n">${counts[s]}</span>`))
+        .join('')}
+    </div>
+    <div class="chips" role="group" aria-label="Run time and order">
+      ${(Object.keys(WHEN_LABEL) as RunsView['when'][]).map((w) => chip({ when: w }, v.when === w, 'var(--accent)', WHEN_LABEL[w])).join('')}
+      ${chip({ sort: next }, v.sort !== 'newest', 'var(--accent)', `Sort: ${RUN_SORTS[v.sort].label}`, `id="sort" title="Change the order to ${RUN_SORTS[next].label.toLowerCase()}"`)}
+    </div>
+  </div>`
+}
+
 function listScreen(data: ListData): string {
   const now = Date.now()
+  const view = state.runs
   const gates = data.gates.filter((g) => matches(g.workflow, g.step, g.input))
-  const workflows = data.workflows.filter((w) => matches(w.name, w.description))
-  const recent = data.recent.filter((r) => matches(r.workflow, r.input))
+  const { runs, counts } = runsShown(data.runs, view, state.search, now)
+  const searching = !!state.search.trim()
+  const filtering = searching || view.status !== 'all' || view.when !== 'all'
+  const workflows = workflowsShown(data.workflows, runs, view, state.search)
+  const cards =
+    workflows.length === 0
+      ? filtering && data.workflows.length
+        ? ''
+        : `<section class="section"><div class="label">WORKFLOWS · 0</div><div class="muted">This repo has no workflows yet.</div></section>`
+      : groupWorkflows(workflows)
+          .map(
+            (g) => `<section class="section">
+        <div class="label">${esc(g.title.toUpperCase())} · ${g.workflows.length}</div>
+        ${g.workflows.map((w) => workflowCard(w, now)).join('')}
+      </section>`
+          )
+          .join('')
+  const list = runs.length
+    ? `<section class="section" style="gap:2px">
+        <div class="label" style="margin-bottom:6px">RUNS · ${runs.length}</div>
+        ${runGroups(runs, state.runsLimit)
+          .map((g) => `<div class="label mono" style="margin-top:10px" title="${esc(g.workflow)}">${esc(shortName(g.workflow))}</div>${g.runs.map((r) => runLine(r, now)).join('')}`)
+          .join('')}
+        ${runs.length > state.runsLimit ? `<button class="btn-outline" style="min-height:32px;margin-top:8px" data-action="moreRuns">Show more · ${runs.length - state.runsLimit} left</button>` : ''}
+      </section>`
+    : filtering
+      ? `<section class="section">${workflows.length ? '<div class="label">RUNS · 0</div>' : ''}<div class="muted">No ${workflows.length ? 'run' : 'workflow or run'} matches.</div>
+          <button class="btn-outline" style="min-height:32px;padding:0 12px;align-self:flex-start" data-action="clearRuns">Clear filters</button></section>`
+      : ''
   return `<div class="body" style="gap:18px">
-    <label><span class="sr">Search workflows</span>
-      <input id="search" type="search" class="input" placeholder="Search workflows and runs" value="${esc(state.search)}" data-input="search">
-    </label>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <label><span class="sr">Search workflows and runs</span>
+        <input id="search" type="search" class="input" placeholder="Search workflows, runs and inputs" value="${esc(state.search)}" data-input="search">
+      </label>
+      ${runControls(counts)}
+    </div>
     ${
       gates.length
         ? `<section class="section">
@@ -448,26 +530,7 @@ function listScreen(data: ListData): string {
       </section>`
         : ''
     }
-    ${
-      workflows.length === 0
-        ? `<section class="section"><div class="label">WORKFLOWS · 0</div><div class="muted">${data.workflows.length ? 'No workflow matches.' : 'This repo has no workflows yet.'}</div></section>`
-        : groupWorkflows(workflows)
-            .map(
-              (g) => `<section class="section">
-        <div class="label">${esc(g.title.toUpperCase())} · ${g.workflows.length}</div>
-        ${g.workflows.map((w) => workflowCard(w, now)).join('')}
-      </section>`
-            )
-            .join('')
-    }
-    ${
-      recent.length
-        ? `<section class="section" style="gap:2px">
-        <div class="label" style="margin-bottom:6px">RECENT RUNS</div>
-        ${recent.map((r) => runRow(r, r.workflow, now)).join('')}
-      </section>`
-        : ''
-    }
+    ${cards + list}
   </div>`
 }
 
@@ -1365,6 +1428,8 @@ function enterRepo(key: string | undefined): void {
     place: place ?? home(state.place.tab),
     studio: { url: undefined, error: undefined },
     search: '',
+    runs: key ? runsViewIn(places, key) : ALL_RUNS,
+    runsLimit: RUNS_FIRST,
     filter: 'all',
     itemTab: 'now',
     productOpen: {}
@@ -1563,6 +1628,19 @@ const actions: Record<string, (el: HTMLElement) => void> = {
     state.filter = el.dataset.filter as TicketFilter
     render()
   },
+  runs: (el) => {
+    state.runs = parseRunsView({ ...state.runs, ...JSON.parse(el.dataset.view!) })
+    state.runsLimit = RUNS_FIRST
+    render()
+  },
+  moreRuns: () => {
+    state.runsLimit += RUNS_MORE
+    render()
+  },
+  clearRuns: () => {
+    Object.assign(state, { runs: ALL_RUNS, search: '', runsLimit: RUNS_FIRST })
+    render()
+  },
   seeStage: (el) => {
     if (el.classList.contains('offscreen')) return showStage(Number(el.dataset.col), 'smooth')
     if (el.dataset.place) go(parsePlace(JSON.parse(el.dataset.place)))
@@ -1709,6 +1787,7 @@ root.addEventListener('input', (e) => {
   const el = e.target as HTMLInputElement
   if (el.dataset.input === 'search') {
     state.search = el.value
+    state.runsLimit = RUNS_FIRST
     render()
   } else if (el.dataset.input === 'note') state.notes[el.dataset.step ?? ''] = el.value
 })
@@ -1806,6 +1885,10 @@ button.wf:hover, .row-btn:hover, .recent:hover, .node:hover { border-color: var(
 .studio { min-height: 32px; padding: 0 10px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .fchip { padding: 5px 10px; border-radius: 14px; border: 1px solid var(--border); background: none; color: var(--muted); font-size: 12px; }
 .fchip[aria-pressed="true"] { border-color: var(--c); color: var(--text); background: color-mix(in srgb, var(--c) 14%, var(--panel)); }
+.fchip.tight { padding: 3px 8px; font-size: 11.5px; white-space: nowrap; }
+.fchip .n { opacity: 0.75; font-variant-numeric: tabular-nums; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+#sort { margin-left: auto; }
 .pager { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
 .pager[hidden] { display: none; }
 .pager .icon-btn { width: 28px; height: 28px; font-size: 15px; }

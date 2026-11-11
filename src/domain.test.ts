@@ -7,6 +7,7 @@ import {
   parseApprovals,
   parseLogs,
   parseRecent,
+  RUNS_LIMIT,
   parseRun,
   parseWorkflowList,
   stepKind,
@@ -221,6 +222,20 @@ test('a timestamp that is not a date shows no time instead of NaN, and sorts aft
     ]
   })
   assert.deepEqual(recent.map((r) => [r.runId, r.startedAt]), [['c', '2026-11-07T02:00:00.000Z'], ['b', '2026-11-07T01:30:13.000Z'], ['a', '']])
+})
+
+test('a history entry keeps what the runs list filters, sorts and searches by, and the list stops at 500 runs', () => {
+  const [failed, running] = parseRecent({
+    results: [
+      { runId: 'r1', workflowName: 'w', status: 'running', startedAt: '2026-11-07T01:00:00.000Z', inputs: { call: 'only' } },
+      { runId: 'r2', workflowName: 'w', status: 'failed', startedAt: '2026-11-07T02:00:00.000Z', duration: 1500, inputs: { call: 'graphql:query:x', base: 'rest/base', budget: 0, note: '' }, failedStep: 'expose_impl', failureReason: 'exit 1' }
+    ]
+  })
+  assert.deepEqual(failed, { workflow: 'w', runId: 'r2', status: 'failed', startedAt: '2026-11-07T02:00:00.000Z', input: 'graphql:query:x', inputs: 'rest/base 0', durationMs: 1500, failedStep: 'expose_impl' })
+  assert.deepEqual(running, { workflow: 'w', runId: 'r1', status: 'running', startedAt: '2026-11-07T01:00:00.000Z', input: 'only' }, 'one input leaves no others, and a run still going has no duration')
+  const many = parseRecent({ results: Array.from({ length: RUNS_LIMIT + 5 }, (_, i) => ({ runId: `r${i}`, workflowName: 'w', startedAt: new Date(Date.UTC(2026, 0, 1) + i * 60_000).toISOString() })) })
+  assert.equal(many.length, RUNS_LIMIT)
+  assert.equal(many[0].runId, `r${RUNS_LIMIT + 4}`, 'the newest runs are the ones kept')
 })
 
 test('a log whose newest line alone is over 15 KiB keeps the tail of that line', () => {
