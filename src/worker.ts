@@ -9,7 +9,6 @@ import {
   parseRecent,
   parseRun,
   parseWorkflowList,
-  RECENT_LENGTH,
   repoKey,
   SwampFailure,
   type Repo,
@@ -237,7 +236,7 @@ export default function activate(orca: OrcaWorkerApi): void {
     return {
       workflows: parseWorkflowList(search, history),
       gates: parseApprovals(approvals),
-      recent: parseRecent(history).slice(0, RECENT_LENGTH),
+      runs: parseRecent(history),
       version: v
     }
   })

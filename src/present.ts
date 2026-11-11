@@ -1,4 +1,4 @@
-import { repoKey, type Repo, type RepoDir, type Run, type RunId, type RunStatus, type SshHost, type Step } from './domain'
+import { repoKey, type RecentRun, type Repo, type RepoDir, type Run, type RunId, type RunStatus, type SshHost, type Step } from './domain'
 import type { InboxItem } from './inbox'
 import type { RepoChoice, Resolution } from './repo'
 import type { Product, Stage, TicketStatus, WorkItem } from './stagecraft'
@@ -146,8 +146,93 @@ export function inboxGroups(items: readonly InboxItem[]): { label: string; items
   return [...groups.values()]
 }
 
-/** The last place in each repo, by repo key, the most recent last, as the panel keeps it in localStorage. */
-export type Places = { repo: string; place: Place }[]
+/** How the Workflows tab narrows and orders its runs: one status chip, one time window, one sort. */
+export type RunsView = { status: 'all' | 'running' | 'failed' | 'passed' | 'waiting'; when: 'all' | 'today' | 'week'; sort: 'newest' | 'oldest' | 'longest' | 'name' }
+
+export const ALL_RUNS: RunsView = { status: 'all', when: 'all', sort: 'newest' }
+
+/**
+ * Each status chip, in the order drawn, and the run statuses it shows. A cancelled run is a person's choice, not a
+ * failure, so only All shows it; the search finds it by the word "cancelled".
+ */
+export const RUN_CHIPS: Record<RunsView['status'], { label: string; tone: Tone; statuses?: readonly RunStatus[] }> = {
+  all: { label: 'All', tone: 'muted' },
+  running: { label: 'Running', tone: 'run', statuses: ['running', 'pending'] },
+  failed: { label: 'Failed', tone: 'fail', statuses: ['failed', 'interrupted'] },
+  passed: { label: 'Passed', tone: 'ok', statuses: ['succeeded'] },
+  waiting: { label: 'Waiting', tone: 'wait', statuses: ['suspended'] }
+}
+
+export const WHEN_LABEL: Record<RunsView['when'], string> = { all: 'Any time', today: 'Today', week: 'This week' }
+
+const newestRun = (a: RecentRun, b: RecentRun): number => b.startedAt.localeCompare(a.startedAt)
+
+export const RUN_SORTS: Record<RunsView['sort'], { label: string; order: (a: RecentRun, b: RecentRun) => number }> = {
+  newest: { label: 'Newest', order: newestRun },
+  oldest: { label: 'Oldest', order: (a, b) => newestRun(b, a) },
+  longest: { label: 'Longest', order: (a, b) => (b.durationMs ?? -1) - (a.durationMs ?? -1) || newestRun(a, b) },
+  name: { label: 'Name', order: (a, b) => a.workflow.localeCompare(b.workflow) || newestRun(a, b) }
+}
+
+/** A runs view read back from storage or a button, where a part that is not a known choice reads as the default. */
+export function parseRunsView(raw: unknown): RunsView {
+  const v = (raw ?? {}) as Record<string, unknown>
+  const known = <K extends string>(value: unknown, table: Record<K, unknown>, otherwise: K): K => (typeof value === 'string' && Object.hasOwn(table, value) ? (value as K) : otherwise)
+  return { status: known(v.status, RUN_CHIPS, 'all'), when: known(v.when, WHEN_LABEL, 'all'), sort: known(v.sort, RUN_SORTS, 'newest') }
+}
+
+const DAY_MS = 86_400_000
+
+/**
+ * The runs the view and the search leave, in the view's order, and how many each status chip would show. The counts
+ * follow the search and the time window but not the status chip. "Today" is since local midnight and "This week" the
+ * last 7 days. The search reads a run's workflow, inputs, id, failed step and status word.
+ */
+export function runsShown(runs: readonly RecentRun[], view: RunsView, search: string, now: number): { runs: RecentRun[]; counts: Record<RunsView['status'], number> } {
+  const q = search.trim().toLowerCase()
+  const from = view.when === 'today' ? new Date(now).setHours(0, 0, 0, 0) : view.when === 'week' ? now - 7 * DAY_MS : undefined
+  const pool = runs.filter(
+    (r) =>
+      (from === undefined || Date.parse(r.startedAt) >= from) &&
+      (!q || [r.workflow, r.input, r.inputs, r.runId, r.failedStep, runLook(r.status).text].some((f) => f?.toLowerCase().includes(q)))
+  )
+  const of = (status: RunsView['status']): RecentRun[] => {
+    const statuses = RUN_CHIPS[status].statuses
+    return statuses ? pool.filter((r) => statuses.includes(r.status)) : pool
+  }
+  const counts = Object.fromEntries(Object.keys(RUN_CHIPS).map((s) => [s, of(s as RunsView['status']).length])) as Record<RunsView['status'], number>
+  return { runs: [...of(view.status)].sort(RUN_SORTS[view.sort].order), counts }
+}
+
+/**
+ * The workflows the view and the search leave: each one with a run in `shown`, the runs `runsShown` left. While no chip
+ * or time window narrows the runs, a workflow also shows by its own name or description, or with no search at all, so
+ * one that never ran is still found.
+ */
+export function workflowsShown<W extends { name: string; description?: string }>(workflows: readonly W[], shown: readonly RecentRun[], view: RunsView, search: string): W[] {
+  const q = search.trim().toLowerCase()
+  const anyRun = view.status === 'all' && view.when === 'all'
+  const withRun = new Set(shown.map((r) => r.workflow))
+  return workflows.filter((w) => withRun.has(w.name) || (anyRun && (!q || [w.name, w.description].some((f) => f?.toLowerCase().includes(q)))))
+}
+
+/**
+ * The first `limit` runs by workflow, the groups in the order of their first run and each group's runs in the order
+ * given, so the sort of the runs is also the sort of the groups.
+ */
+export function runGroups(runs: readonly RecentRun[], limit: number): { workflow: string; runs: RecentRun[] }[] {
+  const groups = new Map<string, RecentRun[]>()
+  for (const r of runs) (groups.get(r.workflow) ?? groups.set(r.workflow, []).get(r.workflow)!).push(r)
+  let left = limit
+  return [...groups].flatMap(([workflow, all]) => {
+    const rows = all.slice(0, left)
+    left -= rows.length
+    return rows.length ? [{ workflow, runs: rows }] : []
+  })
+}
+
+/** The last place in each repo and how its runs were narrowed, by repo key, the most recent last, as the panel keeps it in localStorage. */
+export type Places = { repo: string; place: Place; runs?: RunsView }[]
 
 // ponytail: the 20 repos used last keep their place; an older one opens on its tab's first screen.
 const PLACES_KEPT = 20
@@ -155,15 +240,20 @@ const PLACES_KEPT = 20
 /** Saved places read back from storage; an older version saved one `{ place, repo }`, and anything malformed is dropped. */
 export function parsePlaces(raw: unknown): Places {
   const list = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : []
-  return list.flatMap((x: { repo?: unknown; place?: unknown } | null) => (typeof x?.repo === 'string' && x.repo ? [{ repo: x.repo, place: parsePlace(x.place) }] : []))
+  return list.flatMap((x: { repo?: unknown; place?: unknown; runs?: unknown } | null) =>
+    typeof x?.repo === 'string' && x.repo ? [{ repo: x.repo, place: parsePlace(x.place), ...(x.runs !== undefined && { runs: parseRunsView(x.runs) }) }] : []
+  )
 }
 
-/** The saved places with `place` as the last one of `repo`. */
-export const withPlace = (stored: unknown, repo: string, place: Place): Places =>
-  [...parsePlaces(stored).filter((x) => x.repo !== repo), { repo, place }].slice(-PLACES_KEPT)
+/** The saved places with `place`, and `runs` when given, as the last ones of `repo`. */
+export const withPlace = (stored: unknown, repo: string, place: Place, runs?: RunsView): Places =>
+  [...parsePlaces(stored).filter((x) => x.repo !== repo), { repo, place, ...(runs && { runs }) }].slice(-PLACES_KEPT)
 
 /** Where the person was in `repo`, or undefined for a repo with no saved place. */
 export const placeIn = (stored: unknown, repo: string): Place | undefined => parsePlaces(stored).filter((x) => x.repo === repo).at(-1)?.place
+
+/** How the person last narrowed the runs of `repo`; everything, newest first, for a repo with nothing saved. */
+export const runsViewIn = (stored: unknown, repo: string): RunsView => parsePlaces(stored).filter((x) => x.repo === repo).at(-1)?.runs ?? ALL_RUNS
 
 /**
  * The last answer to "which repo does this workspace use", by workspace key, the most recent last, as the panel

@@ -73,10 +73,22 @@ export type WorkflowSummary = {
   runs: RecentRun[]
 }
 
-export type RecentRun = { workflow: string; runId: RunId; status: RunStatus; startedAt: string; input?: string }
+/** `input` is the first input's value; `inputs` is the values of the others in one string, for the search. */
+export type RecentRun = {
+  workflow: string
+  runId: RunId
+  status: RunStatus
+  startedAt: string
+  input?: string
+  inputs?: string
+  durationMs?: number
+  failedStep?: string
+}
 
 export const HISTORY_LENGTH = 10
 export const RECENT_LENGTH = 6
+// ponytail: the panel filters the 500 newest runs; an older one is not found. Page the history when a repo outgrows it.
+export const RUNS_LIMIT = 500
 
 export type LogText = { text: string; truncated: boolean }
 
@@ -135,18 +147,25 @@ function inputValues(value: unknown): Record<string, string> {
 
 const firstInput = (value: unknown): string | undefined => Object.values(inputValues(value))[0]
 
-const recentRun = (r: Json): RecentRun => ({
-  workflow: str(r.workflowName) ?? '?',
-  runId: runIdOf(r.runId, 'history entry'),
-  status: runStatus(r.status),
-  startedAt: time(r.startedAt) ?? '',
-  input: firstInput(r.inputs)
-})
+const recentRun = (r: Json): RecentRun => {
+  const values = Object.values(inputValues(r.inputs))
+  return {
+    workflow: str(r.workflowName) ?? '?',
+    runId: runIdOf(r.runId, 'history entry'),
+    status: runStatus(r.status),
+    startedAt: time(r.startedAt) ?? '',
+    input: values[0],
+    inputs: values.slice(1).join(' ') || undefined,
+    durationMs: num(r.duration),
+    failedStep: str(r.failedStep)
+  }
+}
 
 const newestFirst = (a: { startedAt: string }, b: { startedAt: string }) => b.startedAt.localeCompare(a.startedAt)
 
+/** Every run, newest first, at most RUNS_LIMIT. */
 export function parseRecent(history: unknown): RecentRun[] {
-  return plain(arr(obj(history, 'history').results, 'history.results').map((raw) => recentRun(obj(raw, 'history entry'))).sort(newestFirst))
+  return plain(arr(obj(history, 'history').results, 'history.results').map((raw) => recentRun(obj(raw, 'history entry'))).sort(newestFirst).slice(0, RUNS_LIMIT))
 }
 
 export function parseWorkflowList(search: unknown, history: unknown): WorkflowSummary[] {

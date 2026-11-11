@@ -206,6 +206,11 @@ test('with the focus on a remote Orca server, its repos are offered, a pick is r
   assert.deepEqual(answer.repo, playground, 'the pick holds for the next resolve')
   const list = await worker.request('workflows.list', { repo: answer.repo! })
   assert.ok(list.workflows.length > 0, 'workflows come from swamp on the remote host')
+  assert.deepEqual(
+    list.runs,
+    [{ workflow: 'issue-factory', runId: 'ee6e9038-d4ef-432a-815e-7ab33a57f58f', status: 'succeeded', startedAt: '2026-10-26T19:25:08.936Z', input: 'ISSUE-101', inputs: 'fast', durationMs: 3963 }],
+    'every run of the repo, with what the search, the time chips and the sorts read'
+  )
   assert.equal(list.version, '20261106.235013.0')
   assert.ok(readFileSync(join(fake, 'ssh.log'), 'utf8').includes('jarvis'), 'ssh was asked for the host Orca deployed the server through')
   assert.ok(readFileSync(join(fake, 'answers.json.log'), 'utf8').split('\n').includes(realpathSync(repo)), 'swamp ran in the remote repo folder')

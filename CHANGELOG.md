@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.4.0
+
+- Workflows tab: every run of the repo is listed, not the newest 6, under a heading for its workflow. Chips narrow the workflows and the runs together to running, failed, passed or waiting, and to today or this week, so "Running" leaves the workflows that have a running run and those runs. A sort button orders the runs by newest, oldest, longest or workflow name, and the workflow groups by their first run. The search also finds a run by any input, its id or its failed step. Each repo keeps its chips and sort.
+
 ## 0.3.0
 
 - A "Needs you" tab lists every workflow gate and StageCraft ticket that waits for you, across all your repos on this Mac and on remote hosts. Approve, reject or decline there, or open the run or ticket in its own repo. The settings menu turns the tab off.

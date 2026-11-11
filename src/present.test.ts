@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { assert, test } from 'orca/testing'
 import { parseApprovals, parseRun } from './domain'
-import type { Repo, RepoDir, SshHost } from './domain'
+import type { RecentRun, Repo, RepoDir, RunId, RunStatus, SshHost } from './domain'
 import type { InboxItem } from './inbox'
-import { inboxGroups, inboxId, inboxPlace, ago, approveCommand, duration, failurePrompt, firstFailed, groupWorkflows, logLine, originOf, parent, parsePlace, placeIn, resolutionIn, withPlace, withResolution, type Place, workspaceKey, payloadBlocks, remoteOff, retryCommand, runPill, shortName } from './present'
+import { inboxGroups, inboxId, inboxPlace, ago, approveCommand, duration, failurePrompt, firstFailed, groupWorkflows, logLine, originOf, parent, parsePlace, placeIn, resolutionIn, withPlace, ALL_RUNS, parseRunsView, runGroups, runsShown, runsViewIn, workflowsShown, type RunsView, withResolution, type Place, workspaceKey, payloadBlocks, remoteOff, retryCommand, runPill, shortName } from './present'
 
 const fx = (name: string): unknown => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'))
 
@@ -218,4 +218,108 @@ test('the inbox shows one group per repo, the repo with the longest wait first, 
   assert.deepEqual(inboxPlace(items[0]), { tab: 'workflows', workflow: 'deploy', runId: 'r1' })
   assert.deepEqual(inboxPlace(ticket), { tab: 'stagecraft', factory: 'team', item: 'team-4' })
   assert.deepEqual(parent({ tab: 'inbox' }), { tab: 'inbox' })
+})
+
+// Local times, so "today" is the same day wherever the tests run. Now is Wednesday 11 November 2026, 15:00.
+const at = (day: number, hour: number, minute = 0): number => new Date(2026, 10, day, hour, minute).getTime()
+const NOW = at(11, 15)
+const aRun = (id: string, status: RunStatus, startedMs: number, more: Partial<RecentRun> = {}): RecentRun => ({
+  workflow: 'convert-call',
+  runId: id as RunId,
+  status,
+  startedAt: new Date(startedMs).toISOString(),
+  ...more
+})
+const RUNS: RecentRun[] = [
+  aRun('aaaa1111-0000', 'running', at(11, 14), { input: 'graphql:mutation:updateTranscript', inputs: 'rest/factory-base 0' }),
+  aRun('bbbb2222-0000', 'pending', at(11, 0), { workflow: 'convert-lane' }),
+  aRun('cccc3333-0000', 'failed', at(10, 23, 59), { durationMs: 9_000, failedStep: 'expose_impl', input: 'graphql:query:downloadAvailability' }),
+  aRun('dddd4444-0000', 'interrupted', at(9, 12), { durationMs: 1_000 }),
+  aRun('eeee5555-0000', 'succeeded', at(4, 15, 1), { durationMs: 60_000, workflow: 'convert-batch' }),
+  aRun('ffff6666-0000', 'succeeded', at(4, 14, 59), { durationMs: 5_000 }),
+  aRun('gggg7777-0000', 'suspended', at(1, 9)),
+  aRun('hhhh8888-0000', 'cancelled', at(1, 8), { durationMs: 2_000 }),
+  aRun('iiii9999-0000', 'unknown', at(1, 7))
+]
+const ids = (view: Partial<RunsView> = {}, search = '', runs: readonly RecentRun[] = RUNS): string[] =>
+  runsShown(runs, { ...ALL_RUNS, ...view }, search, NOW).runs.map((r) => r.runId.slice(0, 4))
+
+test('each status chip shows its runs, and a cancelled run shows under All only', () => {
+  assert.deepEqual(ids(), ['aaaa', 'bbbb', 'cccc', 'dddd', 'eeee', 'ffff', 'gggg', 'hhhh', 'iiii'])
+  assert.deepEqual(ids({ status: 'running' }), ['aaaa', 'bbbb'], 'a pending run is about to run')
+  assert.deepEqual(ids({ status: 'failed' }), ['cccc', 'dddd'], 'an interrupted run did not finish its work')
+  assert.deepEqual(ids({ status: 'passed' }), ['eeee', 'ffff'])
+  assert.deepEqual(ids({ status: 'waiting' }), ['gggg'])
+  assert.deepEqual(ids({}, 'cancelled'), ['hhhh'], 'the status word finds what no chip shows')
+})
+
+test('Today is since local midnight and This week is the last 7 days', () => {
+  assert.deepEqual(ids({ when: 'today' }), ['aaaa', 'bbbb'], 'a run started at midnight is today, one a minute before is not')
+  assert.deepEqual(ids({ when: 'week' }), ['aaaa', 'bbbb', 'cccc', 'dddd', 'eeee'], 'a run started 7 days less a minute ago is in, one 7 days and a minute ago is out')
+  assert.deepEqual(ids({ when: 'week', status: 'passed' }), ['eeee'])
+  assert.deepEqual(ids({ when: 'today' }, '', [aRun('nope', 'failed', NOW, { startedAt: '' })]), [], 'a run with no start time is in no time window')
+})
+
+test('each sort orders the runs, with runs of no known duration last under Longest', () => {
+  assert.deepEqual(ids({ sort: 'oldest' }), ['iiii', 'hhhh', 'gggg', 'ffff', 'eeee', 'dddd', 'cccc', 'bbbb', 'aaaa'])
+  assert.deepEqual(ids({ sort: 'longest' }), ['eeee', 'cccc', 'ffff', 'hhhh', 'dddd', 'aaaa', 'bbbb', 'gggg', 'iiii'])
+  assert.deepEqual(ids({ sort: 'name' }), ['eeee', 'aaaa', 'cccc', 'dddd', 'ffff', 'gggg', 'hhhh', 'iiii', 'bbbb'], 'by workflow, then newest first')
+  assert.deepEqual(RUNS.map((r) => r.runId.slice(0, 4)).join(), 'aaaa,bbbb,cccc,dddd,eeee,ffff,gggg,hhhh,iiii', 'the list given is left as it was')
+})
+
+test('the search finds a run by any input, its id, its failed step or its workflow', () => {
+  assert.deepEqual(ids({}, 'updateTranscript'), ['aaaa'])
+  assert.deepEqual(ids({}, ' FACTORY-BASE '), ['aaaa'], 'an input after the first, in any case')
+  assert.deepEqual(ids({}, 'downloadavail'), ['cccc'])
+  assert.deepEqual(ids({}, 'cccc'), ['cccc'], 'the short id')
+  assert.deepEqual(ids({}, 'cccc3333-0000'), ['cccc'], 'the full id')
+  assert.deepEqual(ids({}, 'expose_impl'), ['cccc'])
+  assert.deepEqual(ids({}, 'convert-lane'), ['bbbb'])
+  assert.deepEqual(ids({ status: 'passed' }, 'expose_impl'), [], 'the search and the chip both apply')
+  assert.deepEqual(ids({}, 'no such thing'), [])
+})
+
+test('each chip counts what it would show under the search and the time window, whichever chip is on', () => {
+  const counts = (view: Partial<RunsView>, search = '') => runsShown(RUNS, { ...ALL_RUNS, ...view }, search, NOW).counts
+  assert.deepEqual(counts({}), { all: 9, running: 2, failed: 2, passed: 2, waiting: 1 })
+  assert.deepEqual(counts({ status: 'failed', sort: 'name' }), counts({}), 'the chip that is on does not change the counts')
+  assert.deepEqual(counts({ when: 'week' }), { all: 5, running: 2, failed: 2, passed: 1, waiting: 0 })
+  assert.deepEqual(counts({ when: 'week' }, 'convert-call'), { all: 3, running: 1, failed: 2, passed: 0, waiting: 0 })
+})
+
+test('the workflows follow the chip, the time window and the search, and a workflow that never ran shows only while no chip or window is on', () => {
+  const WORKFLOWS = [{ name: 'convert-batch' }, { name: 'convert-call' }, { name: 'convert-lane' }, { name: 'never-ran', description: 'Nightly cleanup' }]
+  const names = (view: Partial<RunsView> = {}, search = ''): string[] => {
+    const v = { ...ALL_RUNS, ...view }
+    return workflowsShown(WORKFLOWS, runsShown(RUNS, v, search, NOW).runs, v, search).map((w) => w.name)
+  }
+  assert.deepEqual(names(), ['convert-batch', 'convert-call', 'convert-lane', 'never-ran'])
+  assert.deepEqual(names({ sort: 'name' }), names(), 'a sort hides nothing')
+  assert.deepEqual(names({ status: 'running' }), ['convert-call', 'convert-lane'])
+  assert.deepEqual(names({ status: 'passed', when: 'week' }), ['convert-batch'], 'convert-call passed, but more than a week ago')
+  assert.deepEqual(names({}, 'expose_impl'), ['convert-call'], 'found by a run')
+  assert.deepEqual(names({}, 'NEVER'), ['never-ran'], 'found by its name')
+  assert.deepEqual(names({}, 'nightly'), ['never-ran'], 'found by its description')
+  assert.deepEqual(names({ when: 'today' }, 'never'), [], 'a time window asks for a run')
+  assert.deepEqual(names({ status: 'failed' }, 'convert-lane'), [], 'the name matches, but no failed run does')
+})
+
+test('the runs are grouped by workflow in the order of each first run, and the limit counts runs across the groups', () => {
+  const groups = (view: Partial<RunsView> = {}, limit = 20): string[] =>
+    runGroups(runsShown(RUNS, { ...ALL_RUNS, ...view }, '', NOW).runs, limit).map((g) => `${g.workflow}: ${g.runs.map((r) => r.runId.slice(0, 4)).join(' ')}`)
+  assert.deepEqual(groups(), ['convert-call: aaaa cccc dddd ffff gggg hhhh iiii', 'convert-lane: bbbb', 'convert-batch: eeee'])
+  assert.deepEqual(groups({ sort: 'oldest' }), ['convert-call: iiii hhhh gggg ffff dddd cccc aaaa', 'convert-batch: eeee', 'convert-lane: bbbb'])
+  assert.deepEqual(groups({ sort: 'name' }), ['convert-batch: eeee', 'convert-call: aaaa cccc dddd ffff gggg hhhh iiii', 'convert-lane: bbbb'])
+  assert.deepEqual(groups({}, 8), ['convert-call: aaaa cccc dddd ffff gggg hhhh iiii', 'convert-lane: bbbb'], 'a group with no row left is not drawn')
+  assert.deepEqual(groups({}, 3), ['convert-call: aaaa cccc dddd'])
+})
+
+test('each repo keeps how its runs were narrowed, and anything malformed reads as everything, newest first', () => {
+  const failedThisWeek: RunsView = { status: 'failed', when: 'week', sort: 'longest' }
+  const saved = withPlace(withPlace(undefined, '/a', { tab: 'workflows' }, failedThisWeek), '/b', { tab: 'workflows' })
+  assert.deepEqual(runsViewIn(JSON.parse(JSON.stringify(saved)), '/a'), failedThisWeek)
+  assert.deepEqual(runsViewIn(saved, '/b'), ALL_RUNS)
+  assert.deepEqual(runsViewIn(saved, '/never-seen'), ALL_RUNS)
+  assert.deepEqual(runsViewIn([{ repo: '/a', place: {}, runs: { status: 'toString', when: 7, sort: 'name' } }], '/a'), { status: 'all', when: 'all', sort: 'name' })
+  assert.deepEqual(parseRunsView(null), ALL_RUNS)
 })
