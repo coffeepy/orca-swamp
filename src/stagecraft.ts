@@ -8,7 +8,7 @@ export const WORK_ITEM_TYPE = '@swamp/stagecraft/work-item'
 export const STUDIO_TYPE = '@swamp/stagecraft/studio'
 
 /** `workflow` names the swamp workflow a stage of mode `workflow` runs. */
-export type Stage = { id: string; mode: string; terminal: boolean; workflow?: string }
+export type Stage = { id: string; mode: string; terminal: boolean; workflow?: string; description?: string }
 
 /** A gate on an exit; `person` is the id of a human-approval gate. */
 export type ExitGate = { label: string; person?: string }
@@ -228,7 +228,8 @@ const stagesOf = (def: Definition): Stage[] =>
     const work = (s.work ?? {}) as Json
     const mode = str(work.mode) ?? ''
     const workflow = mode === 'workflow' ? str((work.workflow as Json | undefined)?.name) : undefined
-    return { id: str(s.id) ?? '?', mode, terminal: s.terminal === true, ...(workflow && { workflow }) }
+    const description = str(s.description)?.trim()
+    return { id: str(s.id) ?? '?', mode, terminal: s.terminal === true, ...(workflow && { workflow }), ...(description && { description }) }
   })
 
 /** The board from `swamp model get <factory>` and the factory's run records. */

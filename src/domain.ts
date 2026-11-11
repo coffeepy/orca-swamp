@@ -21,8 +21,8 @@ export class SwampFailure extends Error {
 
 export type DataRef = { id: string; name: string; version: number; type?: string }
 
-/** `gate` marks a manual_approval step, whose time is a wait for a person. */
-type StepBase = { name: string; logTag?: string; outputs?: unknown; data: DataRef[]; gate?: true }
+/** `gate` marks a manual_approval step, whose time is a wait for a person. `kind` is a short label of what runs the step. */
+type StepBase = { name: string; description?: string; kind?: string; logTag?: string; outputs?: unknown; data: DataRef[]; gate?: true }
 
 export type Step = StepBase &
   (
@@ -38,7 +38,7 @@ export type Step = StepBase &
 
 export type StepStatus = Step['status']
 
-export type Job = { name: string; stages: Step[][] }
+export type Job = { name: string; description?: string; stages: Step[][] }
 
 export type RunStatus =
   | 'pending'
@@ -198,11 +198,29 @@ export function parseApprovals(raw: unknown): Gate[] {
   return plain([...arr(body.approvals, 'approvals').map(gate(false)), ...arr(body.expired ?? [], 'expired').map(gate(true))])
 }
 
-type StepDef = { deps: string[]; prompt?: string; model?: string; method?: string; gate: boolean }
+type StepDef = { deps: string[]; description?: string; kind?: string; prompt?: string; model?: string; method?: string; gate: boolean }
+type JobDef = { description?: string; steps: Map<string, StepDef> }
+
+const text = (value: unknown): string | undefined => str(value)?.trim() || undefined
+
+const TASK_KIND: Record<string, string> = { manual_approval: 'approval', assert: 'assert', workflow: 'workflow' }
+
+/**
+ * A short label of what runs a step, from its task: a fixed name for the task types that run no behavior, else the
+ * last part of the behavior type (`command/shell` is "shell"). swamp prints the type as modelType, or behaviorType
+ * since it renamed models. A step that names an existing behavior gives no type, so it has no label.
+ */
+export function stepKind(task: Json): string | undefined {
+  const type = str(task.type) ?? ''
+  if (TASK_KIND[type]) return TASK_KIND[type]
+  const behavior = str(task.behaviorType) ?? str(task.modelType)
+  if (behavior) return behavior.split('/').at(-1) || undefined
+  return type && type !== 'model_method' && type !== 'behavior' ? type.replaceAll('_', ' ') : undefined
+}
 
 /** Each job's steps by name: two jobs may each have a step of the same name. */
-function parseDefinition(def: unknown): Map<string, Map<string, StepDef>> {
-  const jobs = new Map<string, Map<string, StepDef>>()
+function parseDefinition(def: unknown): Map<string, JobDef> {
+  const jobs = new Map<string, JobDef>()
   for (const rawJob of arr(obj(def, 'workflow').jobs, 'workflow.jobs')) {
     const job = obj(rawJob, 'job')
     const steps = new Map<string, StepDef>()
@@ -211,6 +229,8 @@ function parseDefinition(def: unknown): Map<string, Map<string, StepDef>> {
       const task = (s.task ?? {}) as Json
       steps.set(str(s.name) ?? '?', {
         deps: arr(s.dependsOn ?? [], 'step.dependsOn').map((d) => str(obj(d, 'step dependency').step) ?? ''),
+        description: text(s.description),
+        kind: stepKind(task),
         prompt: str(task.prompt),
         // swamp stores a task as modelIdOrName, or as modelType + modelName for a model it creates per run.
         model: str(task.modelIdOrName) ?? str(task.modelName),
@@ -218,7 +238,7 @@ function parseDefinition(def: unknown): Map<string, Map<string, StepDef>> {
         gate: task.type === 'manual_approval'
       })
     }
-    jobs.set(str(job.name) ?? '?', steps)
+    jobs.set(str(job.name) ?? '?', { description: text(job.description), steps })
   }
   return jobs
 }
@@ -236,12 +256,12 @@ function logTagOf(def: StepDef, id: string, inputs: Record<string, string>): str
   return model.includes('${{') ? undefined : `${model}·${def.method}`
 }
 
-function parseStep(s: Json, def: { prompt?: string; logTag?: string; gate: boolean } | undefined, run: RunStatus, expired: ReadonlySet<string>): Step {
+function parseStep(s: Json, def: (StepDef & { logTag?: string }) | undefined, run: RunStatus, expired: ReadonlySet<string>): Step {
   const data = arr(s.dataArtifacts ?? [], 'step.dataArtifacts').map((d) => {
     const a = obj(d, 'data artifact')
     return { id: str(a.dataId) ?? '', name: str(a.name) ?? '?', version: num(a.version) ?? 0, type: str((a.tags as Json | undefined)?.type) }
   })
-  const base = { name: str(s.name) ?? '?', logTag: def?.logTag, outputs: s.outputs ?? s.assertResult, data, ...(def?.gate && { gate: true as const }) }
+  const base = { name: str(s.name) ?? '?', description: def?.description, kind: def?.kind, logTag: def?.logTag, outputs: s.outputs ?? s.assertResult, data, ...(def?.gate && { gate: true as const }) }
   const durationMs = num(s.duration)
   switch (s.status) {
     case 'pending':
@@ -298,13 +318,13 @@ export function parseRun(def: unknown, run: unknown, gates: readonly Gate[] = []
     jobs: arr(r.jobs, 'run.jobs').map((raw) => {
       const job = obj(raw, 'run job')
       const name = str(job.name) ?? '?'
-      const steps = jobs.get(name) ?? new Map<string, StepDef>()
+      const steps = jobs.get(name)?.steps ?? new Map<string, StepDef>()
       const parsed = arr(job.steps, 'run job.steps').map((rawStep) => {
         const s = obj(rawStep, 'run step')
         const d = steps.get(str(s.name) ?? '')
-        return parseStep(s, d && { prompt: d.prompt, logTag: logTagOf(d, id, inputs), gate: d.gate }, status, expired)
+        return parseStep(s, d && { ...d, logTag: logTagOf(d, id, inputs) }, status, expired)
       })
-      return { name, stages: layerSteps(parsed, new Map([...steps].map(([n, s]) => [n, s.deps]))) }
+      return { name, description: jobs.get(name)?.description, stages: layerSteps(parsed, new Map([...steps].map(([n, s]) => [n, s.deps]))) }
     })
   })
 }

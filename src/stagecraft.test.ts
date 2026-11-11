@@ -191,3 +191,11 @@ test('a stage that runs a workflow names it, and other stages name none', () => 
   const stages = parseBoard(factory, fx('sc.note-runs'), NOTE_NOW).stages
   assert.deepEqual(stages.map((s) => [s.id, s.workflow ?? null]), [['write', null], ['check', 'verify-v3'], ['ship', null], ['done', null]])
 })
+
+test('a stage carries the description its author wrote, and a stage without one carries none', () => {
+  const stages = parseBoard(fx('sc.factory'), fx('sc.runs'), NOW).stages
+  assert.equal(stages.find((s) => s.id === 'plan')?.description, 'Plan the change.')
+  assert.ok(!('description' in stages.find((s) => s.id === 'done')!))
+  const d = parseWorkItemDetail(fx('sc.item-team-4'), NOW)
+  assert.match(d.stages.find((s) => s.id === d.item.stage)?.description ?? '', /^Adversarial review of the current plan\./)
+})
