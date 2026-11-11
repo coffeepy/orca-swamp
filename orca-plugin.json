@@ -1,7 +1,7 @@
 {
   "manifestVersion": 2,
   "id": "orca-swamp",
-  "name": "Swamp",
+  "name": "Swampling",
   "version": "0.1.0",
   "description": "Shows the swamp workflows of the focused workspace's repo with each run's steps, logs, outputs and data; approves or rejects waiting gates; and hands a failed run to an agent terminal.",
   "engines": {
@@ -14,7 +14,7 @@
     "panels": [
       {
         "id": "orca-swamp",
-        "title": "Swamp",
+        "title": "Swampling",
         "icon": "layers",
         "entry": "src/app.ts",
         "ui": "html"

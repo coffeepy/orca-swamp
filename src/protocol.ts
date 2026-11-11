@@ -8,8 +8,11 @@ export type AgentTerminal = { id: string; title: string; workspace: string }
 
 declare module 'orca' {
   interface PluginRequests {
-    /** The focused workspace's swamp repo (its pinned one first), or null with the repos the picker offers. */
-    'repo.resolve': { input: Record<string, never>; output: Resolution }
+    /**
+     * The focused workspace's swamp repo (its pinned one first), or null with the repos the picker offers.
+     * The worker remembers its slow lookups between asks; `fresh` reads them all again.
+     */
+    'repo.resolve': { input: { fresh?: boolean }; output: Resolution }
     /** Remembers `repo` as the focused workspace's repo and resolves again. */
     'repo.pin': { input: { repo: Repo }; output: Resolution }
     /** Each workflow with its run history, every gate waiting in the repo, the newest runs, and the swamp version. */

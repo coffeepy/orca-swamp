@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { assert, test } from 'orca/testing'
 import { parseApprovals, parseRun } from './domain'
 import type { Repo, RepoDir, SshHost } from './domain'
-import { ago, approveCommand, duration, failurePrompt, firstFailed, groupWorkflows, logLine, originOf, parent, parsePlace, type Place, workspaceKey, payloadBlocks, remoteOff, retryCommand, runPill, shortName } from './present'
+import { ago, approveCommand, duration, failurePrompt, firstFailed, groupWorkflows, logLine, originOf, parent, parsePlace, placeIn, resolutionIn, withPlace, withResolution, type Place, workspaceKey, payloadBlocks, remoteOff, retryCommand, runPill, shortName } from './present'
 
 const fx = (name: string): unknown => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'))
 
@@ -164,4 +164,44 @@ test('switching between two workspaces named master on branch master is a switch
   assert.notEqual(workspaceKey(swampTest), workspaceKey(otherRepo))
   assert.equal(workspaceKey(swampTest), workspaceKey({ ...swampTest, terminals: [{ id: 'term_1c7f', title: 'claude' }] }))
   assert.equal(workspaceKey(null), '')
+})
+
+test('each repo keeps its own last place, an old single saved place still reads, and only the 20 used last are kept', () => {
+  const ticket: Place = { tab: 'stagecraft', factory: 'f', item: 'k' }
+  const run: Place = { tab: 'workflows', workflow: 'w', runId: 'r' as never }
+  const saved = withPlace(withPlace(undefined, '/a', ticket), 'host:/b', run)
+  assert.deepEqual(placeIn(JSON.parse(JSON.stringify(saved)), '/a'), ticket, 'coming back to a repo opens where the person was')
+  assert.deepEqual(placeIn(saved, 'host:/b'), run)
+  assert.equal(placeIn(saved, '/never-seen'), undefined)
+  assert.deepEqual(placeIn(withPlace(saved, '/a', { tab: 'workflows' }), '/a'), { tab: 'workflows' }, 'a newer place replaces the older one')
+  assert.deepEqual(placeIn({ place: ticket, repo: '/old' }, '/old'), ticket, 'what an older version saved')
+  for (const junk of [null, 'x', 7, [null, 3, { repo: 5 }, { place: ticket }], { repo: '' }]) assert.deepEqual(withPlace(junk, '/a', run), [{ repo: '/a', place: run }])
+  let many: unknown = saved
+  for (let i = 0; i < 25; i++) many = withPlace(many, `/r${i}`, run)
+  assert.equal((many as unknown[]).length, 20)
+  assert.equal(placeIn(many, '/a'), undefined, 'the repo used longest ago is dropped')
+  assert.deepEqual(placeIn(many, '/r24'), run)
+})
+
+test('each workspace keeps the repo it resolved to last, damaged storage reads as nothing remembered, and only the 20 used last are kept', () => {
+  const local = { kind: 'local', dir: '/a' } as Repo
+  const remote = { kind: 'ssh', host: 'jarvis', dir: '/srv/b' } as Repo
+  const chosen = { repo: local, candidates: [{ repo: local, label: 'a · home' }, { repo: remote, label: 'b · srv' }], workspace: { name: 'main', listed: true } }
+  const picker = { repo: null, candidates: [{ repo: remote, label: 'b · srv' }], remoteHosts: ['jarvis' as SshHost] }
+  const saved = withResolution(withResolution(undefined, 'main\0main\0term_1', chosen), '', picker)
+  assert.deepEqual(resolutionIn(JSON.parse(JSON.stringify(saved)), 'main\0main\0term_1'), chosen, 'a switch back finds the repo without asking')
+  assert.deepEqual(resolutionIn(saved, ''), picker, 'the picker of a workspace Orca does not name is remembered too')
+  assert.equal(resolutionIn(saved, 'never-seen'), undefined)
+  assert.deepEqual(resolutionIn(withResolution(saved, '', { ...picker, repo: remote }), '')?.repo, remote, 'a newer answer replaces the older one')
+  const failing = { ...picker, problem: { code: 'host_unreachable' as const, message: 'down' } }
+  assert.deepEqual(resolutionIn(withResolution(saved, '', failing), ''), picker, 'an answer with a problem does not replace the one remembered')
+  const junk = [null, 'x', 7, { workspace: 'w', resolution: chosen }, [null, 3, { workspace: 5, resolution: chosen }, { workspace: 'w' }, { workspace: 'w', resolution: { repo: { kind: 'local' }, candidates: [] } }, { workspace: 'w', resolution: { repo: null } }]]
+  for (const j of junk) assert.deepEqual(withResolution(j, 'w2', chosen), [{ workspace: 'w2', resolution: chosen }])
+  const damaged = { repo: local, candidates: [null, { repo: { kind: 'ssh', dir: '/x' }, label: 'no host' }, { repo: remote, label: 'b · srv' }], workspace: { name: 7 }, remoteHosts: [3] }
+  assert.deepEqual(resolutionIn([{ workspace: 'w', resolution: damaged }], 'w'), { repo: local, candidates: [{ repo: remote, label: 'b · srv' }] }, 'a damaged choice is left out of the picker')
+  let many: unknown = saved
+  for (let i = 0; i < 25; i++) many = withResolution(many, `w${i}`, chosen)
+  assert.equal((many as unknown[]).length, 20)
+  assert.equal(resolutionIn(many, ''), undefined, 'the workspace used longest ago is dropped')
+  assert.deepEqual(resolutionIn(many, 'w24'), chosen)
 })

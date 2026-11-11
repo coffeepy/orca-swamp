@@ -106,8 +106,8 @@ export function remoteRepos(host: SshHost, above: (string | null)[], registry: u
 }
 
 /**
- * Orca answers readContext with null when the focused workspace is on a remote Orca server (1.4.253 resolves
- * the focus against this machine's runtime only), and nothing else tells a plugin which one it is. So the
+ * For a focused workspace on a remote Orca server, Orca answers readContext with null (1.4.253) or with a
+ * name it does not list (later versions). With null, nothing tells a plugin which workspace it is, so the
  * panel offers the repos of every remote workspace and remembers the pick under this one key.
  */
 export const UNNAMED = '@remote-or-none'
@@ -115,6 +115,8 @@ export const UNNAMED = '@remote-or-none'
 type RemoteChoices = {
   candidates: RepoChoice[]
   hosts: SshHost[]
+  /** Each remote workspace with the repo at or above its folder, to match a focused workspace Orca names but does not list. */
+  workspaces?: { name: string; branch: string | null; repo: Repo | null }[]
   /** Hosts whose repos could not all be read just now; undefined when the servers could not be listed at all. */
   unread?: SshHost[]
   problem?: Resolution['problem']
@@ -123,10 +125,18 @@ type RemoteChoices = {
 async function remoteChoices(): Promise<RemoteChoices> {
   const { servers, workspaces, failures } = await remoteWorkspaces()
   const hosts = [...new Set(servers.flatMap((s) => (s.host ? [s.host] : [])))]
+  const spaces: NonNullable<RemoteChoices['workspaces']> = []
   const probes = await Promise.all(
-    hosts.map((h) =>
-      probeRemote(h, workspaces.filter((w) => w.host === h).map((w) => w.path)).then(({ above, registry }) => remoteRepos(h, above, registry), (e: SwampFailure) => e)
-    )
+    hosts.map((h) => {
+      const mine = workspaces.filter((w) => w.host === h)
+      return probeRemote(h, mine.map((w) => w.path)).then(({ above, registry }) => {
+        mine.forEach((w, i) => {
+          const dir = above[i]
+          spaces.push({ name: w.name, branch: w.branch, repo: dir ? { kind: 'ssh', host: h, dir } : null })
+        })
+        return remoteRepos(h, above, registry)
+      }, (e: SwampFailure) => e)
+    })
   )
   const failed = [...probes.filter((p): p is SwampFailure => p instanceof Error), ...failures.map((f) => f.error)][0]
   const sshless = servers.find((s) => !s.host)
@@ -136,7 +146,74 @@ async function remoteChoices(): Promise<RemoteChoices> {
       ? { code: 'host_unreachable' as const, message: `${sshless.server} is an Orca server paired without SSH, so the panel has no way to run swamp there.` }
       : undefined
   const unread = [...hosts.filter((_, i) => probes[i] instanceof Error), ...failures.flatMap((f) => (f.host ? [f.host] : []))]
-  return { candidates: probes.flatMap((p) => (p instanceof Error ? [] : p)), hosts, unread, ...(problem && { problem }) }
+  return { candidates: probes.flatMap((p) => (p instanceof Error ? [] : p)), hosts, unread, workspaces: spaces, ...(problem && { problem }) }
+}
+
+const askRemote = (): Promise<RemoteChoices> =>
+  remoteChoices().catch((e: SwampFailure): RemoteChoices => ({ candidates: [], hosts: [], problem: { code: e.code ?? 'swamp_error', message: e.message } }))
+
+/**
+ * `read`, remembered: the first ask waits for it; later asks get the last answer at once, and an answer older than
+ * `ms` is read again behind them. A `fresh` ask waits for a new read. A failure, or an answer `keep` turns down, is
+ * not remembered.
+ */
+export function remembered<T>(ms: number, read: () => Promise<T>, keep: (value: T) => boolean = () => true): (fresh?: boolean) => Promise<T> {
+  let last: { value: T; at: number } | undefined
+  let reading: Promise<T> | undefined
+  // ponytail: a fresh ask joins a read already under way instead of starting a second process.
+  const again = (): Promise<T> =>
+    (reading ??= read()
+      .then(
+        (value) => {
+          last = keep(value) ? { value, at: Date.now() } : undefined
+          return value
+        },
+        (e) => {
+          last = undefined
+          throw e
+        }
+      )
+      .finally(() => (reading = undefined)))
+  return (fresh = false) => {
+    if (fresh || !last) return again()
+    if (Date.now() - last.at > ms) again().catch(() => {})
+    return Promise.resolve(last.value)
+  }
+}
+
+/** The slow lookups behind a resolution. The worker remembers them between asks; `fresh` reads again. */
+export type Lookups = {
+  terminal: (handle: string, fresh?: boolean) => ReturnType<typeof terminalWorkspace>
+  remote: (fresh?: boolean) => Promise<RemoteChoices>
+}
+
+const direct: Lookups = { terminal: terminalWorkspace, remote: askRemote }
+
+const REMOTE_FRESH_MS = 60_000
+
+export function rememberedLookups(): Lookups {
+  // ponytail: one entry per terminal seen in the worker's life; a terminal never moves to another workspace.
+  const terminals = new Map<string, Awaited<ReturnType<typeof terminalWorkspace>>>()
+  return {
+    terminal: async (handle, fresh) => {
+      const known = fresh ? undefined : terminals.get(handle)
+      if (known) return known
+      const found = await terminalWorkspace(handle)
+      if (found.id || found.folder) terminals.set(handle, found)
+      return found
+    },
+    remote: remembered(REMOTE_FRESH_MS, askRemote, (r) => !r.problem)
+  }
+}
+
+/**
+ * An ssh pin is tried while its host cannot be asked, so a host that is down for a minute keeps it;
+ * once the host answers without it, or is no longer paired, it is not.
+ */
+function sshPin(pinned: Repo | undefined, remote: RemoteChoices, candidates: RepoChoice[]): Repo | null {
+  if (pinned?.kind !== 'ssh') return null
+  const unread = !remote.unread || remote.unread.includes(pinned.host)
+  return candidates.find((c) => repoKey(c.repo) === repoKey(pinned))?.repo ?? (unread ? pinned : null)
 }
 
 const shortBranch = (b: string | null | undefined) => (b ?? '').replace(/^refs\/heads\//, '')
@@ -145,12 +222,12 @@ const shortBranch = (b: string | null | undefined) => (b ?? '').replace(/^refs\/
  * The focused workspace: its Orca id and folder when one of its terminals names them, or when one listed workspace
  * has its name and branch; `named` is those listed workspaces.
  */
-async function focus(orca: OrcaWorkerApi) {
+async function focus(orca: OrcaWorkerApi, look: Lookups, fresh?: boolean) {
   const [context, list] = await Promise.all([orca.host.call('workspace.readContext'), orca.host.call('workspace.list')])
   if (!context) return { context, list, named: [], folder: null, id: null }
   const named = list.workspaces.filter((w) => w.name === context.displayName && (w.branch === null || shortBranch(w.branch) === shortBranch(context.branch)))
   const handle = context.terminals[0]?.id
-  const fromTerminal = handle ? await terminalWorkspace(handle).catch(() => null) : null
+  const fromTerminal = handle ? await look.terminal(handle, fresh).catch(() => null) : null
   const only = named.length === 1 ? named[0] : undefined
   const folder = canonical(fromTerminal?.folder ?? only?.path ?? '')
   return { context, list, named, folder, id: fromTerminal?.id ?? only?.id ?? null }
@@ -161,14 +238,35 @@ async function focus(orca: OrcaWorkerApi) {
  * when another shares its folder; its folder when Orca gives no id; its name when Orca does not list it;
  * UNNAMED when Orca names none; null when several workspaces share its name and nothing tells them apart.
  */
-export async function focusPinKey(orca: OrcaWorkerApi): Promise<string | null> {
-  const { context, named, folder, id } = await focus(orca)
+export async function focusPinKey(orca: OrcaWorkerApi, look: Lookups = direct): Promise<string | null> {
+  const { context, named, folder, id } = await focus(orca, look)
   return !context ? UNNAMED : (id ?? folder ?? (named.length > 1 ? null : context.displayName))
 }
 
-/** `picked` is a repo the person chose that could not be saved, used for this answer only. */
-export async function resolveRepo(orca: OrcaWorkerApi, registered: SwampWorkspace[], pins: Pins, picked?: Repo): Promise<Resolution> {
-  const { context, list, named, folder, id } = await focus(orca)
+/**
+ * `registry` may still be on its way: swamp's registry is read while Orca and the remote hosts are asked, and waited for only where local repos are picked.
+ * `picked` is a repo the person chose that could not be saved, used for this answer only.
+ */
+export async function resolveRepo(
+  orca: OrcaWorkerApi,
+  registry: SwampWorkspace[] | Promise<SwampWorkspace[]>,
+  pins: Pins,
+  { picked, look = direct, fresh }: { picked?: Repo; look?: Lookups; fresh?: boolean } = {}
+): Promise<Resolution> {
+  const { context, list, named, folder, id } = await focus(orca, look, fresh)
+  // Orca names a workspace on a remote Orca server but does not list it, and its terminals name no folder.
+  if (context && !folder && named.length === 0) {
+    const pinned = picked ?? pins[context.displayName]
+    const remote = await look.remote(fresh)
+    // With a remote host paired, this workspace is on one, so only remote repos may answer it and this Mac's
+    // are not offered. With none, local repos are offered instead.
+    const local = remote.hosts.length ? undefined : pickRepo([], list.workspaces.map((w) => w.path), await registry, pinned)
+    const candidates = local?.candidates ?? remote.candidates
+    // With one remote workspace of this name and branch, the repo at or above its folder is this workspace's.
+    const same = (remote.workspaces ?? []).filter((w) => w.name === context.displayName && shortBranch(w.branch) === shortBranch(context.branch))
+    const repo = local?.repo ?? sshPin(pinned, remote, candidates) ?? (same.length === 1 ? same[0].repo : null)
+    return { repo, candidates, workspace: { name: context.displayName, listed: false }, remoteHosts: remote.hosts, ...(remote.problem && { problem: remote.problem }) }
+  }
   if (context) {
     const focused = folder ? [folder] : []
     const others = list.workspaces.map((w) => w.path).filter((p) => canonical(p) !== folder)
@@ -177,19 +275,15 @@ export async function resolveRepo(orca: OrcaWorkerApi, registered: SwampWorkspac
     const pinned = picked ?? (id ? pins[id] : undefined) ?? ownFolder ?? (named.length <= 1 ? pins[context.displayName] : undefined)
     const sharedName = !folder && named.length > 1 ? named.length : undefined
     const workspace = { name: context.displayName, listed: !!folder || named.length > 0, ...(sharedName && { sharedName }) }
-    return { ...pickRepo(focused, others, registered, pinned), workspace }
+    return { ...pickRepo(focused, others, await registry, pinned), workspace }
   }
   const others = list.workspaces.map((w) => w.path)
   const pinned = pins[UNNAMED]
-  const remote = await remoteChoices().catch((e: SwampFailure): RemoteChoices => ({ candidates: [], hosts: [], problem: { code: e.code ?? 'swamp_error', message: e.message } }))
+  const remote = await look.remote(fresh)
   // No workspace from Orca means a remote one is focused, so only remote repos may answer it; a local
   // pick here would stick to every remote workspace. With no remote hosts, local repos are offered instead.
-  const local = remote.hosts.length ? undefined : pickRepo([], others, registered, pinned)
+  const local = remote.hosts.length ? undefined : pickRepo([], others, await registry, pinned)
   const candidates = local?.candidates ?? remote.candidates
-  // An ssh pin is tried while its host cannot be asked, so a host that is down for a minute keeps it;
-  // once the host answers without it, or is no longer paired, it is not.
-  const ssh = pinned?.kind === 'ssh' ? pinned : undefined
-  const unread = (h: SshHost) => !remote.unread || remote.unread.includes(h)
-  const repo = local?.repo ?? (ssh && (candidates.find((c) => repoKey(c.repo) === repoKey(ssh))?.repo ?? (unread(ssh.host) ? ssh : null))) ?? null
+  const repo = local?.repo ?? sshPin(pinned, remote, candidates)
   return { repo, candidates, remoteHosts: remote.hosts, ...(remote.problem && { problem: remote.problem }) }
 }

@@ -22,7 +22,7 @@ process.env.ORCA_CLI_COMMAND = script(
   "environment list") cat '${fixture('orca.environment-list')}' ;;
   "host list") cat '${fixture('orca.host-list')}' ;;
   "worktree list") sed 's#/home/dev#${fake}/home#g' '${fixture('orca.worktree-list-jarvis')}' ;;
-  "terminal show") cat "${fake}/terminal-$4.json" 2>/dev/null ;;
+  "terminal show") echo "$4" >> '${fake}/terminal.log'; cat "${fake}/terminal-$4.json" 2>/dev/null ;;
 esac`
 )
 script('ssh', `for a; do last=$a; done; printf '%s\\n' "$*" >> '${fake}/ssh.log'; HOME='${fake}/home' exec sh -c "$last"`)
@@ -183,6 +183,7 @@ test('with the focus on a remote Orca server, its repos are offered, a pick is r
   assert.equal(offered.repo, null, 'Orca names no workspace, so nothing is chosen for the person')
   assert.deepEqual(offered.remoteHosts, ['jarvis'])
   assert.deepEqual(offered.candidates.find((c) => c.repo.kind === 'ssh')?.repo, playground)
+  assert.ok(offered.candidates.every((c) => c.repo.kind === 'ssh'), 'a workspace on a remote host is not offered the repos of this Mac')
   assert.ok(offered.candidates.every((c) => c.repo.kind === 'ssh'), 'a remote focus is offered only remote repos')
   const mac = folder('.')
   writeFileSync(process.env.ORCA_SWAMP_PINS, JSON.stringify({ '@remote-or-none': { kind: 'local', dir: mac } }))
@@ -195,6 +196,30 @@ test('with the focus on a remote Orca server, its repos are offered, a pick is r
   assert.equal(list.version, '20261106.235013.0')
   assert.ok(readFileSync(join(fake, 'ssh.log'), 'utf8').includes('jarvis'), 'ssh was asked for the host Orca deployed the server through')
   assert.ok(readFileSync(join(fake, 'answers.json.log'), 'utf8').split('\n').includes(realpathSync(repo)), 'swamp ran in the remote repo folder')
+})
+
+test('a workspace Orca names but does not list gets the remote repos: its own by name and branch, or a pick that is remembered', async () => {
+  // The test before left a swamp repo and a swamp stand-in under the fake remote home.
+  const playground = { kind: 'ssh', host: 'jarvis', dir: join(fake, 'home/orca-swamp-playground') }
+  const unlisted = (displayName: string, branch: string) =>
+    mountWorker(main, { host: mockHost({ results: { 'workspace.readContext': { displayName, branch, terminals: [] }, 'workspace.list': { truncated: false, workspaces: [] } } }) })
+  process.env.ORCA_SWAMP_PINS = join(fake, 'pins-unlisted.json')
+  const own = await (await unlisted('master', 'master')).request('repo.resolve', {})
+  assert.deepEqual(own.repo, playground, 'the one remote workspace of this name and branch sits in this repo')
+  assert.deepEqual(own.workspace, { name: 'master', listed: false })
+  assert.deepEqual(own.remoteHosts, ['jarvis'])
+  const worker = await unlisted('elsewhere', 'main')
+  const offered = await worker.request('repo.resolve', {})
+  assert.equal(offered.repo, null, 'no remote workspace has this name, so the person picks')
+  assert.deepEqual(offered.candidates.find((c) => c.repo.kind === 'ssh')?.repo, playground)
+  assert.ok(offered.candidates.every((c) => c.repo.kind === 'ssh'), 'a workspace on a remote host is not offered the repos of this Mac')
+  assert.deepEqual((await worker.request('repo.pin', { repo: playground as never })).repo, playground)
+  assert.deepEqual(JSON.parse(readFileSync(process.env.ORCA_SWAMP_PINS, 'utf8')), { elsewhere: playground }, 'the pick is saved for this workspace only')
+  assert.deepEqual((await worker.request('repo.resolve', {})).repo, playground, 'the pick holds for the next resolve')
+  const asked = readFileSync(join(fake, 'ssh.log'), 'utf8')
+  const dir = folder('.')
+  assert.equal((await (await mountWorker(main, { host: host(dir) })).request('repo.resolve', {})).repo?.dir, dir)
+  assert.equal(readFileSync(join(fake, 'ssh.log'), 'utf8'), asked, 'a listed workspace asks no remote host')
 })
 
 const GATED_RUN = '0fdef291-426e-4ec9-a2c0-92bc24c3a7d8' as never
@@ -514,4 +539,20 @@ test('with several workspaces named main and no terminal to tell them apart, not
   const picked = await worker.request('repo.pin', { repo: { kind: 'local', dir: dirs[0] } as never })
   assert.deepEqual(picked.repo, { kind: 'local', dir: dirs[0] }, 'the pick is used now')
   assert.equal((await worker.request('repo.resolve', {})).repo, null, 'and not saved for every workspace named main')
+})
+
+test('a second resolve starts neither swamp workspace list nor orca terminal show again, and a fresh one starts both', async () => {
+  const { dirs, focus } = mains(2)
+  writeFileSync(join(dirs[1], '.swamp.yaml'), 'swampVersion: test\n')
+  const { calls } = localRepo({ 'workspace list': '{"workspaces":[]}' })
+  const shows = () => readFileSync(join(fake, 'terminal.log'), 'utf8').trim().split('\n').length
+  const before = shows()
+  const started = () => [verbs(calls()).filter((v) => v === 'workspace list').length, shows() - before]
+  const worker = await mountWorker(main, { host: focus(1) })
+  const first = await worker.request('repo.resolve', {})
+  assert.deepEqual(first.repo, { kind: 'local', dir: dirs[1] })
+  assert.deepEqual(await worker.request('repo.resolve', {}), first, 'the remembered lookups give the same answer')
+  assert.deepEqual(started(), [1, 1], 'the second resolve started no process')
+  assert.deepEqual(await worker.request('repo.resolve', { fresh: true }), first)
+  assert.deepEqual(started(), [2, 2], 'a fresh resolve reads both again')
 })
