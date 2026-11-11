@@ -9,6 +9,7 @@ import {
   parseRecent,
   parseRun,
   parseWorkflowList,
+  stepKind,
   SwampFailure,
   type Run
 } from './domain'
@@ -228,4 +229,31 @@ test('a log whose newest line alone is over 15 KiB keeps the tail of that line',
   assert.ok(Buffer.byteLength(log.text) <= LOG_LIMIT_BYTES)
   assert.ok(!log.text.includes('�'))
   assert.equal(log.truncated, true)
+})
+
+test('a step and a job carry the description their author wrote, and a step without one carries none', () => {
+  const run = parseRun(fx('convert-call.def'), fx('convert-call.run'))
+  assert.equal(run.jobs[0].description, 'Guide step 0')
+  const prepare = run.jobs[0].stages[0][0]
+  assert.equal(prepare.description, 'Create the call worktree and its local.env, regenerate the inventory and audit, confirm category convert.')
+  assert.equal(prepare.kind, 'shell')
+
+  const gated = parseRun(fx('gated.def'), fx('gated.run-suspended'))
+  const steps = gated.jobs[0].stages.flat()
+  assert.ok(!('description' in gated.jobs[0]))
+  assert.ok(steps.every((s) => !('description' in s)))
+  assert.deepEqual(steps.map((s) => [s.name, s.kind]), [['prepare', 'assert'], ['side-check', 'assert'], ['signoff', 'approval'], ['finish', 'assert']])
+})
+
+test('a step is labelled by what runs it, and a step that names an existing behavior has no label', () => {
+  assert.equal(stepKind({ type: 'model_method', modelType: 'command/shell', modelName: 'x', methodName: 'execute' }), 'shell')
+  assert.equal(stepKind({ type: 'behavior', behaviorType: '@coffeepy/factory-intake', methodName: 'prepare' }), 'factory-intake')
+  assert.equal(stepKind({ type: 'manual_approval', prompt: 'ok?' }), 'approval')
+  assert.equal(stepKind({ type: 'assert' }), 'assert')
+  assert.equal(stepKind({ type: 'workflow', workflowIdOrName: 'other' }), 'workflow')
+  assert.equal(stepKind({ type: 'wait_for_signal' }), 'wait for signal')
+  assert.equal(stepKind({ type: 'model_method', modelIdOrName: 'lint', methodName: 'execute' }), undefined)
+  assert.equal(stepKind({}), undefined)
+  const run = parseRun(fx('issue-factory.def'), fx('issue-factory.run'))
+  assert.ok(!('kind' in run.jobs[0].stages[0][0]))
 })

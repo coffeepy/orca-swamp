@@ -425,6 +425,8 @@ const verdicts = (html: string): string =>
     .replace(/\b(ok|pass|passed)$/, '<span style="color:var(--ok)">$1</span>')
     .replace(/\b(FAIL|FAILED|failed)\b/, '<span style="color:var(--fail)">$1</span>')
 
+const kindTag = (s: Step): string => (s.kind ? `<span class="muted" style="font-size:11px;margin-left:8px">${esc(s.kind)}</span>` : '')
+
 function stepDetail(run: Run, step: Step, withTitle: boolean): string {
   const tabs: [Tab, string][] = [
     ['logs', 'Logs'],
@@ -459,6 +461,7 @@ function stepDetail(run: Run, step: Step, withTitle: boolean): string {
   }
   return `<section class="detail">
     ${withTitle ? `<div class="detail-head"><span style="font-weight:600">${esc(step.name)}</span><span class="muted" style="font-size:12px">· ${state.tab}</span></div>` : ''}
+    ${step.description ? `<div class="step-about">${esc(step.description)}</div>` : ''}
     <div role="tablist" class="tabs">
       ${tabs.map(([id, label]) => `<button role="tab" aria-selected="${state.tab === id}" class="tab" data-action="tab" data-tab="${id}">${label}</button>`).join('')}
     </div>
@@ -480,8 +483,11 @@ function timeline(run: Run, steps: Step[]): string {
           </div>
           <div style="flex:1;min-width:0;padding-bottom:10px;display:flex;flex-direction:column;gap:6px">
             <button class="step-row" data-action="select" data-step="${esc(s.name)}" aria-expanded="${open}">
-              <span class="mono" style="font-size:12.5px;color:${s.status === 'pending' || s.status === 'skipped' ? 'var(--muted)' : 'var(--text)'}">${esc(s.name)}</span>
-              <span class="muted" style="font-size:12px">${esc(stepTime(s, now))}</span>
+              <span class="step-text">
+                <span><span class="mono" style="font-size:12.5px;color:${s.status === 'pending' || s.status === 'skipped' ? 'var(--muted)' : 'var(--text)'}">${esc(s.name)}</span>${kindTag(s)}</span>
+                ${s.description && !open ? `<span class="muted ellipsis" style="font-size:12px">${esc(s.description)}</span>` : ''}
+              </span>
+              <span class="muted" style="font-size:12px;white-space:nowrap">${esc(stepTime(s, now))}</span>
             </button>
             ${open ? stepDetail(run, s, false) : ''}
           </div>
@@ -500,12 +506,15 @@ function stepCard(s: Step, wide: boolean, now: number): string {
   const time = stepTime(s, now)
   if (wide) {
     return `<button class="node" style="${style}" data-action="select" data-step="${esc(s.name)}">
-      ${icon(s, 16)}<span class="mono" style="font-size:12.5px">${esc(s.name)}</span>
-      <span style="margin-left:auto;font-size:12px;color:var(--muted)">${esc(time)}</span>
+      ${icon(s, 16)}<span class="step-text">
+        <span><span class="mono" style="font-size:12.5px">${esc(s.name)}</span>${kindTag(s)}</span>
+        ${s.description ? `<span class="muted ellipsis" style="font-size:12px">${esc(s.description)}</span>` : ''}
+      </span>
+      <span style="margin-left:auto;font-size:12px;color:var(--muted);white-space:nowrap">${esc(time)}</span>
     </button>`
   }
-  const caption =
-    s.status === 'failed' ? [s.error.split('\n')[0], time].filter(Boolean).join(' · ') : s.status === 'waiting' ? `waiting ${time}` : time
+  // Two cards share the row, so the description waits for the selected step's detail.
+  const caption = [s.status === 'failed' ? s.error.split('\n')[0] : '', s.status === 'waiting' ? `waiting ${time}` : time, s.kind].filter(Boolean).join(' · ')
   return `<button class="node node-col" style="${style}" data-action="select" data-step="${esc(s.name)}">
     <span style="display:flex;align-items:center;gap:8px">${icon(s, 16)}<span class="mono" style="font-size:12.5px">${esc(s.name)}</span></span>
     <span class="ellipsis" style="font-size:12px;color:var(--muted)">${esc(caption || ' ')}</span>
@@ -532,7 +541,7 @@ function graph(run: Run): string {
   const now = Date.now()
   const out: string[] = []
   run.jobs.forEach((job, j) => {
-    if (run.jobs.length > 1) out.push(`<div class="label" style="margin:${j ? 12 : 0}px 0 6px">${esc(job.name.toUpperCase())}</div>`)
+    if (run.jobs.length > 1) out.push(`<div class="label" style="margin:${j ? 12 : 0}px 0 6px">${esc(job.name.toUpperCase())}${job.description ? `<span style="font-weight:400"> · ${esc(job.description)}</span>` : ''}</div>`)
     job.stages.forEach((stage, i) => {
       const next = job.stages[i + 1]
       if (stage.length === 1) out.push(stepCard(stage[0], true, now))
@@ -795,6 +804,24 @@ const LEGEND = `<div class="legend">
   <span><span class="mk-text" style="color:var(--warm)">back</span>sent back</span>
 </div>`
 
+/** What each stage is for, in the factory author's words: the grid's column heads have room for the id only. */
+function stageList(stages: Stage[]): string {
+  const told = stages.filter((s) => s.description)
+  if (!told.length) return ''
+  return `<section class="section" style="gap:6px;border-top:1px solid var(--border);padding-top:12px">
+    <div class="label">STAGES</div>
+    ${told
+      .map((s) => {
+        const how = s.workflow ? `runs ${s.workflow}` : s.terminal ? 'end' : s.mode
+        return `<div style="display:flex;flex-direction:column;gap:2px">
+        <div><span class="mono" style="font-size:12.5px">${esc(s.id)}</span>${how ? `<span class="muted" style="font-size:11px;margin-left:8px">${esc(how)}</span>` : ''}</div>
+        <div class="muted clamp clamp2" style="font-size:12px;line-height:1.45" title="${esc(s.description!)}">${esc(s.description!)}</div>
+      </div>`
+      })
+      .join('')}
+  </section>`
+}
+
 function factoryScreen(board: Board): string {
   const now = Date.now()
   const active = board.items.filter((i) => !isFinished(i.status))
@@ -823,6 +850,7 @@ function factoryScreen(board: Board): string {
           </div>
           ${shown.length ? ticketGrid(columns, shown, now) + LEGEND : `<div class="muted">${active.length ? 'No ticket matches this filter.' : 'Nothing in progress.'}</div>`}`
     }
+    ${stageList(board.stages)}
     ${
       finished.length
         ? `<section class="section" style="gap:2px;border-top:1px solid var(--border);padding-top:12px">
@@ -924,7 +952,8 @@ function itemScreen(d: Decided): string {
   const { item } = d
   const busy = state.busy ? 'disabled' : ''
   const held = new Map((item.waiting?.exits ?? []).map((x) => [x.transition, x]))
-  const runs = d.stages.find((s) => s.id === item.stage)?.workflow
+  const stage = d.stages.find((s) => s.id === item.stage)
+  const runs = stage?.workflow
   const pending = [...held.values()].flatMap((x) => x.gateIds.map((g) => ({ gate: g, exit: x })))
   const status = item.waiting
     ? `<div style="font-weight:600;color:var(--gold)">PERSON · waiting on ${esc(pending.map((p) => p.gate).join(', '))}</div>`
@@ -941,6 +970,7 @@ function itemScreen(d: Decided): string {
   const now_ = `
     <div style="display:flex;flex-direction:column;gap:4px">
       <div class="muted" style="font-size:12px">In <span class="mono" style="color:var(--text)">${esc(item.stage)}</span>${runs ? ` · runs <span class="mono" style="color:var(--text)">${esc(runs)}</span>` : ''} · cycle ${item.cycle} · ${esc(since(item.enteredAt, now))}</div>
+      ${stage?.description ? `<div class="muted" style="font-size:12px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere">${esc(stage.description)}</div>` : ''}
       ${status}
     </div>
     ${
@@ -1555,6 +1585,9 @@ button.wf:hover, .row-btn:hover, .recent:hover, .node:hover { border-color: var(
 .step-row { display: flex; justify-content: space-between; gap: 8px; background: none; border: none; padding: 1px 0 0; text-align: left; width: 100%; }
 .step-row:hover .mono { text-decoration: underline; text-decoration-color: var(--border-strong); }
 .detail { border: 1px solid var(--border); border-radius: 8px; background: var(--deep); overflow: hidden; }
+.step-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.step-about { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.clamp2 { -webkit-line-clamp: 2; }
 .detail-head { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
 .tabs { display: flex; border-bottom: 1px solid var(--border); }
 .tab { background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 7px 12px; font-size: 12px; }
