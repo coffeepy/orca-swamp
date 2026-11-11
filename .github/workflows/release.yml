@@ -1,11 +1,16 @@
 name: Release
 
+# Each new version in orca-plugin.json that reaches main becomes a tag and a GitHub release.
 on:
   push:
-    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+    branches: [main]
 
 permissions:
   contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -13,16 +18,23 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
           persist-credentials: false
-      - name: The tag is on main
-        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
-      - name: Tag, manifest version and changelog agree
-        run: scripts/version-check.sh "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
-      - name: Publish the GitHub release
+      - name: Manifest version and changelog agree
+        id: version
+        run: |
+          scripts/version-check.sh > "$RUNNER_TEMP/notes.md"
+          echo "tag=v$(node -p "require('./orca-plugin.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Publish the release when the version is new
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --verify-tag --title "Swampling $GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "$TAG is already released."
+          else
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "Swampling $TAG" --notes-file "$RUNNER_TEMP/notes.md"
+          fi

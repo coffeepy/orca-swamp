@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0
+
 - A workflow step, a job and a StageCraft stage show the description their author wrote, and a step shows a small label of what runs it, such as "shell" or "approval".
 - A change of workspace shows what that workspace showed last at once and refreshes behind it; the Refresh icon turns while it does.
 - The plugin is renamed from "Swamp" (`orca-swamp`) to "Swampling" (`swampling`), because Orca reserves ids that start with `orca-`. Its settings folder is now `~/.config/swampling/`; move `~/.config/orca-swamp/` there to keep your picks and theme.
