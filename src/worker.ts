@@ -42,7 +42,7 @@ const finishedRuns = new Map<string, Run>()
 const versions = new Map<string, Promise<string>>()
 
 // ponytail: pins live in a small JSON file because `storage:own` would add a capability.
-const pinsFile = (): string => process.env.ORCA_SWAMP_PINS ?? join(homedir(), '.config/orca-swamp/pins.json')
+const pinsFile = (): string => process.env.SWAMPLING_PINS ?? join(homedir(), '.config/swampling/pins.json')
 
 function readPins(): Pins {
   try {

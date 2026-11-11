@@ -8,7 +8,7 @@ import { probeRemote, sshTryCommand, startResume, swamp } from './swamp'
 
 // A stand-in `ssh` on PATH logs its argv, then hands the command string to the remote person's login shell
 // ($LOGIN_SHELL) with stdin attached, as sshd does. The remote home holds a stand-in swamp that answers what it got.
-const fake = mkdtempSync(join(tmpdir(), 'orca-swamp-ssh-'))
+const fake = mkdtempSync(join(tmpdir(), 'swampling-ssh-'))
 const remoteHome = join(fake, 'remote-home')
 const argvLog = join(fake, 'ssh.argv')
 mkdirSync(join(fake, 'bin'), { recursive: true })
@@ -60,7 +60,7 @@ async function failure(p: Promise<unknown>): Promise<SwampFailure> {
   throw new Error('expected a failure')
 }
 
-const NOTE = `line one\nline two! it's "quoted" $(touch /tmp/orca-swamp-pwned) \`id\` \\ back\\\\slash $HOME *`
+const NOTE = `line one\nline two! it's "quoted" $(touch /tmp/swampling-pwned) \`id\` \\ back\\\\slash $HOME *`
 const shells = ['sh', 'bash', 'zsh', 'tcsh', 'csh'].filter((s) => {
   try {
     execFileSync('sh', ['-c', `command -v ${s}`], { stdio: 'ignore' })
@@ -78,12 +78,12 @@ for (const shell of shells) {
     )) as { cwd: string; args: string[] }
     assert.deepEqual(answer.args, ['workflow', 'reject', 'gated', 'signoff', '--run', 'r-1', '--reason', NOTE, '--json', '--no-color'])
     assert.ok(answer.cwd.endsWith(dir.split('/').at(-1)!), 'swamp runs in the repo folder')
-    assert.ok(!existsSync('/tmp/orca-swamp-pwned'), 'no part of the note ran as a command')
+    assert.ok(!existsSync('/tmp/swampling-pwned'), 'no part of the note ran as a command')
   })
 }
 
 test('a login shell that prints a banner does not break reading swamp output or finding repos', async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'orca-swamp-banner-'))
+  const dir = mkdtempSync(join(tmpdir(), 'swampling-banner-'))
   writeFileSync(join(dir, '.swamp.yaml'), 'swampVersion: test\n')
   mkdirSync(join(dir, 'sub'))
   await withEnv({ BANNER: 'Welcome to box' }, async () => {
@@ -139,7 +139,7 @@ test('connection sharing lives in the home folder, and is left off where its soc
     return sshCalls().at(-1)!.find((a) => a.startsWith('ControlPath='))?.slice('ControlPath='.length)
   }
   const short = mkdtempSync('/tmp/oh-')
-  assert.equal(await controlPath(short), `${short}/.config/orca-swamp/ssh/%C`)
+  assert.equal(await controlPath(short), `${short}/.config/swampling/ssh/%C`)
   const long = mkdtempSync(join(tmpdir(), 'a-home-folder-long-enough-to-overflow-'))
   // ssh binds `<ControlPath>.<16 random characters>` first, and macOS caps a socket path at 103 bytes.
   const path = await controlPath(long)
@@ -147,11 +147,11 @@ test('connection sharing lives in the home folder, and is left off where its soc
 })
 
 test('a socket folder that cannot be created or written still lets swamp run', async () => {
-  const blocked = mkdtempSync(join(tmpdir(), 'orca-swamp-home-'))
+  const blocked = mkdtempSync(join(tmpdir(), 'swampling-home-'))
   writeFileSync(join(blocked, '.config'), 'a file where the folder should be')
-  const readOnly = mkdtempSync(join(tmpdir(), 'orca-swamp-home-'))
-  mkdirSync(join(readOnly, '.config/orca-swamp/ssh'), { recursive: true })
-  chmodSync(join(readOnly, '.config/orca-swamp/ssh'), 0o500)
+  const readOnly = mkdtempSync(join(tmpdir(), 'swampling-home-'))
+  mkdirSync(join(readOnly, '.config/swampling/ssh'), { recursive: true })
+  chmodSync(join(readOnly, '.config/swampling/ssh'), 0o500)
   for (const home of [blocked, readOnly]) {
     const answer = (await withEnv({ HOME: home }, () => swamp(remoteRepo(remoteHome), { cmd: 'version' }))) as { args: string[] }
     assert.deepEqual(answer.args, ['version', '--json', '--no-color'])
@@ -176,14 +176,14 @@ const localSwamp = join(fake, 'local-swamp')
 executable(localSwamp, swampBody(join(fake, 'local-swamp.log')))
 
 test('a local repo folder that is gone is reported as not a swamp repo, not swamp missing', async () => {
-  const e = await failure(withEnv({ ORCA_SWAMP_BIN: localSwamp }, () => swamp({ kind: 'local', dir: join(fake, 'gone') as RepoDir }, { cmd: 'version' })))
+  const e = await failure(withEnv({ SWAMPLING_BIN: localSwamp }, () => swamp({ kind: 'local', dir: join(fake, 'gone') as RepoDir }, { cmd: 'version' })))
   assert.equal(e.code, 'not_a_swamp_repo')
   assert.ok(e.message.includes(join(fake, 'gone')), e.message)
 })
 
 test('swamp installed in ~/.local/bin after the worker started is found', async () => {
-  const home = mkdtempSync(join(tmpdir(), 'orca-swamp-home-'))
-  await withEnv({ HOME: home, ORCA_SWAMP_BIN: undefined, PATH: '/usr/bin:/bin' }, async () => {
+  const home = mkdtempSync(join(tmpdir(), 'swampling-home-'))
+  await withEnv({ HOME: home, SWAMPLING_BIN: undefined, PATH: '/usr/bin:/bin' }, async () => {
     assert.equal((await failure(swamp({ kind: 'local', dir: home as RepoDir }, { cmd: 'version' }))).code, 'swamp_not_found')
     mkdirSync(join(home, '.local/bin'), { recursive: true })
     executable(join(home, '.local/bin/swamp'), swampBody(join(fake, 'local-swamp.log')))

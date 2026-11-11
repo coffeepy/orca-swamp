@@ -9,7 +9,7 @@ import { studioUrl, WORK_ITEM_TYPE, type Expected } from './stagecraft'
 // Looked up on every call, so a swamp installed while Orca runs is found without a reload.
 function swampBin(): string {
   const installed = join(homedir(), '.local/bin/swamp')
-  return process.env.ORCA_SWAMP_BIN ?? (existsSync(installed) ? installed : 'swamp')
+  return process.env.SWAMPLING_BIN ?? (existsSync(installed) ? installed : 'swamp')
 }
 
 const READ_TIMEOUT_MS = 20_000
@@ -100,8 +100,8 @@ export const shq = (s: string): string => `'${s.replaceAll("'", `'\\''`)}'`
 
 // Finds swamp the way the local lookup does: its installer's ~/.local/bin, else PATH, else the login shell's PATH.
 // The login shell's answer is its last line, since its startup files may print first.
-const FIND_SWAMP = `s="$HOME/.local/bin/swamp"; [ -x "$s" ] || s=$(command -v swamp 2>/dev/null) || s=$("\${SHELL:-sh}" -lc 'command -v swamp' 2>/dev/null | tail -n 1); [ -x "$s" ] || { echo "orca-swamp: swamp is not installed on $(uname -n)" >&2; exit 127; }`
-const CD = `cd -- "$1" 2>/dev/null || { echo "orca-swamp: no folder $1 on $(uname -n)" >&2; exit 1; }`
+const FIND_SWAMP = `s="$HOME/.local/bin/swamp"; [ -x "$s" ] || s=$(command -v swamp 2>/dev/null) || s=$("\${SHELL:-sh}" -lc 'command -v swamp' 2>/dev/null | tail -n 1); [ -x "$s" ] || { echo "swampling: swamp is not installed on $(uname -n)" >&2; exit 127; }`
+const CD = `cd -- "$1" 2>/dev/null || { echo "swampling: no folder $1 on $(uname -n)" >&2; exit 1; }`
 
 /**
  * The POSIX sh script that runs swamp on a remote host: `set --` gives it the repo folder and swamp's
@@ -122,7 +122,7 @@ export function remoteCommand(dir: string, args: string[], mode: 'run' | 'detach
 // ssh first binds `<ControlPath>.<16 random characters>`, and macOS caps a socket path at 103 bytes.
 // ponytail: a home folder past 22 characters, or a socket folder ssh cannot write, connects without sharing.
 function sshOptions(): string[] {
-  const dir = join(homedir(), '.config/orca-swamp/ssh')
+  const dir = join(homedir(), '.config/swampling/ssh')
   const options = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=8']
   if (Buffer.byteLength(`${dir}/${'h'.repeat(40)}.${'r'.repeat(16)}`) > 103) return options
   try {
@@ -138,7 +138,7 @@ function sshOptions(): string[] {
 export const sshTryCommand = (host: SshHost): string => `ssh -o BatchMode=yes -- ${/^[\w.@:%+=-]+$/.test(host) ? host : shq(host)} true`
 
 // Printed before the script runs, so lines the remote login shell's startup files print can be dropped.
-const MARK = 'orca-swamp:output'
+const MARK = 'swampling:output'
 
 type Exec = { stdout: string; stderr: string }
 
@@ -157,7 +157,7 @@ function sshExec(host: SshHost, script: string, timeout: number): Promise<Exec> 
         const why = stderr.trim().split('\n').at(-1) || 'ssh failed'
         return reject(new SwampFailure('host_unreachable', `Could not reach ${host} over SSH: ${why}. The panel connects without a password or key prompt; run \`${sshTryCommand(host)}\` in a terminal to see why.`))
       }
-      const ours = stderr.split('\n').find((l) => l.startsWith('orca-swamp: '))?.slice('orca-swamp: '.length)
+      const ours = stderr.split('\n').find((l) => l.startsWith('swampling: '))?.slice('swampling: '.length)
       if (code === 127 && ours?.startsWith('swamp is not installed')) return reject(new SwampFailure('swamp_not_found', ours))
       if (code === 1 && ours?.startsWith('no folder')) return reject(new SwampFailure('not_a_swamp_repo', `Not a swamp repository: ${ours}`))
       if (error) return reject(exitFailure(error, stdout, stderr))
@@ -221,7 +221,7 @@ export function startResume(repo: Repo, workflow: string, runId: RunId, onError:
   }
   // swamp's error goes to a file rather than a pipe, so resume can still write it once the worker is gone.
   // ponytail: a worker that stops mid-resume leaves this small file in the temp folder.
-  const errorFile = join(mkdtempSync(join(tmpdir(), 'orca-swamp-resume-')), 'stderr')
+  const errorFile = join(mkdtempSync(join(tmpdir(), 'swampling-resume-')), 'stderr')
   const fd = openSync(errorFile, 'w')
   const child = spawn(swampBin(), args, { cwd: repo.dir, detached: true, stdio: ['ignore', 'ignore', fd] })
   closeSync(fd)

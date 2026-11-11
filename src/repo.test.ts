@@ -12,7 +12,7 @@ function repo(root: string, ...parts: string[]): string {
   return dir
 }
 
-const root = () => mkdtempSync(join(tmpdir(), 'orca-swamp-repo-'))
+const root = () => mkdtempSync(join(tmpdir(), 'swampling-repo-'))
 
 test('a registered repo deep below the workspace is found, an unregistered one is not', () => {
   const ws = root()
@@ -90,7 +90,7 @@ test('a pins file that is an array, or a pin with a relative folder or empty hos
 // Stand-ins on PATH for the orca CLI and ssh. orca answers the JSON files a test writes into `cli`, and
 // fails like the real one for a server it has no file for; ssh fails like an unreachable host for `down`,
 // and otherwise runs the remote command in a local sh, as the remote login shell would.
-const cli = mkdtempSync(join(tmpdir(), 'orca-swamp-cli-'))
+const cli = mkdtempSync(join(tmpdir(), 'swampling-cli-'))
 function script(name: string, body: string): void {
   mkdirSync(join(cli, 'bin'), { recursive: true })
   writeFileSync(join(cli, 'bin', name), `#!/bin/sh\n${body}\n`)

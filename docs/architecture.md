@@ -2,7 +2,7 @@
 
 Notes for people who work on the plugin. For what it does and how to install it, see the [README](../README.md).
 
-A right-sidebar panel that shows the swamp workflows of the focused workspace's repo, lets you approve or reject waiting gates, and hands a failed run to an agent terminal. The panel is an HTML page (`src/app.ts`, styled from Orca's `--orca-*` theme variables) that polls its worker (`src/worker.ts`) every 10 s, or every 2 s while a run is moving. The worker runs `~/.local/bin/swamp --json` (`src/swamp.ts`) and parses its output (`src/domain.ts`); `src/present.ts` holds the pill, time and command strings the page shows. `src/repo.ts` finds the focused workspace's folder through one of its terminals (`orca terminal show`), finds the repo at or above that folder or registered below it, and a repo picked in the panel is remembered per workspace folder in `~/.config/orca-swamp/pins.json`. A workspace with no terminal is matched by name and branch; when several share them, the panel asks instead of guessing. After an approve, the worker starts `swamp workflow resume --run <id>` in the background. The panel keeps the last place (tab, run, factory or ticket) of each repo in its `localStorage`, for the 20 repos used last, so a switch back to a repo opens where you were.
+A right-sidebar panel that shows the swamp workflows of the focused workspace's repo, lets you approve or reject waiting gates, and hands a failed run to an agent terminal. The panel is an HTML page (`src/app.ts`, styled from Orca's `--orca-*` theme variables) that polls its worker (`src/worker.ts`) every 10 s, or every 2 s while a run is moving. The worker runs `~/.local/bin/swamp --json` (`src/swamp.ts`) and parses its output (`src/domain.ts`); `src/present.ts` holds the pill, time and command strings the page shows. `src/repo.ts` finds the focused workspace's folder through one of its terminals (`orca terminal show`), finds the repo at or above that folder or registered below it, and a repo picked in the panel is remembered per workspace folder in `~/.config/swampling/pins.json`. A workspace with no terminal is matched by name and branch; when several share them, the panel asks instead of guessing. After an approve, the worker starts `swamp workflow resume --run <id>` in the background. The panel keeps the last place (tab, run, factory or ticket) of each repo in its `localStorage`, for the 20 repos used last, so a switch back to a repo opens where you were.
 
 A workspace change shows the last known answer at once and asks again behind it; the Refresh icon turns meanwhile. The panel keeps each workspace's last resolution in `localStorage` (the 20 used last) and each repo's last read data in memory (the 10 left last), and puts a repo's data away whenever another repo takes the screen, so one repo's data never shows under another's header. The worker remembers its slow lookups for its life: swamp's workspace registry (read again behind an answer once it is 30 s old), the workspace of each terminal, and the remote repos (60 s, never an answer with a problem). The registry is read while Orca and the remote hosts are asked. The Refresh button sends `repo.resolve` with `fresh: true`, which reads all of them again. A workspace never seen shows "Loading…" as before.
 
@@ -15,14 +15,14 @@ A Factories tab shows StageCraft factories (`src/stagecraft.ts` parses them). It
 
 ## Files the plugin writes
 
-- `~/.config/orca-swamp/pins.json` holds the repo picked for each workspace.
-- `~/.config/orca-swamp/settings.json` holds the theme.
-- `~/.config/orca-swamp/ssh/` holds the shared SSH connection sockets for remote repos.
+- `~/.config/swampling/pins.json` holds the repo picked for each workspace.
+- `~/.config/swampling/settings.json` holds the theme.
+- `~/.config/swampling/ssh/` holds the shared SSH connection sockets for remote repos.
 
 ## Environment overrides
 
-- `ORCA_SWAMP_BIN` sets the swamp binary.
-- `ORCA_SWAMP_PINS` sets the pins file. The settings file sits beside it.
+- `SWAMPLING_BIN` sets the swamp binary.
+- `SWAMPLING_PINS` sets the pins file. The settings file sits beside it.
 
 ## Develop
 

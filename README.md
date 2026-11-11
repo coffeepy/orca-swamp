@@ -43,7 +43,7 @@ The screenshots use a demo repo with invented data.
 ## Install
 
 ```sh
-orca plugin install coffeepy/orca-swamp
+orca plugin install coffeepy/swampling
 ```
 
 Orca shows the access the plugin asks for (below) and the command to approve it. Then open the panel from Orca's right sidebar.
@@ -60,7 +60,7 @@ The plugin runs code, so Orca asks you to approve it before it installs.
 
 The plugin changes your swamp repo only when you press a button. Approve, reject and resume a workflow run; approve or decline a ticket; and start the studio. Everything else only reads.
 
-It writes its own settings to `~/.config/orca-swamp/`: the repo you picked for each workspace, your theme, and SSH connection sockets.
+It writes its own settings to `~/.config/swampling/`: the repo you picked for each workspace, your theme, and SSH connection sockets.
 
 ## Troubleshooting
 
