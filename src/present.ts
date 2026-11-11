@@ -1,4 +1,5 @@
-import type { Repo, RepoDir, Run, RunId, RunStatus, SshHost, Step } from './domain'
+import { repoKey, type Repo, type RepoDir, type Run, type RunId, type RunStatus, type SshHost, type Step } from './domain'
+import type { InboxItem } from './inbox'
 import type { RepoChoice, Resolution } from './repo'
 import type { Product, Stage, TicketStatus, WorkItem } from './stagecraft'
 
@@ -97,6 +98,7 @@ export const shortId = (id: string): string => id.slice(0, 4)
 
 /** Where the panel is: a tab, then one level deeper per step. Back goes to `parent`. */
 export type Place =
+  | { tab: 'inbox' }
   | { tab: 'workflows' }
   | { tab: 'workflows'; workflow: string; runId?: RunId }
   | { tab: 'stagecraft' }
@@ -110,10 +112,11 @@ export type Place =
 export const workspaceKey = (context: { displayName: string; branch: string; terminals: { id: string; title?: string }[] } | null): string =>
   context ? [context.displayName, context.branch, ...context.terminals.map((t) => t.id).sort()].join('\0') : ''
 
-export const home = (tab: Place['tab']): Place => ({ tab })
+export const home = (tab: Place['tab']): Place => parsePlace({ tab })
 
 /** One level up: a run to its workflow's latest run, a workflow to the list, a ticket to its factory, a factory to the tab. */
 export function parent(p: Place): Place {
+  if (p.tab === 'inbox') return p
   if (p.tab === 'workflows') return 'workflow' in p && p.runId ? { tab: 'workflows', workflow: p.workflow } : { tab: 'workflows' }
   return 'item' in p ? { tab: 'stagecraft', factory: p.factory } : { tab: 'stagecraft' }
 }
@@ -123,8 +126,24 @@ export function parsePlace(raw: unknown): Place {
   const p = (raw ?? {}) as Record<string, unknown>
   const name = (v: unknown) => (typeof v === 'string' && v ? v : undefined)
   const [workflow, runId, factory, item] = [name(p.workflow), name(p.runId) as RunId | undefined, name(p.factory), name(p.item)]
+  if (p.tab === 'inbox') return { tab: 'inbox' }
   if (p.tab === 'stagecraft') return factory ? (item ? { tab: 'stagecraft', factory, item } : { tab: 'stagecraft', factory }) : { tab: 'stagecraft' }
   return workflow ? (runId ? { tab: 'workflows', workflow, runId } : { tab: 'workflows', workflow }) : { tab: 'workflows' }
+}
+
+/** One string per inbox item, for the button that acts on it and the note typed for it. */
+export const inboxId = (i: InboxItem): string =>
+  JSON.stringify(i.kind === 'gate' ? [repoKey(i.repo), i.gate.runId, i.gate.step] : [repoKey(i.repo), i.key])
+
+/** Where Open on an inbox item goes, in that item's repo. */
+export const inboxPlace = (i: InboxItem): Place =>
+  i.kind === 'gate' ? { tab: 'workflows', workflow: i.gate.workflow, runId: i.gate.runId } : { tab: 'stagecraft', factory: i.factory, item: i.key }
+
+/** The inbox items by repo, each group and its items in the order given, so the repo with the longest wait is first. */
+export function inboxGroups(items: readonly InboxItem[]): { label: string; items: InboxItem[] }[] {
+  const groups = new Map<string, { label: string; items: InboxItem[] }>()
+  for (const i of items) (groups.get(repoKey(i.repo)) ?? groups.set(repoKey(i.repo), { label: i.repoLabel, items: [] }).get(repoKey(i.repo))!).items.push(i)
+  return [...groups.values()]
 }
 
 /** The last place in each repo, by repo key, the most recent last, as the panel keeps it in localStorage. */

@@ -17,6 +17,7 @@ import {
   type Run,
   type RunId
 } from './domain'
+import { inboxRepos, readInbox } from './inbox'
 import { failurePrompt, firstFailed } from './present'
 import type { AgentTerminal } from './protocol'
 import { focusPinKey, parsePins, parseWorkspaces, remembered, rememberedLookups, resolveRepo, type Pins } from './repo'
@@ -54,14 +55,15 @@ function readPins(): Pins {
 
 const settingsFile = (): string => join(dirname(pinsFile()), 'settings.json')
 
-type Settings = { theme: ThemeId }
+/** `inbox` is whether the panel shows the "Needs you" tab and reads every repo for it. */
+type Settings = { theme: ThemeId; inbox: boolean }
 
 function readSettings(): Settings {
   try {
-    const saved = JSON.parse(readFileSync(settingsFile(), 'utf8')) as { theme?: unknown } | null
-    return { theme: parseThemeId(saved?.theme) }
+    const saved = JSON.parse(readFileSync(settingsFile(), 'utf8')) as { theme?: unknown; inbox?: unknown } | null
+    return { theme: parseThemeId(saved?.theme), inbox: saved?.inbox !== false }
   } catch {
-    return { theme: 'orca' }
+    return { theme: 'orca', inbox: true }
   }
 }
 
@@ -196,6 +198,7 @@ async function decide(repo: Repo, key: string, gateId: string, decision: 'approv
 }
 
 const REGISTRY_FRESH_MS = 30_000
+const INBOX_FRESH_MS = 30_000
 
 export default function activate(orca: OrcaWorkerApi): void {
   // Remembered for this worker's life: each lookup starts a process, which takes seconds on a busy Mac.
@@ -282,6 +285,23 @@ export default function activate(orca: OrcaWorkerApi): void {
     return target
   })
 
+  // ponytail: one entry per repo the panel showed in this worker's life.
+  const shown = new Map<string, Repo>()
+  // Each swamp call ends within its own read timeout, so one slow repo holds the answer for that long at most.
+  const inbox = remembered(INBOX_FRESH_MS, async () => {
+    const [list, tracked] = await Promise.all([orca.host.call('workspace.list').catch(() => ({ workspaces: [] })), registry()])
+    const repos = inboxRepos(list.workspaces.map((w) => w.path), tracked, readPins(), [...shown.values()])
+    return readInbox(repos, (repo) => Promise.all([swamp(repo, { cmd: 'approvals' }), swamp(repo, { cmd: 'data.query', predicate: runsQuery() })]), now())
+  })
+
+  orca.panels.handle('inbox.list', async (input) => {
+    const repo = input?.repo === undefined ? undefined : repoOf(input.repo)
+    // A repo the panel shows for the first time may be in no pin or registry, so the remembered answer may lack it.
+    const first = !!repo && !shown.has(repoKey(repo))
+    if (repo) shown.set(repoKey(repo), repo)
+    return inbox(input?.fresh === true || first)
+  })
+
   orca.panels.handle('factories.list', async (input) => {
     const repo = repoOf(input?.repo)
     const [types, models, runs] = await Promise.all([
@@ -328,6 +348,11 @@ export default function activate(orca: OrcaWorkerApi): void {
     const saved = parseThemeId(input?.theme)
     if (saved !== input?.theme) refuse(`there is no theme '${String(input?.theme)}'`)
     return { theme: saveSettings({ theme: saved }).theme }
+  })
+
+  orca.panels.handle('inbox.enabled', (input) => {
+    if (input?.on !== undefined && typeof input.on !== 'boolean') refuse('on is not true or false')
+    return { on: (input?.on === undefined ? readSettings() : saveSettings({ inbox: input.on })).inbox }
   })
 
   orca.panels.handle('clipboard.copy', async (input) => {

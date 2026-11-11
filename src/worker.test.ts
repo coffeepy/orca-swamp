@@ -121,6 +121,19 @@ test('a pin wins over the focused workspace and survives the next resolve', asyn
   assert.deepEqual((await worker.request('repo.resolve', {})).repo, { kind: 'local', dir: other }, 'the pin survives the next resolve')
 })
 
+test('the "Needs you" tab is on until the person turns it off, and the choice survives a restart and a theme change', async () => {
+  const dir = folder()
+  process.env.SWAMPLING_PINS = join(dir, 'pins.json')
+  const first = await mountWorker(main, { host: host(dir) })
+  assert.deepEqual(await first.request('inbox.enabled', {}), { on: true })
+  assert.deepEqual(await first.request('inbox.enabled', { on: false }), { on: false })
+  await first.request('theme.set', { theme: 'peat' })
+  const second = await mountWorker(main, { host: host(dir) })
+  assert.deepEqual(await second.request('inbox.enabled', {}), { on: false })
+  assert.deepEqual(await second.request('theme.get', {}), { theme: 'peat' })
+  assert.deepEqual(await second.request('inbox.enabled', { on: true }), { on: true })
+})
+
 test('the chosen theme survives a worker restart, and a damaged settings file falls back to Orca', async () => {
   const dir = folder()
   process.env.SWAMPLING_PINS = join(dir, 'pins.json')
@@ -555,4 +568,28 @@ test('a second resolve starts neither swamp workspace list nor orca terminal sho
   assert.deepEqual(started(), [1, 1], 'the second resolve started no process')
   assert.deepEqual(await worker.request('repo.resolve', { fresh: true }), first)
   assert.deepEqual(started(), [2, 2], 'a fresh resolve reads both again')
+})
+
+test('the inbox lists what waits in every workspace repo and the one on screen, remembers the answer, and reads again when asked fresh', async () => {
+  const [a, b, onScreen] = [folder('.'), folder('.'), folder('.')]
+  const { calls } = localRepo({ 'workspace list': '{"workspaces":[]}', 'workflow approvals': read('gated.approvals'), 'data query': read('sc.runs') })
+  process.env.SWAMPLING_PINS = join(folder(), 'pins.json')
+  const worker = await mountWorker(main, { host: host(a, [b, join(b, 'packages')]) })
+  const reads = () => verbs(calls()).filter((v) => v === 'workflow approvals').length
+  const first = await worker.request('inbox.list', {})
+  assert.equal(first.repos, 2, 'two workspaces in one repo are one read')
+  assert.deepEqual(first.failed, [])
+  assert.deepEqual(
+    first.items.filter((i) => (i.repo as { dir: string }).dir === a).map((i) => (i.kind === 'gate' ? i.gate.step : i.key)).sort(),
+    ['signoff', 'team-4', 'team-5']
+  )
+  assert.equal(first.items.length, 6)
+  assert.deepEqual(await worker.request('inbox.list', {}), first)
+  assert.equal(reads(), 2, 'the second ask started no swamp')
+  const shown = await worker.request('inbox.list', { repo: { kind: 'local', dir: onScreen } as never })
+  assert.equal(shown.repos, 3, 'a repo the panel shows is read although no workspace or pin names it')
+  assert.equal(reads(), 5)
+  await worker.request('inbox.list', { fresh: true })
+  assert.equal(reads(), 8, 'a fresh ask reads every repo again')
+  assert.deepEqual(worker.refusals, [])
 })

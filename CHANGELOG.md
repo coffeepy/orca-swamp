@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.3.0
+
+- A "Needs you" tab lists every workflow gate and StageCraft ticket that waits for you, across all your repos on this Mac and on remote hosts. Approve, reject or decline there, or open the run or ticket in its own repo. The settings menu turns the tab off.
+
 ## 0.2.0
 
 - A workflow step, a job and a StageCraft stage show the description their author wrote, and a step shows a small label of what runs it, such as "shell" or "approval".

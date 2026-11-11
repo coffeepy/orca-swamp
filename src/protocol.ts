@@ -1,4 +1,5 @@
 import type { Gate, LogText, RecentRun, Repo, Run, RunId, WorkflowSummary } from './domain'
+import type { Inbox } from './inbox'
 import type { Resolution } from './repo'
 import type { Board, Factories, WorkItemDetail } from './stagecraft'
 import type { ThemeId } from './theme'
@@ -30,6 +31,12 @@ declare module 'orca' {
     'agent.terminal': { input: Record<string, never>; output: AgentTerminal | null }
     /** Types the run's first failure, with log and retry commands, into that terminal without pressing Enter. */
     'failure.send': { input: { repo: Repo; workflow: string; runId: RunId }; output: AgentTerminal }
+    /**
+     * Every gate and StageCraft ticket that waits for a person, in every repo the worker knows: the repos of this
+     * Mac's Orca workspaces, swamp's registry, the pinned repos and `repo`, the one the panel shows. One repo that
+     * fails is named in `failed`. The answer is remembered for 30 s; `fresh` reads every repo again.
+     */
+    'inbox.list': { input: { fresh?: boolean; repo?: Repo }; output: Inbox }
     /** Whether the repo has StageCraft, and each factory with its latest tickets' statuses and how many need a person. */
     'factories.list': { input: { repo: Repo }; output: Factories }
     /** One factory's stages and every work item in it. */
@@ -45,6 +52,8 @@ declare module 'orca' {
     'studio.start': { input: { repo: Repo }; output: { url: string } }
     /** Copies text with pbcopy, for when the panel frame may not write the clipboard. */
     'clipboard.copy': { input: { text: string }; output: { copied: true } }
+    /** Whether the "Needs you" tab is on, saved on this Mac; `on` sets it. */
+    'inbox.enabled': { input: { on?: boolean }; output: { on: boolean } }
     /** The panel theme saved on this Mac; 'orca' follows Orca's own theme. */
     'theme.get': { input: Record<string, never>; output: { theme: ThemeId } }
     /** Saves the panel theme for every workspace. */
