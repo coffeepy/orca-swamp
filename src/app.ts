@@ -6,6 +6,14 @@ import {
   parent,
   workspaceKey,
   parsePlace,
+  parsePlaces,
+  parseResolutions,
+  placeIn,
+  resolutionIn,
+  withPlace,
+  withResolution,
+  type Places,
+  type Resolutions,
   type Place,
   approveLabel,
   INSTALL_COMMAND,
@@ -77,24 +85,43 @@ const state = {
   theme: 'orca' as ThemeId,
   themeMenu: false,
   /** The workspace being switched to, while the panel asks which repo it uses; nothing of the last repo shows meanwhile. */
-  switching: undefined as string | undefined
+  switching: undefined as string | undefined,
+  /** The panel is asking again which repo this workspace uses and what it holds, behind what it shows. */
+  refreshing: false
 }
 
-// The frame can reload when Orca remounts the panel, so the place survives in localStorage, with the repo it is in.
+/** What the panel last read from one repo: the parts of `state` that may only show under that repo's header. */
+type RepoData = Pick<typeof state, 'list' | 'run' | 'factories' | 'factoriesAt' | 'board' | 'item'>
+const noData = (): RepoData => ({ list: {}, run: {}, factories: {}, factoriesAt: 0, board: {}, item: {} })
+// ponytail: the 10 repos left last keep their data, in memory only; any other repo opens on "Asking swamp…".
+const DATA_KEPT = 10
+const repoData = new Map<string, RepoData>()
+
+// Each repo keeps the place the person was last at, so coming back to a repo opens there. The places live in
+// localStorage, because the frame can reload when Orca remounts the panel.
 const PLACE_KEY = 'orca-swamp.place'
-let placeRepo: string | undefined
+let places: Places = []
+/** The repo `state.place` is a place in, and whose data `state` holds. */
+let placeOf: string | undefined
+// The repo each workspace resolved to last, shown at once on a switch back while the worker is asked again.
+const RESOLUTIONS_KEY = 'orca-swamp.resolutions'
+let resolutions: Resolutions = []
 function restorePlace(): void {
   try {
-    const saved = JSON.parse(localStorage.getItem(PLACE_KEY) ?? '{}')
-    state.place = parsePlace(saved.place)
-    placeRepo = typeof saved.repo === 'string' ? saved.repo : undefined
+    places = parsePlaces(JSON.parse(localStorage.getItem(PLACE_KEY) ?? '[]'))
   } catch {}
+  try {
+    resolutions = parseResolutions(JSON.parse(localStorage.getItem(RESOLUTIONS_KEY) ?? '[]'))
+  } catch {}
+  // Until the repo is known, the panel starts where it was last, which is right for a plain frame reload.
+  const last = places.at(-1)
+  if (last) [state.place, placeOf] = [last.place, last.repo]
 }
 function savePlace(): void {
-  const repo = repoDir()
-  if (!repo) return
+  if (!placeOf) return
+  places = withPlace(places, placeOf, state.place)
   try {
-    localStorage.setItem(PLACE_KEY, JSON.stringify({ place: state.place, repo: repoKey(repo) }))
+    localStorage.setItem(PLACE_KEY, JSON.stringify(places))
   } catch {}
 }
 
@@ -215,10 +242,10 @@ function header(): string {
   return `<header class="app-head">
     ${LOGO}
     <div style="flex:1;min-width:0">
-      <div style="font-weight:600;font-size:14px">Swamp</div>
+      <div style="font-weight:600;font-size:14px">Swampling</div>
       <div class="muted" style="font-size:12px;display:flex;align-items:center">${picker}<span>${version ? `&nbsp;${version.slice(1)}` : ""}</span></div>
     </div>
-    <button class="icon-btn" data-action="refresh" aria-label="Refresh">${REFRESH}</button>
+    <button class="icon-btn" data-action="refresh" aria-label="Refresh" aria-busy="${state.refreshing}">${state.refreshing ? REFRESH.replace('<svg ', '<svg class="spin" ') : REFRESH}</button>
     <button class="icon-btn" id="theme-btn" data-action="themeMenu" aria-label="Theme" aria-haspopup="menu" aria-expanded="${state.themeMenu}">${GEAR}</button>
     ${state.themeMenu ? themeMenu() : ''}
   </header>`
@@ -264,6 +291,11 @@ function repoPicker(title: string, res: Resolution): string {
         ? `<div class="card" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
             <div style="font-weight:600">${shared} workspaces are named ${esc(res.workspace!.name)}</div>
             <div class="muted" style="line-height:1.5">Orca tells plugins which one is focused only through its terminals, and this one has none. Open a terminal in it and the panel finds its repo, or pick one below for now.</div>
+          </div>`
+        : unlisted && hosts.length
+        ? `<div class="card" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+            <div style="font-weight:600">Is ${esc(res.workspace!.name)} a workspace on ${esc(hosts.join(', '))}?</div>
+            <div class="muted" style="line-height:1.5">Orca does not tell plugins where this workspace is, so it is probably on a remote host. Pick its swamp repo below; for a remote repo the panel runs swamp there over SSH. The panel remembers the pick for this workspace.</div>
           </div>`
         : unlisted
         ? `<div class="card" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
@@ -997,7 +1029,7 @@ function factoriesView(): string {
   if (f.data.factories.length === 0) return noFactories()
   if (target.error && !target.data) return `<div class="body">${factory ? backButton('back', 'Back') : ''}${errorBox(target.error)}</div>`
   const n = key ? 0 : ((factory ? state.board.data?.skipped : f.data.skipped) ?? 0)
-  const skipped = n ? `<div class="stale">${n} ticket${n === 1 ? ' is' : 's are'} not shown: StageCraft wrote ${n === 1 ? 'it' : 'them'} in a format this panel does not read. Update the Swamp plugin or StageCraft so they match.</div>` : ''
+  const skipped = n ? `<div class="stale">${n} ticket${n === 1 ? ' is' : 's are'} not shown: StageCraft wrote ${n === 1 ? 'it' : 'them'} in a format this panel does not read. Update Swampling or StageCraft so they match.</div>` : ''
   const stale = (target.error ? `<div class="stale">Showing the last answer. ${esc(target.error.message)}</div>` : '') + skipped
   if (key) return stale + (state.item.data ? itemScreen(state.item.data) : '<div class="body muted">Reading the work item…</div>')
   if (!factory) return stale + factoryList(f.data.factories)
@@ -1058,7 +1090,7 @@ function render(): void {
 
 let generation = 0
 
-async function load<T>(key: 'resolution' | 'list' | 'run' | 'factories' | 'board' | 'item', fetch: () => Promise<T>): Promise<void> {
+async function load<T>(key: 'list' | 'run' | 'factories' | 'board' | 'item', fetch: () => Promise<T>): Promise<void> {
   const gen = generation
   try {
     const data = await fetch()
@@ -1084,8 +1116,11 @@ async function loadLogs(run: Run): Promise<void> {
 }
 
 async function refreshFactories(dir: Repo): Promise<void> {
+  const gen = generation
   state.factoriesAt = Date.now()
   await load('factories', () => orca.plugin.request('factories.list', { repo: dir }))
+  // The person moved on while swamp answered: `state` may now hold another repo, and its screen reads for itself.
+  if (gen !== generation) return
   const p = state.place
   if (p.tab !== 'stagecraft') return
   const f = state.factories.data
@@ -1097,25 +1132,35 @@ async function refreshFactories(dir: Repo): Promise<void> {
   else if (factory) await load('board', () => orca.plugin.request('factory.board', { repo: dir, factory }))
 }
 
+/** When the list was last asked for, and for which repo on screen. */
+let listAt = { gen: -1, at: 0 }
+
 async function refresh(): Promise<void> {
   if (!themeSynced) syncTheme()
   const dir = repoDir()
   // While switching, the repo held is the last workspace's: asking it would only fetch what must not show.
   if (!dir || state.switching !== undefined) return render()
+  const gen = generation
   const p = state.place
   if (p.tab === 'stagecraft') {
     await refreshFactories(dir)
     return render()
   }
   if (Date.now() - state.factoriesAt > BADGE_MS) void refreshFactories(dir).then(render)
-  const list = () => load('list', () => orca.plugin.request('workflows.list', { repo: dir }))
+  const list = () => {
+    listAt = { gen, at: Date.now() }
+    return load('list', () => orca.plugin.request('workflows.list', { repo: dir }))
+  }
   if (!('workflow' in p)) await list()
   else {
-    // ponytail: the run screen reads the list once, for its recent runs; going back to the list reads it again.
+    // The run screen shows the list's recent runs, so it reads the list again behind the run, at the idle rate.
+    const listIsOld = listAt.gen !== gen || Date.now() - listAt.at >= IDLE_MS
+    if (state.list.data && listIsOld) void list().then(() => gen === generation && render())
     await Promise.all([
       load('run', () => orca.plugin.request('run.get', { repo: dir, workflow: p.workflow, ...(p.runId && { runId: p.runId }) })),
       state.list.data ? undefined : list()
     ])
+    if (gen !== generation) return
     const run = state.run.data
     if (run) {
       if (state.selected === undefined && run.status === 'failed' && run.jobs.some((j) => j.stages.some((st) => st.length > 1))) {
@@ -1130,30 +1175,69 @@ async function refresh(): Promise<void> {
   render()
 }
 
-// The repo each workspace showed when it was left, so switching to one known to share the current repo shows no loading screen.
-const repoOfWorkspace = new Map<string, string>()
+/** Remembers what `state` holds of the repo on screen, without the errors of its last reads. */
+function keepData(): void {
+  if (!placeOf) return
+  savePlace()
+  const kept = <T>(l: Loadable<T>): Loadable<T> => (l.data === undefined ? {} : { data: l.data })
+  repoData.delete(placeOf)
+  repoData.set(placeOf, { list: kept(state.list), run: kept(state.run), factories: kept(state.factories), factoriesAt: state.factoriesAt, board: kept(state.board), item: kept(state.item) })
+  if (repoData.size > DATA_KEPT) repoData.delete(repoData.keys().next().value!)
+}
+
+/**
+ * Makes `key` the repo on screen. Nothing read from the last one may show under this one's header: its data is put
+ * away, and the panel opens where the person was in this repo, on what it read there last.
+ */
+function enterRepo(key: string | undefined): void {
+  if (key === placeOf) return
+  // Answers still on their way from the last repo are dropped.
+  generation++
+  keepData()
+  // A repo never seen opens on the tab the person is on now.
+  const place = key ? placeIn(places, key) : undefined
+  clearScreen()
+  Object.assign(state, (place && repoData.get(key!)) || noData(), {
+    place: place ?? home(state.place.tab),
+    studio: { url: undefined, error: undefined },
+    search: '',
+    filter: 'all',
+    itemTab: 'now',
+    productOpen: {}
+  })
+  placeOf = key
+}
+
 let repoAsk = 0
 
+/** Asks which repo the focused workspace uses, then reads it. What shows meanwhile stays, with the Refresh icon turning. */
 async function loadRepo(fetch: () => Promise<Resolution> = () => orca.plugin.request('repo.resolve', {})): Promise<void> {
   const ask = ++repoAsk
-  generation++
-  const prior = repoDir()
-  const before = prior ? repoKey(prior) : placeRepo
-  placeRepo = undefined
-  await load('resolution', fetch)
+  state.refreshing = true
+  render()
+  let answer: Loadable<Resolution>
+  try {
+    answer = { data: await fetch() }
+  } catch (e) {
+    answer = { error: failure(e) }
+  }
   // A newer switch is under way; it settles the panel.
   if (ask !== repoAsk) return
+  state.resolution = answer
   state.switching = undefined
-  if (state.resolution.error) state.resolution = { error: state.resolution.error }
-  const after = repoDir()
-  // Another repo: nothing read from the last one may show, and its place does not apply.
-  if (!after || repoKey(after) !== (prior ? repoKey(prior) : undefined)) {
-    // Answers still on their way from the last repo are dropped.
-    generation++
-    Object.assign(state, { list: {}, run: {}, factories: {}, factoriesAt: 0, board: {}, item: {}, studio: { url: undefined, error: undefined } })
-    if (before && before !== (after && repoKey(after))) state.place = home(state.place.tab)
+  if (answer.data && focused !== undefined) {
+    resolutions = withResolution(resolutions, focused, answer.data)
+    try {
+      localStorage.setItem(RESOLUTIONS_KEY, JSON.stringify(resolutions))
+    } catch {}
   }
+  const after = repoDir()
+  const key = after ? repoKey(after) : undefined
+  enterRepo(key)
   await refresh()
+  if (ask !== repoAsk) return
+  state.refreshing = false
+  render()
 }
 
 function go(place: Place): void {
@@ -1170,6 +1254,13 @@ function go(place: Place): void {
     state.itemTab = 'now'
     state.productOpen = {}
   }
+  clearScreen()
+  render()
+  void refresh()
+}
+
+/** What belongs to the screen the person leaves, and must not show on the next one. */
+function clearScreen(): void {
   state.run = {}
   state.selected = undefined
   state.tab = 'logs'
@@ -1177,8 +1268,6 @@ function go(place: Place): void {
   state.notes = {}
   state.actionError = undefined
   state.agent = undefined
-  render()
-  void refresh()
 }
 
 function flash(action: string, text: string): void {
@@ -1210,11 +1299,14 @@ async function act(fn: (here: () => boolean) => Promise<void>): Promise<void> {
 
 function pin(key: string): void {
   const choice = state.resolution.data?.candidates.find((c) => repoKey(c.repo) === key)
-  if (choice) void loadRepo(() => orca.plugin.request('repo.pin', { repo: choice.repo }))
+  if (!choice) return
+  // A pick of a remote repo asks the host again, which takes seconds: say so at once.
+  state.switching = repoTitle(choice)
+  void loadRepo(() => orca.plugin.request('repo.pin', { repo: choice.repo }, { timeoutMs: 60_000 }))
 }
 
 const actions: Record<string, (el: HTMLElement) => void> = {
-  refresh: () => (repoDir() ? void refresh() : void loadRepo()),
+  refresh: () => void loadRepo(() => orca.plugin.request('repo.resolve', { fresh: true })),
   pick: (el) => pin(el.dataset.key!),
   go: (el) => go(parsePlace(JSON.parse(el.dataset.place!))),
   back: () => go(parent(state.place)),
@@ -1566,14 +1658,15 @@ let focused: string | undefined
 orca.on('workspace.changed', ({ context }) => {
   const key = workspaceKey(context)
   if (focused !== undefined && key !== focused) {
-    const current = repoDir()
-    if (current) repoOfWorkspace.set(focused, repoKey(current))
     // Send types into a terminal of the focused workspace, so ask again which one.
     state.agent = undefined
-    if (!current || repoOfWorkspace.get(key) !== repoKey(current)) {
-      state.switching = context?.displayName ?? ''
-      render()
-    }
+    const known = resolutionIn(resolutions, key)
+    if (known) {
+      // What this workspace showed last shows at once; the answer on its way replaces it.
+      state.resolution = { data: known }
+      state.switching = undefined
+      enterRepo(known.repo ? repoKey(known.repo) : undefined)
+    } else state.switching = context?.displayName ?? ''
     void loadRepo()
   }
   // The same workspace with its terminals renamed: ask again which one Send types into.

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- A change of workspace shows what that workspace showed last at once and refreshes behind it; the Refresh icon turns while it does.
 - The plugin will be renamed from "Swamp" (`orca-swamp`) to "Swampling" (`swampling`), because Orca reserves ids that start with `orca-`.
 - Workflows tab: the repo's own workflows first, then one group per extension.
 - Workflows tab: a workflow's recent runs under its latest run.
@@ -16,6 +17,10 @@
 - Fixed: text you select in a log stays selected while the page has no change.
 - A ticket with a run record version the panel cannot read is skipped with a warning, and the other tickets show.
 - Adds the Swamp Club theme.
+- Fixed: a workspace on a remote Orca server that Orca names but does not list now gets the remote repos. The panel picks the repo of the remote workspace with its name and branch, or you pick one and the panel remembers it.
+- A workspace on a remote host is offered the repos of that host only, not the repos of this Mac.
+- The panel remembers where you were in each repo. A switch back to a repo opens the same run, factory or ticket.
+- The panel title is "Swampling".
 
 ## 0.1.0
 

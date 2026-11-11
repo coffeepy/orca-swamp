@@ -19,7 +19,7 @@ import {
 } from './domain'
 import { failurePrompt, firstFailed } from './present'
 import type { AgentTerminal } from './protocol'
-import { focusPinKey, parsePins, parseWorkspaces, resolveRepo, type Pins } from './repo'
+import { focusPinKey, parsePins, parseWorkspaces, remembered, rememberedLookups, resolveRepo, type Pins } from './repo'
 import {
   expectedOf,
   FACTORY_TYPE,
@@ -195,21 +195,28 @@ async function decide(repo: Repo, key: string, gateId: string, decision: 'approv
   return { ...(await workItem(repo, key)), ...(advanced && { advanced }), ...(advanceError && { advanceError }) }
 }
 
-const registry = () =>
-  swamp({ kind: 'local', dir: homedir() as RepoDir }, { cmd: 'workspaces' }).then(parseWorkspaces, () => [])
+const REGISTRY_FRESH_MS = 30_000
 
 export default function activate(orca: OrcaWorkerApi): void {
-  orca.panels.handle('repo.resolve', async () => resolveRepo(orca, await registry(), readPins()))
+  // Remembered for this worker's life: each lookup starts a process, which takes seconds on a busy Mac.
+  const look = rememberedLookups()
+  const readRegistry = remembered(REGISTRY_FRESH_MS, () => swamp({ kind: 'local', dir: homedir() as RepoDir }, { cmd: 'workspaces' }).then(parseWorkspaces))
+  const registry = (fresh?: boolean) => readRegistry(fresh).catch(() => [])
+
+  orca.panels.handle('repo.resolve', async (input) => {
+    const fresh = input?.fresh === true
+    return resolveRepo(orca, registry(fresh), readPins(), { look, fresh })
+  })
 
   orca.panels.handle('repo.pin', async (input) => {
     const repo = repoOf(input?.repo)
-    const key = await focusPinKey(orca)
+    const key = await focusPinKey(orca, look)
     // With several workspaces of this name and nothing to tell them apart, a saved pick would follow the person to all of them.
-    if (key === null) return resolveRepo(orca, await registry(), readPins(), repo)
+    if (key === null) return resolveRepo(orca, registry(), readPins(), { picked: repo, look })
     const pins = { ...readPins(), [key]: repo }
     mkdirSync(dirname(pinsFile()), { recursive: true })
     writeFileSync(pinsFile(), JSON.stringify(pins, null, 2))
-    return resolveRepo(orca, await registry(), pins)
+    return resolveRepo(orca, registry(), pins, { look })
   })
 
   orca.panels.handle('workflows.list', async (input) => {

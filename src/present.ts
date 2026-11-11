@@ -1,5 +1,5 @@
-import type { Repo, Run, RunId, RunStatus, Step } from './domain'
-import type { RepoChoice } from './repo'
+import type { Repo, RepoDir, Run, RunId, RunStatus, SshHost, Step } from './domain'
+import type { RepoChoice, Resolution } from './repo'
 import type { Product, Stage, TicketStatus, WorkItem } from './stagecraft'
 
 export type Tone = 'ok' | 'fail' | 'run' | 'wait' | 'warm' | 'muted'
@@ -126,6 +126,73 @@ export function parsePlace(raw: unknown): Place {
   if (p.tab === 'stagecraft') return factory ? (item ? { tab: 'stagecraft', factory, item } : { tab: 'stagecraft', factory }) : { tab: 'stagecraft' }
   return workflow ? (runId ? { tab: 'workflows', workflow, runId } : { tab: 'workflows', workflow }) : { tab: 'workflows' }
 }
+
+/** The last place in each repo, by repo key, the most recent last, as the panel keeps it in localStorage. */
+export type Places = { repo: string; place: Place }[]
+
+// ponytail: the 20 repos used last keep their place; an older one opens on its tab's first screen.
+const PLACES_KEPT = 20
+
+/** Saved places read back from storage; an older version saved one `{ place, repo }`, and anything malformed is dropped. */
+export function parsePlaces(raw: unknown): Places {
+  const list = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : []
+  return list.flatMap((x: { repo?: unknown; place?: unknown } | null) => (typeof x?.repo === 'string' && x.repo ? [{ repo: x.repo, place: parsePlace(x.place) }] : []))
+}
+
+/** The saved places with `place` as the last one of `repo`. */
+export const withPlace = (stored: unknown, repo: string, place: Place): Places =>
+  [...parsePlaces(stored).filter((x) => x.repo !== repo), { repo, place }].slice(-PLACES_KEPT)
+
+/** Where the person was in `repo`, or undefined for a repo with no saved place. */
+export const placeIn = (stored: unknown, repo: string): Place | undefined => parsePlaces(stored).filter((x) => x.repo === repo).at(-1)?.place
+
+/**
+ * The last answer to "which repo does this workspace use", by workspace key, the most recent last, as the panel
+ * keeps it in localStorage. The panel shows it at once on a switch back, while it asks again.
+ */
+export type Resolutions = { workspace: string; resolution: Resolution }[]
+
+// ponytail: the 20 workspaces used last are remembered; an older one shows the loading screen once.
+const RESOLUTIONS_KEPT = 20
+
+function parseRepo(raw: unknown): Repo | null {
+  const r = (raw ?? {}) as Record<string, unknown>
+  if (typeof r.dir !== 'string' || !r.dir) return null
+  if (r.kind === 'local') return { kind: 'local', dir: r.dir as RepoDir }
+  return r.kind === 'ssh' && typeof r.host === 'string' && r.host ? { kind: 'ssh', host: r.host as SshHost, dir: r.dir as RepoDir } : null
+}
+
+function parseResolution(raw: unknown): Resolution | null {
+  const r = (raw ?? {}) as Record<string, unknown>
+  const repo = parseRepo(r.repo)
+  if (!Array.isArray(r.candidates) || (r.repo !== null && !repo)) return null
+  const candidates = r.candidates.flatMap((c: { repo?: unknown; label?: unknown } | null) => {
+    const choice = parseRepo(c?.repo)
+    return choice && typeof c?.label === 'string' ? [{ repo: choice, label: c.label }] : []
+  })
+  const w = (r.workspace ?? {}) as Record<string, unknown>
+  const workspace = typeof w.name === 'string' ? { name: w.name, listed: w.listed === true, ...(typeof w.sharedName === 'number' && { sharedName: w.sharedName }) } : undefined
+  return { repo, candidates, ...(workspace && { workspace }), ...(isStrings(r.remoteHosts) && { remoteHosts: r.remoteHosts as SshHost[] }) }
+}
+
+/** Remembered resolutions read back from storage; anything malformed is dropped. */
+export function parseResolutions(raw: unknown): Resolutions {
+  return (Array.isArray(raw) ? raw : []).flatMap((x: { workspace?: unknown; resolution?: unknown } | null) => {
+    const resolution = parseResolution(x?.resolution)
+    return typeof x?.workspace === 'string' && resolution ? [{ workspace: x.workspace, resolution }] : []
+  })
+}
+
+/** The remembered resolutions with `resolution` as the last one of `workspace`. One that carries a problem is not remembered: it may pass. */
+export function withResolution(stored: unknown, workspace: string, resolution: Resolution): Resolutions {
+  const kept = parseResolutions(stored)
+  const mine = resolution.problem ? [] : parseResolutions([{ workspace, resolution }])
+  return mine.length ? [...kept.filter((x) => x.workspace !== workspace), ...mine].slice(-RESOLUTIONS_KEPT) : kept
+}
+
+/** What `workspace` resolved to last, or undefined for a workspace never seen. */
+export const resolutionIn = (stored: unknown, workspace: string): Resolution | undefined =>
+  parseResolutions(stored).find((x) => x.workspace === workspace)?.resolution
 
 /** Where a workflow comes from: a scoped name such as `@swamp/stagecraft/claim` is an installed extension's. */
 export type Origin = { kind: 'repo' } | { kind: 'extension'; name: string }

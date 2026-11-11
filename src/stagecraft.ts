@@ -127,7 +127,7 @@ function latestRuns(query: unknown, skipped?: { count: number }): Run[] {
       }
       throw new SwampFailure(
         'parse_error',
-        `work item ${String(run.key ?? r.modelName)} has a run record of schemaVersion ${run.schemaVersion}, and this panel reads ${RUN_SCHEMA_VERSIONS.join(' and ')}. Update the Swamp plugin or StageCraft so they match.`
+        `work item ${String(run.key ?? r.modelName)} has a run record of schemaVersion ${run.schemaVersion}, and this panel reads ${RUN_SCHEMA_VERSIONS.join(' and ')}. Update Swampling or StageCraft so they match.`
       )
     }
     run.journal = arr(run.journal, 'run.journal').map((e) => obj(e, 'journal event'))
