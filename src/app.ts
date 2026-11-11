@@ -1,8 +1,12 @@
 import { HISTORY_LENGTH, isLive, RECENT_LENGTH, repoKey, type LogText, type RecentRun, type Repo, type Run, type RunId, type RunStatus, type Step, type WorkflowSummary } from './domain'
+import type { Inbox, InboxItem } from './inbox'
 import {
   ago,
   approveCommand,
   home,
+  inboxGroups,
+  inboxId,
+  inboxPlace,
   parent,
   workspaceKey,
   parsePlace,
@@ -58,6 +62,7 @@ const LIVE_MS = 2_000
 const IDLE_MS = 10_000
 // ponytail: the Factories badge refreshes once a minute while Workflows shows, to keep swamp calls down.
 const BADGE_MS = 60_000
+const INBOX_MS = 30_000
 
 const state = {
   resolution: {} as Loadable<Resolution>,
@@ -87,7 +92,14 @@ const state = {
   /** The workspace being switched to, while the panel asks which repo it uses; nothing of the last repo shows meanwhile. */
   switching: undefined as string | undefined,
   /** The panel is asking again which repo this workspace uses and what it holds, behind what it shows. */
-  refreshing: false
+  refreshing: false,
+  /** What waits for the person in every repo. It belongs to no repo, so a change of repo or workspace leaves it. */
+  inbox: {} as Loadable<Inbox>,
+  inboxAt: 0,
+  inboxReading: false,
+  inboxOn: true,
+  /** A repo opened from the inbox, on screen in place of the focused workspace's until the person goes back. */
+  visiting: undefined as { repo: Repo; label: string } | undefined
 }
 
 /** What the panel last read from one repo: the parts of `state` that may only show under that repo's header. */
@@ -147,9 +159,35 @@ function savedThemeHint(): ThemeId {
   }
 }
 
+const INBOX_ON_KEY = 'swampling.inbox'
+/** Turns the "Needs you" tab on or off. Off, the panel asks no repo but the one on screen. */
+function applyInbox(on: boolean): void {
+  state.inboxOn = on
+  try {
+    localStorage.setItem(INBOX_ON_KEY, String(on))
+  } catch {}
+  if (!on && state.place.tab === 'inbox') go(home('workflows'))
+  else render()
+}
+function savedInboxHint(): boolean {
+  try {
+    return localStorage.getItem(INBOX_ON_KEY) !== 'false'
+  } catch {
+    return true
+  }
+}
+
 // Asked again on each refresh until it answers: right after a plugin reload the worker may not be up yet.
 let themeSynced = false
+let inboxSynced = false
 function syncTheme(): void {
+  if (!inboxSynced)
+    orca.plugin.request('inbox.enabled', {}).then(({ on }) => {
+      if (inboxSynced) return
+      inboxSynced = true
+      if (on !== state.inboxOn) applyInbox(on)
+    }, () => {})
+  if (themeSynced) return
   orca.plugin.request('theme.get', {}).then(({ theme }) => {
     if (themeSynced) return
     themeSynced = true
@@ -219,36 +257,49 @@ function themeMenu(): string {
         <span class="theme-check">${state.theme === id ? CHECK : ''}</span>
       </button>`
     }).join('')}
+    <button role="menuitemcheckbox" tabindex="-1" class="theme-item" style="border-top:1px solid var(--border)" aria-checked="${state.inboxOn}" data-action="inboxToggle">
+      <span style="flex:1;min-width:0"><span style="display:block;font-weight:500">Needs you tab</span><span class="muted" style="display:block;font-size:11.5px">One list of what waits for you in all your repos</span></span>
+      <span class="theme-check">${state.inboxOn ? CHECK : ''}</span>
+    </button>
   </div>`
 }
 
-const repoDir = (): Repo | null => state.resolution.data?.repo ?? null
+const repoDir = (): Repo | null => state.visiting?.repo ?? state.resolution.data?.repo ?? null
 const factoryOf = (p: Place): string | undefined => ('factory' in p ? p.factory : undefined)
 const itemOf = (p: Place): string | undefined => ('item' in p ? p.item : undefined)
 
 
 function header(): string {
   const res = state.resolution.data
-  const key = res?.repo ? repoKey(res.repo) : ''
+  const dir = repoDir()
+  const key = dir ? repoKey(dir) : ''
   const current = res?.candidates.find((c) => repoKey(c.repo) === key)
-  const label = current ? repoTitle(current) : key
+  const label = state.visiting?.label ?? (current ? repoTitle(current) : key)
+  const reading = state.refreshing || (state.inboxReading && state.place.tab === 'inbox')
   const version = state.list.data?.version ? ` · swamp ${esc(state.list.data.version.split('.')[0])}` : ''
   const picker =
-    res?.repo && res.candidates.length > 1
+    !state.visiting && res?.repo && res.candidates.length > 1
       ? `<select class="repo-select" data-change="pick" aria-label="Swamp repo">${res.candidates
           .map((c) => `<option value="${esc(repoKey(c.repo))}" ${repoKey(c.repo) === key ? 'selected' : ''}>${esc(repoTitle(c))}</option>`)
           .join('')}</select>`
-      : esc(label)
+      : `<span class="ellipsis">${esc(label)}</span>`
   return `<header class="app-head">
     ${LOGO}
     <div style="flex:1;min-width:0">
       <div style="font-weight:600;font-size:14px">Swampling</div>
-      <div class="muted" style="font-size:12px;display:flex;align-items:center">${picker}<span>${version ? `&nbsp;${version.slice(1)}` : ""}</span></div>
+      <div class="muted" style="font-size:12px;display:flex;align-items:center">${picker}<span style="white-space:nowrap">${version ? `&nbsp;${version.slice(1)}` : ""}</span></div>
     </div>
-    <button class="icon-btn" data-action="refresh" aria-label="Refresh" aria-busy="${state.refreshing}">${state.refreshing ? REFRESH.replace('<svg ', '<svg class="spin" ') : REFRESH}</button>
+    <button class="icon-btn" data-action="refresh" aria-label="Refresh" aria-busy="${reading}">${reading ? REFRESH.replace('<svg ', '<svg class="spin" ') : REFRESH}</button>
     <button class="icon-btn" id="theme-btn" data-action="themeMenu" aria-label="Theme" aria-haspopup="menu" aria-expanded="${state.themeMenu}">${GEAR}</button>
     ${state.themeMenu ? themeMenu() : ''}
-  </header>`
+  </header>${
+    state.visiting
+      ? `<div class="stale" style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="flex:1">Showing <b>${esc(state.visiting.label)}</b>, opened from Needs you. It is not this workspace's repo.</span>
+          <button class="btn-outline" style="min-height:28px;padding:0 10px;flex-shrink:0" data-action="leave">Back</button>
+        </div>`
+      : ''
+  }`
 }
 
 const PROBLEM_TITLE: Record<string, string> = {
@@ -586,7 +637,8 @@ function gateCard(run: Run, step: Extract<Step, { status: 'waiting' }>): string 
 
 function failureActions(run: Run, step: Extract<Step, { status: 'failed' }>): string {
   const repo = repoDir()
-  const off = repo && remoteOff(repo, 'send')
+  // Send types into a terminal of the focused workspace, which works in another repo than a visited one.
+  const off = state.visiting ? 'Send types into a terminal of the focused workspace, and this run is in another repo. Copy the retry command and run it there.' : repo && remoteOff(repo, 'send')
   const agent = off ? null : state.agent
   const flash = (action: string, text: string) => (state.flash?.action === action ? esc(state.flash.text) : text)
   return `<div style="display:flex;flex-direction:column;gap:8px">
@@ -647,7 +699,9 @@ function sectionTabs(): string {
   const f = state.factories.data
   const waiting = f?.installed ? f.factories.reduce((n, x) => n + x.needYou, 0) : 0
   const tab = (id: Place['tab'], label: string) => `<button role="tab" class="seg" aria-selected="${state.place.tab === id}" ${goTo(home(id))}>${label}</button>`
+  const mine = state.inbox.data?.items.length ?? 0
   return `<div role="tablist" class="segs">
+    ${state.inboxOn ? tab('inbox', `Needs you${mine ? ` <span style="color:var(--gold)">· ${mine}</span>` : ''}`) : ''}
     ${tab('workflows', 'Workflows')}
     ${tab('stagecraft', `StageCraft${waiting ? ` <span style="color:var(--gold)">· ${waiting}</span>` : ''}`)}
   </div>`
@@ -1044,6 +1098,59 @@ function itemScreen(d: Decided): string {
   </div>`
 }
 
+function inboxRow(i: InboxItem, now: number): string {
+  const id = inboxId(i)
+  const busy = state.busy ? 'disabled' : ''
+  const expired = i.kind === 'gate' && i.gate.expired
+  const what = i.kind === 'gate' ? `${esc(i.gate.workflow)} › ${esc(i.gate.step)}` : `${esc(i.factory)} › ${esc(i.key)} · ${esc(i.stage)}`
+  const about = i.kind === 'gate' ? [i.gate.prompt, i.gate.input ?? `run ${shortId(i.gate.runId)}`] : [i.title, i.gates.length ? `waiting on ${i.gates.join(', ')}` : 'waiting on a person']
+  const decide = (decision: string, label: string, gate = '') =>
+    `<button class="${decision === 'approve' ? 'btn-gold' : 'btn-outline'}" style="flex:1;min-height:34px" data-action="inboxDecide" data-item="${esc(id)}" data-decision="${decision}" data-gate="${esc(gate)}" ${busy}>${esc(label)}</button>`
+  const buttons =
+    i.kind === 'gate'
+      ? [decide('approve', 'Approve') + decide('reject', 'Reject')]
+      : i.gates.map((g) => decide('approve', approveLabel(g), g) + decide('decline', 'Decline', g))
+  return `<div class="gate" style="padding:12px;gap:8px">
+    <div style="display:flex;align-items:center;gap:8px">
+      ${diamond(12)}<span style="font-weight:600;flex:1;min-width:0">${what}</span>
+      <span class="muted" style="font-size:12px;white-space:nowrap">${expired ? 'expired' : esc(since(i.since, now))}</span>
+      <button class="btn-outline" style="min-height:28px;padding:0 10px;flex-shrink:0" data-action="inboxOpen" data-item="${esc(id)}">Open</button>
+    </div>
+    ${about.filter(Boolean).map((t) => `<div class="muted clamp" style="font-size:12px;line-height:1.45">${esc(t)}</div>`).join('')}
+    ${
+      expired
+        ? '<div class="muted" style="font-size:12px">This gate timed out. Swamp can only cancel it now.</div>'
+        : buttons.length
+          ? `<input class="note" style="font-size:12px" placeholder="Note (optional)" aria-label="Note for ${what}" id="note-${esc(id)}" data-input="note" data-step="${esc(id)}" value="${esc(state.notes[id] ?? '')}" ${busy}>
+             ${buttons.map((b) => `<div style="display:flex;gap:8px">${b}</div>`).join('')}`
+          : '<div class="muted" style="font-size:12px">Open it to see which exit a person must take.</div>'
+    }
+  </div>`
+}
+
+function inboxView(): string {
+  const { data, error } = state.inbox
+  if (!data) return `<div class="body${error ? '' : ' muted'}">${error ? errorBox(error) : 'Reading your repos…'}</div>`
+  const now = Date.now()
+  const read = data.repos - data.failed.length
+  const repos = `Read ${data.failed.length ? `${read} of ${data.repos}` : read} repo${data.repos === 1 ? '' : 's'}.`
+  return `${error ? `<div class="stale">Showing the last answer. ${esc(error.message)}</div>` : ''}
+  <div class="body" style="gap:18px">
+    ${state.actionError ? `<div style="color:var(--fail);font-size:12px">${esc(state.actionError)}</div>` : ''}
+    ${
+      data.items.length
+        ? inboxGroups(data.items)
+            .map((g) => `<section class="section"><div class="label">${esc(g.label.toUpperCase())} · ${g.items.length}</div>${g.items.map((i) => inboxRow(i, now)).join('')}</section>`)
+            .join('')
+        : '<div style="font-weight:600">Nothing needs you.</div>'
+    }
+    <div class="muted" style="font-size:12px;line-height:1.5">
+      <div>${repos}</div>
+      ${data.failed.map((f) => `<div title="${esc(f.message)}">${esc(f.repoLabel)} could not be read: ${esc(f.message.split('\n')[0])}</div>`).join('')}
+    </div>
+  </div>`
+}
+
 const backButton = (action: string, label: string) =>
   `<div><button class="back" data-action="${action}" style="font-size:13px">‹ ${label}</button></div>`
 
@@ -1075,7 +1182,8 @@ function view(): string {
     if (res.error) return `<div class="body">${errorBox(res.error)}</div>`
     return `<div class="body muted">Finding the swamp repo…</div>`
   }
-  if (!res.data.repo) return header() + repoPicker(res.data.workspace ? 'No swamp repo for this workspace' : 'Swamp repos', res.data)
+  if (!repoDir()) return header() + repoPicker(res.data.workspace ? 'No swamp repo for this workspace' : 'Swamp repos', res.data)
+  if (state.place.tab === 'inbox') return header() + sectionTabs() + inboxView()
   if (state.place.tab === 'stagecraft') return header() + sectionTabs() + factoriesView()
   const onRun = 'workflow' in state.place
   const target = onRun ? state.run : state.list
@@ -1145,6 +1253,28 @@ async function loadLogs(run: Run): Promise<void> {
   }
 }
 
+let inboxAsk = 0
+
+/** Reads the inbox behind what shows; the worker answers what it remembers unless `fresh`. Only the newest ask is kept. */
+async function loadInbox(fresh = false): Promise<void> {
+  const ask = ++inboxAsk
+  const repo = repoDir()
+  state.inboxAt = Date.now()
+  state.inboxReading = true
+  render()
+  let answer: Loadable<Inbox>
+  try {
+    // A first read asks every repo, some over SSH, which can take longer than a request's 30 s.
+    answer = { data: await orca.plugin.request('inbox.list', { ...(fresh && { fresh }), ...(repo && { repo }) }, { timeoutMs: 60_000 }) }
+  } catch (e) {
+    answer = { data: state.inbox.data, error: failure(e) }
+  }
+  if (ask !== inboxAsk) return
+  state.inbox = answer
+  state.inboxReading = false
+  render()
+}
+
 async function refreshFactories(dir: Repo): Promise<void> {
   const gen = generation
   state.factoriesAt = Date.now()
@@ -1166,17 +1296,21 @@ async function refreshFactories(dir: Repo): Promise<void> {
 let listAt = { gen: -1, at: 0 }
 
 async function refresh(): Promise<void> {
-  if (!themeSynced) syncTheme()
+  if (!themeSynced || !inboxSynced) syncTheme()
+  // A place remembered while the tab was on.
+  if (!state.inboxOn && state.place.tab === 'inbox') state.place = home('workflows')
   const dir = repoDir()
   // While switching, the repo held is the last workspace's: asking it would only fetch what must not show.
   if (!dir || state.switching !== undefined) return render()
   const gen = generation
   const p = state.place
+  if (state.inboxOn && Date.now() - state.inboxAt >= (p.tab === 'inbox' ? INBOX_MS : BADGE_MS)) void loadInbox()
   if (p.tab === 'stagecraft') {
     await refreshFactories(dir)
     return render()
   }
   if (Date.now() - state.factoriesAt > BADGE_MS) void refreshFactories(dir).then(render)
+  if (p.tab === 'inbox') return render()
   const list = () => {
     listAt = { gen, at: Date.now() }
     return load('list', () => orca.plugin.request('workflows.list', { repo: dir }))
@@ -1332,11 +1466,59 @@ function pin(key: string): void {
   if (!choice) return
   // A pick of a remote repo asks the host again, which takes seconds: say so at once.
   state.switching = repoTitle(choice)
+  state.visiting = undefined
   void loadRepo(() => orca.plugin.request('repo.pin', { repo: choice.repo }, { timeoutMs: 60_000 }))
 }
 
 const actions: Record<string, (el: HTMLElement) => void> = {
-  refresh: () => void loadRepo(() => orca.plugin.request('repo.resolve', { fresh: true })),
+  refresh: () => {
+    void loadInbox(true)
+    void loadRepo(() => orca.plugin.request('repo.resolve', { fresh: true }))
+  },
+  inboxOpen: (el) => {
+    const item = state.inbox.data?.items.find((i) => inboxId(i) === el.dataset.item)
+    if (!item) return
+    const own = state.resolution.data?.repo
+    state.visiting = own && repoKey(own) === repoKey(item.repo) ? undefined : { repo: item.repo, label: item.repoLabel }
+    enterRepo(repoKey(item.repo))
+    go(inboxPlace(item))
+  },
+  leave: () => {
+    state.visiting = undefined
+    const own = repoDir()
+    enterRepo(own ? repoKey(own) : undefined)
+    go(state.place)
+  },
+  inboxDecide: (el) => {
+    const inbox = state.inbox.data
+    const id = el.dataset.item!
+    const item = inbox?.items.find((i) => inboxId(i) === id)
+    if (!inbox || !item) return
+    const note = state.notes[id]
+    const gateId = el.dataset.gate!
+    void act(async () => {
+      try {
+        if (item.kind === 'gate') {
+          const { workflow, runId, step } = item.gate
+          await orca.plugin.request('gate.decide', { repo: item.repo, workflow, runId, step, decision: el.dataset.decision as 'approve' | 'reject', ...(note && { note }) }, { timeoutMs: 90_000 })
+        } else {
+          const done = await orca.plugin.request(
+            'workitem.decide',
+            { repo: item.repo, key: item.key, gateId, decision: el.dataset.decision as 'approve' | 'decline', ...(note && { note }) },
+            { timeoutMs: 150_000 }
+          )
+          if (done.advanceError) state.actionError = `${item.key} is approved, but it did not move on: ${done.advanceError}`
+        }
+        delete state.notes[id]
+        // The decided gate leaves the list at once; the fresh read behind it puts back whatever still waits.
+        const rest = item.kind === 'ticket' && item.gates.length > 1 ? [{ ...item, gates: item.gates.filter((g) => g !== gateId) }] : []
+        if (state.inbox.data) state.inbox = { data: { ...state.inbox.data, items: state.inbox.data.items.flatMap((i) => (inboxId(i) === id ? rest : [i])) } }
+      } finally {
+        // Read again after a refusal too: what the press was for may no longer wait.
+        void loadInbox(true)
+      }
+    })
+  },
   pick: (el) => pin(el.dataset.key!),
   go: (el) => go(parsePlace(JSON.parse(el.dataset.place!))),
   back: () => go(parent(state.place)),
@@ -1362,6 +1544,7 @@ const actions: Record<string, (el: HTMLElement) => void> = {
         { repo: dir, workflow: run.workflow, runId: run.id, step, decision: el.dataset.decision as 'approve' | 'reject', ...(note && { note }) },
         { timeoutMs: 90_000 }
       )
+      void loadInbox(true)
       if (!here()) return
       state.run = { data }
       delete state.notes[step]
@@ -1411,6 +1594,7 @@ const actions: Record<string, (el: HTMLElement) => void> = {
         { repo: dir, key, gateId: el.dataset.gate!, decision: el.dataset.decision as 'approve' | 'decline', ...(note && { note }) },
         { timeoutMs: 150_000 }
       )
+      void loadInbox(true)
       if (!here()) return
       state.item = { data }
       state.notes = {}
@@ -1455,6 +1639,17 @@ const actions: Record<string, (el: HTMLElement) => void> = {
     state.themeMenu = !state.themeMenu
     render()
     if (state.themeMenu) document.getElementById(`theme-${state.theme}`)?.focus()
+  },
+  inboxToggle: () => {
+    const on = !state.inboxOn
+    inboxSynced = true
+    closeThemeMenu()
+    applyInbox(on)
+    if (on) void loadInbox()
+    orca.plugin.request('inbox.enabled', { on }).catch((e) => {
+      state.actionError = `The setting did not save: ${failure(e).message}`
+      render()
+    })
   },
   theme: (el) => {
     const id = parseThemeId(el.dataset.theme)
@@ -1603,8 +1798,8 @@ button.wf:hover, .row-btn:hover, .recent:hover, .node:hover { border-color: var(
 .btn-outline:hover { background: var(--raised); }
 .btn-accent { min-height: 38px; border-radius: 8px; border: none; background: var(--accent); color: var(--on-accent); font-weight: 600; }
 .stale { margin: 0 16px; padding: 8px 10px; border-radius: 8px; font-size: 12px; color: var(--gold); background: var(--gold-bg); }
-.segs { margin: 0 16px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: var(--raised); border-radius: 8px; padding: 3px; }
-.seg { border: none; border-radius: 6px; padding: 7px; background: none; color: var(--muted); }
+.segs { margin: 0 16px; display: flex; background: var(--raised); border-radius: 8px; padding: 3px; }
+.seg { flex: 1 1 auto; white-space: nowrap; border: none; border-radius: 6px; padding: 7px 4px; background: none; color: var(--muted); }
 .seg[aria-selected="true"] { background: var(--panel); color: var(--text); font-weight: 500; }
 .copy-row { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 8px; background: var(--deep); border: 1px solid var(--border); }
 .copy-row code { flex: 1; min-width: 0; font-size: 11.5px; overflow-wrap: anywhere; }
@@ -1666,7 +1861,7 @@ document.body.append(root)
 
 
 function nextDelay(): number {
-  if (state.place.tab === 'stagecraft') return IDLE_MS
+  if (state.place.tab !== 'workflows') return IDLE_MS
   if ('workflow' in state.place) return state.run.data && isLive(state.run.data) ? LIVE_MS : IDLE_MS
   return state.list.data?.workflows.some((w) => w.latest?.status === 'running' || w.latest?.status === 'pending') ? LIVE_MS : IDLE_MS
 }
@@ -1693,6 +1888,7 @@ orca.on('workspace.changed', ({ context }) => {
   if (focused !== undefined && key !== focused) {
     // Send types into a terminal of the focused workspace, so ask again which one.
     state.agent = undefined
+    state.visiting = undefined
     const known = resolutionIn(resolutions, key)
     if (known) {
       // What this workspace showed last shows at once; the answer on its way replaces it.
@@ -1711,6 +1907,7 @@ orca.on('workspace.changed', ({ context }) => {
 })
 restorePlace()
 applyTheme(savedThemeHint())
+state.inboxOn = savedInboxHint()
 render()
 syncTheme()
 void loadRepo().finally(() => setTimeout(tick, nextDelay()))

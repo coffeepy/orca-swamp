@@ -201,6 +201,10 @@ function workItem(run: Run, now: string): WorkItem {
 
 export const parseWorkItems = (query: unknown, now: string): WorkItem[] => plain(latestRuns(query).map((r) => workItem(r, now)))
 
+/** The work items held for a person now. A run record of a version this panel does not read is left out, so it does not hide the others. */
+export const waitingItems = (query: unknown, now: string): WorkItem[] =>
+  plain(latestRuns(query, { count: 0 }).map((r) => workItem(r, now)).filter((i) => i.status === 'needs-you'))
+
 export function parseFactories(typeSearch: unknown, modelSearch: unknown, runs: unknown, now: string): Factories {
   if (!hasStagecraft(typeSearch)) return { installed: false }
   const skipped = { count: 0 }

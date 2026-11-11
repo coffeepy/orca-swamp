@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs'
 import { assert, test } from 'orca/testing'
 import { parseApprovals, parseRun } from './domain'
 import type { Repo, RepoDir, SshHost } from './domain'
-import { ago, approveCommand, duration, failurePrompt, firstFailed, groupWorkflows, logLine, originOf, parent, parsePlace, placeIn, resolutionIn, withPlace, withResolution, type Place, workspaceKey, payloadBlocks, remoteOff, retryCommand, runPill, shortName } from './present'
+import type { InboxItem } from './inbox'
+import { inboxGroups, inboxId, inboxPlace, ago, approveCommand, duration, failurePrompt, firstFailed, groupWorkflows, logLine, originOf, parent, parsePlace, placeIn, resolutionIn, withPlace, withResolution, type Place, workspaceKey, payloadBlocks, remoteOff, retryCommand, runPill, shortName } from './present'
 
 const fx = (name: string): unknown => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'))
 
@@ -150,7 +151,7 @@ test('Back climbs one level at a time on both tabs, and stops at the tab', () =>
 })
 
 test('a saved place reads back as itself, and anything malformed as the Workflows tab', () => {
-  for (const p of [{ tab: 'stagecraft', factory: 'f', item: 'k' }, { tab: 'workflows', workflow: 'w', runId: 'r' }, { tab: 'stagecraft' }] as const) {
+  for (const p of [{ tab: 'stagecraft', factory: 'f', item: 'k' }, { tab: 'workflows', workflow: 'w', runId: 'r' }, { tab: 'stagecraft' }, { tab: 'inbox' }] as const) {
     assert.deepEqual(parsePlace(JSON.parse(JSON.stringify(p))), p)
   }
   assert.deepEqual(parsePlace({ tab: 'stagecraft', item: 'k' }), { tab: 'stagecraft' }, 'a ticket needs its factory')
@@ -204,4 +205,17 @@ test('each workspace keeps the repo it resolved to last, damaged storage reads a
   assert.equal((many as unknown[]).length, 20)
   assert.equal(resolutionIn(many, ''), undefined, 'the workspace used longest ago is dropped')
   assert.deepEqual(resolutionIn(many, 'w24'), chosen)
+})
+
+test('the inbox shows one group per repo, the repo with the longest wait first, and Open goes to the run or the ticket', () => {
+  const a = { kind: 'local', dir: '/a' } as Repo
+  const b = { kind: 'ssh', host: 'jarvis', dir: '/a' } as Repo
+  const gate = (repo: Repo, repoLabel: string, runId: string): InboxItem => ({ repo, repoLabel, kind: 'gate', gate: { workflow: 'deploy', runId: runId as never, step: 'signoff', prompt: '', expired: false } })
+  const ticket: InboxItem = { repo: a, repoLabel: 'a', kind: 'ticket', factory: 'team', key: 'team-4', title: 'Filter', stage: 'plan-review', gates: ['plan-approval'] }
+  const items = [gate(b, 'a · jarvis', 'r1'), ticket, gate(b, 'a · jarvis', 'r2'), gate(a, 'a', 'r1')]
+  assert.deepEqual(inboxGroups(items).map((g) => [g.label, g.items.length]), [['a · jarvis', 2], ['a', 2]], 'a remote repo and a local one at the same path are two repos')
+  assert.equal(new Set(items.map(inboxId)).size, 4, 'each item has its own id, so a note or a press is for that item only')
+  assert.deepEqual(inboxPlace(items[0]), { tab: 'workflows', workflow: 'deploy', runId: 'r1' })
+  assert.deepEqual(inboxPlace(ticket), { tab: 'stagecraft', factory: 'team', item: 'team-4' })
+  assert.deepEqual(parent({ tab: 'inbox' }), { tab: 'inbox' })
 })
