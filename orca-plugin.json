@@ -2,7 +2,7 @@
   "manifestVersion": 2,
   "id": "swampling",
   "name": "Swampling",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Shows the swamp workflows of the focused workspace's repo with each run's steps, logs, outputs and data; approves or rejects waiting gates; and hands a failed run to an agent terminal.",
   "engines": {
     "orca": ">=1.4.246"

@@ -1,7 +1,8 @@
-import { repoKey, type RecentRun, type Repo, type RepoDir, type Run, type RunId, type RunStatus, type SshHost, type Step } from './domain'
+import { repoKey, type RecentRun, type Repo, type RepoDir, type Run, type RunAction, type RunId, type RunStatus, type SshHost, type Step } from './domain'
 import type { InboxItem } from './inbox'
 import type { RepoChoice, Resolution } from './repo'
-import type { Product, Stage, TicketStatus, WorkItem } from './stagecraft'
+import type { Pace } from './pace'
+import type { Dispatch, Product, Reason, Stage, TicketStatus, WorkItem } from './stagecraft'
 
 export type Tone = 'ok' | 'fail' | 'run' | 'wait' | 'warm' | 'muted'
 export type Pill = { tone: Tone; text: string }
@@ -66,6 +67,32 @@ export function since(iso: string | undefined, now: number): string {
   if (s < 86_400) return `${Math.floor(s / 3600)}h`
   return `${Math.floor(s / 86_400)}d`
 }
+
+/** "45s", "6m", "2h 6m": a length of time as short as it stays useful, for "2m of about 6m"; never under "1s". */
+export function brief(ms: number): string {
+  const s = Math.max(1, Math.round(ms / 1000))
+  return s < 60 ? `${s}s` : s < 3600 ? `${Math.round(s / 60)}m` : duration(ms)
+}
+
+/** How each pace reads: its color, the words that name what is off, and what a person can do about it. */
+export const PACE_LOOK: Record<Pace['state'], { tone: Tone; label?: (p: Pace) => string; hint?: string }> = {
+  'on-pace': { tone: 'muted' },
+  slow: { tone: 'warm', label: () => 'longer than usual' },
+  quiet: {
+    tone: 'warm',
+    label: (p) => `no activity for ${brief(p.quietMs ?? p.elapsedMs)}`,
+    hint: 'It may be in a long step that writes nothing, or it may have stopped. Stop it if it does not move.'
+  },
+  gone: { tone: 'fail', label: () => 'its process is gone', hint: 'swamp still lists it as running, but the swamp process that ran it no longer exists. Stop it to clear it, then run it again.' }
+}
+
+/** "2m of about 6m", or "2m" for a workflow with no usual time yet. */
+export const paceProgress = (p: Pace): string => (p.usualMs === undefined ? brief(p.elapsedMs) : `${brief(p.elapsedMs)} of about ${brief(p.usualMs)}`)
+
+export const paceLabel = (p: Pace): string | undefined => PACE_LOOK[p.state].label?.(p)
+
+/** What a run's row has room for: that it went quiet or its process is gone, else how far along it is. */
+export const paceRow = (p: Pace): string => (p.state === 'quiet' || p.state === 'gone' ? paceLabel(p)! : paceProgress(p))
 
 export const ago = (iso: string | undefined, now: number): string => {
   const s = since(iso, now)
@@ -351,7 +378,37 @@ export const remoteOff = (repo: Repo, feature: 'studio' | 'send'): string | null
 export const approveCommand = (workflow: string, step: string, runId: string): string =>
   `swamp workflow approve ${workflow} ${step} --run ${runId}`
 
-export const retryCommand = (run: Run, step: string): string => `swamp workflow resume ${run.workflow} --run ${run.id} --from ${step}`
+export const retryCommand = (run: Run, step: string): string => actionCommand('retry', run, step)
+
+/**
+ * How each run action's button reads, by the run's status where the same action reads differently, and while its
+ * request runs. `confirm` is what a first press asks before a second press acts, for the actions that end work in
+ * progress or run steps a second time.
+ */
+export const ACTION_LOOK: Record<RunAction, { label: string | Partial<Record<RunStatus, string>>; busy: string; confirm?: string }> = {
+  stop: { label: 'Stop', busy: 'Stopping…', confirm: 'Stop this run? The step that is running is ended and the rest are skipped.' },
+  retry: { label: { failed: 'Retry failed steps', suspended: 'Resume' }, busy: 'Starting…' },
+  recover: { label: 'Recover and resume', busy: 'Recovering…', confirm: 'This run was cut off. A step that was running then runs again from its start.' },
+  again: { label: 'Run again', busy: 'Starting…' }
+}
+
+export const actionLabel = (action: RunAction, status: RunStatus): string => {
+  const { label } = ACTION_LOOK[action]
+  return typeof label === 'string' ? label : (label[status] ?? 'Retry')
+}
+
+/** The swamp command an action runs, as a person would type it, shown under the buttons. */
+export function actionCommand(action: Exclude<RunAction, 'again'>, run: Run, from?: string): string {
+  const target = `${run.workflow} --run ${run.id}`
+  switch (action) {
+    case 'stop':
+      return `swamp workflow cancel ${target}`
+    case 'retry':
+      return `swamp workflow resume ${target}${from ? ` --from ${from}` : ''}`
+    case 'recover':
+      return `swamp workflow recover ${target} --acknowledge-unknown, then swamp workflow resume ${target}`
+  }
+}
 
 export const firstFailed = (run: Run): Extract<Step, { status: 'failed' }> | undefined =>
   stepsOf(run).find((s): s is Extract<Step, { status: 'failed' }> => s.status === 'failed')
@@ -393,13 +450,81 @@ export const TICKET_LABEL: Record<TicketStatus, string> = {
 
 const ordinal = (n: number): string => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`
 
-/** What the line under a ticket's name says after its status: how long, how many tries, or which try. */
-export function ticketWhen(item: WorkItem, now: number): string {
-  if (item.status === 'needs-you') return since(item.waiting?.since, now)
-  if (item.status === 'stuck' && item.parked) return `${item.parked.count} of ${item.parked.limit} tries`
-  if (!isFinished(item.status) && item.cycle > 1) return `${ordinal(item.cycle)} try`
-  return since(item.enteredAt, now)
+/** A working ticket that went quiet: its dispatch is still open and recorded nothing for so long that it counts as stuck. */
+export const isQuiet = (item: Pick<WorkItem, 'status' | 'reason'>): boolean => item.reason.kind === 'working' && item.status === 'stuck'
+
+/** The word a ticket's line starts with. A ticket that does not move names why; one that moves or is finished names its status. */
+export const reasonWord = (item: WorkItem): string => (isQuiet(item) ? 'no activity' : (REASON_WORD[item.reason.kind] ?? TICKET_LABEL[item.status]))
+
+const REASON_WORD: Partial<Record<Reason['kind'], string>> = {
+  parked: 'parked',
+  failed: 'failed',
+  interrupted: 'interrupted',
+  passed: 'not advanced',
+  idle: 'idle'
 }
+
+/** What the line under a ticket's name says after that word: how long it has been so, how many tries it used, or which try it is on. */
+export function ticketWhen(item: WorkItem, now: number): string {
+  const r = item.reason
+  if (r.kind === 'parked') return `${r.count} of ${r.limit} tries`
+  if (r.kind === 'working' && isQuiet(item)) return since(r.activeAt, now)
+  if (r.kind === 'working' && item.cycle > 1) return `${ordinal(item.cycle)} try`
+  return since(r.kind === 'working' ? item.enteredAt : r.since, now)
+}
+
+/** The ticket screen's "Why it is here": what holds the ticket, and what moves it. */
+export function whyHere(item: WorkItem, now: number): { text: string; next: string; why?: string } {
+  const r = item.reason
+  const work = `The work for ${item.stage}`
+  const again = "The agent that drives this factory must dispatch the stage's work again."
+  switch (r.kind) {
+    case 'gate':
+      return {
+        text: r.gates.length ? `A person must decide ${r.gates.join(' and ')}.` : 'A person must choose an exit.',
+        next: r.gates.length ? 'Approve or decline under Now.' : 'Tell the agent that drives this factory which exit to take; the exits are under Now.'
+      }
+    case 'parked':
+      return {
+        text: `Parked: it used ${r.count} of its ${r.limit} tries in ${item.stage}.`,
+        next: 'A person must grant a dispatch override before it is tried again. Tell the agent that drives this factory.',
+        why: r.why
+      }
+    case 'working':
+      if (isQuiet(item)) {
+        const open = 'Its dispatch is still open and never reported how it ended, so it may have stopped.'
+        return {
+          text: `${work}${r.dispatch.workflow ? `, sent to the workflow ${r.dispatch.workflow},` : ''} has shown no activity for ${since(r.activeAt, now)}.`,
+          next: r.dispatch.workflow ? `${open} Open the run of ${r.dispatch.workflow} to see; if it is dead, the stage's work must be dispatched again.` : `${open} ${again}`
+        }
+      }
+      return { text: r.dispatch.workflow ? `${work} is running in the workflow ${r.dispatch.workflow}.` : `${work} is in progress.`, next: 'Nothing to do. It moves when the work reports how it ended.' }
+    case 'failed':
+    case 'interrupted':
+      return {
+        text: `${work} ${r.kind === 'failed' ? 'failed' : 'was interrupted'}, and nothing was tried since.`,
+        next: r.dispatch.workflow ? `Open the run of ${r.dispatch.workflow} to see what failed and retry it.` : again,
+        why: r.why
+      }
+    case 'passed':
+      return { text: `${work} passed, but nothing moved the ticket on.`, next: 'The agent that drives this factory advances it once the gates of an exit pass; the exits are under Now.' }
+    case 'idle':
+      return {
+        text: item.cycle > 1 ? `It came back to ${item.stage}${item.from ? ` from ${item.from}` : ''}, and nothing was started since.` : `Nothing was started for ${item.stage} yet.`,
+        next: "The agent that drives this factory must dispatch the stage's work."
+      }
+    case 'done':
+      return { text: `Finished in ${item.stage}.`, next: '' }
+  }
+}
+
+/**
+ * The run a dispatch to a workflow stage started: the first run of that workflow that began after the dispatch.
+ * ponytail: matched by name and time, since the dispatch record holds no run id; two tickets sent to one workflow
+ * within the same moment can swap runs. Match on the `_stagecraft` input when a factory is seen to pass it.
+ */
+export const dispatchRun = (runs: readonly RecentRun[], dispatch: Dispatch): RecentRun | undefined =>
+  runs.filter((r) => r.workflow === dispatch.workflow && r.startedAt >= dispatch.at).sort((a, b) => a.startedAt.localeCompare(b.startedAt))[0]
 
 /** One grid cell: a stage passed, the one it is in now, one it was sent back from, or one not reached. */
 export type Cell = { kind: 'passed' | 'now' | 'back' | 'ahead'; passes?: number }

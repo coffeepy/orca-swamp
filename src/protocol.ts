@@ -1,5 +1,6 @@
-import type { Gate, LogText, RecentRun, Repo, Run, RunId, WorkflowSummary } from './domain'
+import type { Gate, InputField, LogText, RecentRun, Repo, Run, RunAction, RunId, WorkflowSummary } from './domain'
 import type { Inbox } from './inbox'
+import type { LogChunk } from './log'
 import type { Resolution } from './repo'
 import type { Board, Factories, WorkItemDetail } from './stagecraft'
 import type { ThemeId } from './theme'
@@ -23,9 +24,29 @@ declare module 'orca' {
     'run.get': { input: { repo: Repo; workflow: string; runId?: RunId }; output: Run }
     /** A run's log, narrowed to one model method when `logTag` is given, capped at 15 KiB. */
     'logs.get': { input: { repo: Repo; runId: RunId; logTag?: string }; output: LogText }
+    /**
+     * A run's log, read from its `.log` file: the lines after the byte offset `after`, the lines that end at
+     * `before`, or with neither the newest. `limit` is the most bytes to read, clamped to 1 to 256 KiB.
+     */
+    'log.tail': { input: { repo: Repo; runId: RunId; after?: number; before?: number; limit?: number }; output: LogChunk }
     /** Approve or reject one gate and answer the refreshed run. Approve also starts `resume`. */
     'gate.decide': {
       input: { repo: Repo; workflow: string; runId: RunId; step: string; decision: 'approve' | 'reject'; note?: string }
+      output: Run
+    }
+    /** The inputs the workflow declares, for the form Run shows; none for a workflow that takes no input. */
+    'workflow.inputs': { input: { repo: Repo; workflow: string }; output: InputField[] }
+    /**
+     * Starts a run in the background: with the form's text for each input, or with the inputs of the run `again`.
+     * Answers the new run's id once swamp lists it, or no id when it does not within 10 s.
+     */
+    'run.start': { input: { repo: Repo; workflow: string; inputs?: Record<string, string>; again?: RunId }; output: { runId?: RunId } }
+    /**
+     * Stops a run (`cancel`), retries a failed or suspended one (`resume`, from one step when `from` names it), or
+     * recovers an interrupted one and resumes it. Answers the refreshed run; retry and recover wait up to 10 s for it to move.
+     */
+    'run.act': {
+      input: { repo: Repo; workflow: string; runId: RunId; action: Exclude<RunAction, 'again'>; from?: { job: string; step: string } }
       output: Run
     }
     /** The focused workspace's terminal that "Send failure" types into: an agent's by title, else the first. */

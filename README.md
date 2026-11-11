@@ -19,6 +19,9 @@ The screenshots use a demo repo with invented data.
 - Opens a workflow on its latest run, with that workflow's recent runs below it.
 - Shows each run's steps, including parallel steps, with their logs, outputs and data.
 - Approves or rejects a step that waits for approval. After an approval, the run continues by itself.
+- Starts a workflow, with a form for its inputs. Stops a run, retries a failed run from the step you choose, and recovers a run that was cut off.
+- Shows a running run's log as it is written, follows the newest line, and narrows it to one step.
+- Shows how long a workflow usually takes and how far along a running run is, and says when a run or a ticket has shown no activity for a long time or a run's process is gone.
 - Sends a failed run to an agent terminal in your workspace, or copies the command to retry it.
 
 **StageCraft tab** (when the repo has the `@swamp/stagecraft` extension)
@@ -60,7 +63,7 @@ The plugin runs code, so Orca asks you to approve it before it installs.
 | `workspace:read` | Finds the focused workspace, its folder and its terminals, so the panel shows the right repo. |
 | `terminal:send` | Types the failure summary into your agent's terminal when you press "Send failure to agent terminal". |
 
-The plugin changes your swamp repo only when you press a button. Approve, reject and resume a workflow run; approve or decline a ticket; and start the studio. Everything else only reads.
+The plugin changes your swamp repo only when you press a button. Start, stop, retry and recover a workflow run; approve, reject and resume one; approve or decline a ticket; and start the studio. Everything else only reads.
 
 It writes its own settings to `~/.config/swampling/`: the repo you picked for each workspace, your theme, and SSH connection sockets.
 

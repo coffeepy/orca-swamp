@@ -13,6 +13,8 @@ export type FailureCode = 'swamp_not_found' | 'not_a_swamp_repo' | 'timeout' | '
 
 export class SwampFailure extends Error {
   code: FailureCode
+  /** swamp exited with an error code and printed no reason. For `run` and `resume` that is a run that ended failed or cancelled, not a refusal. */
+  silent?: true
   constructor(code: FailureCode, message: string) {
     super(message)
     this.code = code
@@ -60,6 +62,24 @@ export type Run = {
   jobs: Job[]
   /** Who started the run, as swamp records it, such as `user:dev`. */
   by?: string
+} & Vitals
+
+/**
+ * Signs of life of a run in flight. `activeAt` is when it last showed activity: a step began or ended, or, for a repo
+ * on this machine, its record or log file changed. `gone` is a run whose swamp process no longer exists on this machine.
+ */
+export type Vitals = { activeAt?: string; gone?: true }
+
+/** A run swamp lists as started and not ended. swamp keeps a run so after its process died. */
+export const inFlight = (status: RunStatus): boolean => status === 'running' || status === 'pending'
+
+/** Reads the vitals of the run `runId` of the workflow with id `workflowId`; nothing when they are not known. */
+export type ReadVitals = (workflowId: string, runId: string) => Vitals
+
+/** The run with what its files say: the later of the two activity times, and whether its process is gone. */
+export function withVitals<R extends Vitals>(run: R, files: Vitals): R {
+  const activeAt = [run.activeAt, files.activeAt].filter(Boolean).sort().at(-1)
+  return { ...run, ...(activeAt && { activeAt }), ...(files.gone && { gone: true as const }) }
 }
 
 export type Gate = { workflow: string; runId: RunId; step: string; prompt: string; since?: string; expired: boolean; input?: string }
@@ -83,7 +103,7 @@ export type RecentRun = {
   inputs?: string
   durationMs?: number
   failedStep?: string
-}
+} & Vitals
 
 export const HISTORY_LENGTH = 10
 export const RECENT_LENGTH = 6
@@ -95,6 +115,44 @@ export type LogText = { text: string; truncated: boolean }
 export const LOG_LIMIT_BYTES = 15 * 1024
 
 const RUN_STATUSES: readonly RunStatus[] = ['pending', 'running', 'suspended', 'succeeded', 'failed', 'cancelled', 'interrupted']
+
+/** What a person can do to a run from the panel. `again` starts a new run with this run's inputs. */
+export type RunAction = 'stop' | 'retry' | 'recover' | 'again'
+
+/**
+ * The actions swamp accepts for a run of each status, in the order the buttons are drawn. `retry` is
+ * `swamp workflow resume --run`, which takes a failed or a suspended run; an interrupted run needs `recover` first.
+ */
+const RUN_ACTIONS: Record<RunStatus, readonly RunAction[]> = {
+  pending: ['stop'],
+  running: ['stop'],
+  suspended: ['retry', 'stop'],
+  succeeded: ['again'],
+  failed: ['retry', 'again'],
+  cancelled: ['again'],
+  interrupted: ['recover', 'again'],
+  unknown: []
+}
+
+const allSteps = (run: Run): Step[] => run.jobs.flatMap((j) => j.stages.flat())
+
+/** The actions the run's screen offers. A suspended run with a gate to decide, or one resuming after its gates, is not offered `retry`. */
+export function runActions(run: Run): readonly RunAction[] {
+  const decides = run.status === 'suspended' && allSteps(run).some((s) => s.status === 'waiting' || s.status === 'resuming')
+  return decides ? RUN_ACTIONS[run.status].filter((a) => a !== 'retry') : RUN_ACTIONS[run.status]
+}
+
+/**
+ * The steps of a failed run that `swamp workflow resume --from` can start again from, each with its job's name: the
+ * ones that ran. From a failed step it retries that step; from one that passed before it, that step and all after it.
+ * A step skipped after the failure cannot be a start, because the failed step it depends on is not run again.
+ */
+export function retryFrom(run: Run): Map<Step, string> {
+  const from = new Map<Step, string>()
+  if (run.status !== 'failed') return from
+  for (const job of run.jobs) for (const s of job.stages.flat()) if (s.status === 'failed' || s.status === 'succeeded') from.set(s, job.name)
+  return from
+}
 
 export function isLive(run: Run): boolean {
   return run.status === 'running' || run.status === 'pending' || run.jobs.some((j) => j.stages.flat().some((s) => s.status === 'resuming'))
@@ -147,12 +205,14 @@ function inputValues(value: unknown): Record<string, string> {
 
 const firstInput = (value: unknown): string | undefined => Object.values(inputValues(value))[0]
 
-const recentRun = (r: Json): RecentRun => {
+const recentRun = (r: Json, vitals?: ReadVitals): RecentRun => {
   const values = Object.values(inputValues(r.inputs))
+  const [runId, status] = [runIdOf(r.runId, 'history entry'), runStatus(r.status)]
   return {
+    ...(vitals && inFlight(status) && vitals(str(r.workflowId) ?? '', runId)),
     workflow: str(r.workflowName) ?? '?',
-    runId: runIdOf(r.runId, 'history entry'),
-    status: runStatus(r.status),
+    runId,
+    status,
     startedAt: time(r.startedAt) ?? '',
     input: values[0],
     inputs: values.slice(1).join(' ') || undefined,
@@ -163,12 +223,12 @@ const recentRun = (r: Json): RecentRun => {
 
 const newestFirst = (a: { startedAt: string }, b: { startedAt: string }) => b.startedAt.localeCompare(a.startedAt)
 
-/** Every run, newest first, at most RUNS_LIMIT. */
-export function parseRecent(history: unknown): RecentRun[] {
-  return plain(arr(obj(history, 'history').results, 'history.results').map((raw) => recentRun(obj(raw, 'history entry'))).sort(newestFirst).slice(0, RUNS_LIMIT))
+/** Every run, newest first, at most RUNS_LIMIT. A run in flight carries what `vitals` reads for it. */
+export function parseRecent(history: unknown, vitals?: ReadVitals): RecentRun[] {
+  return plain(arr(obj(history, 'history').results, 'history.results').map((raw) => recentRun(obj(raw, 'history entry'), vitals)).sort(newestFirst).slice(0, RUNS_LIMIT))
 }
 
-export function parseWorkflowList(search: unknown, history: unknown): WorkflowSummary[] {
+export function parseWorkflowList(search: unknown, history: unknown, vitals?: ReadVitals): WorkflowSummary[] {
   const byWorkflow = new Map<string, Json[]>()
   for (const raw of arr(obj(history, 'history').results, 'history.results')) {
     const r = obj(raw, 'history entry')
@@ -186,7 +246,7 @@ export function parseWorkflowList(search: unknown, history: unknown): WorkflowSu
         name,
         description: str(w.description) ?? '',
         steps: num(w.stepCount) ?? 0,
-        runs: runs.slice(0, HISTORY_LENGTH).map(recentRun),
+        runs: runs.slice(0, HISTORY_LENGTH).map((r) => recentRun(r, vitals)),
         latest: last && {
           runId: runIdOf(last.runId, 'history entry'),
           status: runStatus(last.status),
@@ -326,16 +386,21 @@ export function parseRun(def: unknown, run: unknown, gates: readonly Gate[] = []
   const id = runIdOf(r.id, 'run')
   const inputs = inputValues(r.inputs)
   const expired = new Set(gates.filter((g) => g.expired && g.runId === id).map((g) => g.step))
+  const rawJobs = arr(r.jobs, 'run.jobs').map((j) => obj(j, 'run job'))
+  // When a step or job last began or ended, which is all a remote repo tells of a run's activity.
+  const rawSteps = rawJobs.flatMap((j) => arr(j.steps, 'run job.steps').map((s) => obj(s, 'run step')))
+  const moved = [r, ...rawJobs, ...rawSteps].flatMap((x) => [time(x.startedAt), time(x.completedAt)])
+  const activeAt = inFlight(status) ? moved.filter(Boolean).sort().at(-1) : undefined
   return plain({
     id,
     workflow: str(r.workflowName) ?? '?',
     status,
+    activeAt,
     startedAt: time(r.startedAt),
     durationMs: num(r.duration),
     inputs,
     by: str(r.initiatedBy),
-    jobs: arr(r.jobs, 'run.jobs').map((raw) => {
-      const job = obj(raw, 'run job')
+    jobs: rawJobs.map((job) => {
       const name = str(job.name) ?? '?'
       const steps = jobs.get(name)?.steps ?? new Map<string, StepDef>()
       const parsed = arr(job.steps, 'run job.steps').map((rawStep) => {
@@ -347,6 +412,53 @@ export function parseRun(def: unknown, run: unknown, gates: readonly Gate[] = []
     })
   })
 }
+
+/** One input a workflow declares. `options` are the only values it takes: an enum's, or true and false. `default` is the text the form starts with. */
+export type InputField = { name: string; type: string; required: boolean; description?: string; default?: string; options?: string[] }
+
+const fieldText = (value: unknown): string | undefined =>
+  value === undefined || value === null || value === '' ? undefined : typeof value === 'string' ? value : JSON.stringify(value)
+
+/** The inputs of a workflow, from the JSON schema `swamp workflow get` prints, in the order declared. */
+export function parseInputs(def: unknown): InputField[] {
+  const schema = (obj(def, 'workflow').inputs ?? {}) as Json
+  const required = new Set(Array.isArray(schema.required) ? schema.required : [])
+  return plain(
+    Object.entries((schema.properties ?? {}) as Json).map(([name, raw]) => {
+      const p = (raw ?? {}) as Json
+      const type = str(p.type) ?? 'string'
+      const options = Array.isArray(p.enum) ? p.enum.map((v) => fieldText(v) ?? '') : type === 'boolean' ? ['true', 'false'] : undefined
+      return { name, type, required: required.has(name), description: text(p.description), default: fieldText(p.default), options }
+    })
+  )
+}
+
+/**
+ * The form's text for each input as the value swamp gets: the text itself for a string input, else what it reads as
+ * JSON (a number, true, a list), or the text when it is not JSON, which swamp then refuses by name. An empty field is
+ * left out, so swamp uses the input's default or says it is required. A name the workflow does not declare is refused.
+ */
+export function typedInputs(fields: readonly InputField[], values: Readonly<Record<string, string>>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [name, value] of Object.entries(values)) {
+    const field = fields.find((f) => f.name === name)
+    if (!field) throw new SwampFailure('swamp_error', `the workflow has no input '${name}'`)
+    if (value.trim() === '') continue
+    out[name] = field.type === 'string' ? value : jsonOr(value)
+  }
+  return out
+}
+
+function jsonOr(value: string): unknown {
+  try {
+    return JSON.parse(value)
+  } catch {
+    return value
+  }
+}
+
+/** The inputs a run was started with, as swamp recorded them, for a new run with the same ones. */
+export const rawInputs = (run: unknown): Record<string, unknown> => ({ ...((obj(run, 'run').inputs ?? {}) as Json) })
 
 export function parseDecision(raw: unknown): { allGatesDecided: boolean } {
   return { allGatesDecided: obj(raw, 'decision').allGatesDecided !== false }

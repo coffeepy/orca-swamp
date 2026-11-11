@@ -5,14 +5,20 @@ import {
   layerSteps,
   LOG_LIMIT_BYTES,
   parseApprovals,
+  parseInputs,
   parseLogs,
   parseRecent,
   RUNS_LIMIT,
   parseRun,
   parseWorkflowList,
+  retryFrom,
+  runActions,
   stepKind,
   SwampFailure,
-  type Run
+  typedInputs,
+  withVitals,
+  type Run,
+  type RunStatus
 } from './domain'
 import { runLook, stepTime } from './present'
 
@@ -271,4 +277,88 @@ test('a step is labelled by what runs it, and a step that names an existing beha
   assert.equal(stepKind({}), undefined)
   const run = parseRun(fx('issue-factory.def'), fx('issue-factory.run'))
   assert.ok(!('kind' in run.jobs[0].stages[0][0]))
+})
+
+test('each run status offers the actions swamp accepts for it', () => {
+  const run = parseRun(fx('breaks.def'), fx('breaks.run-failed'))
+  const offered = (status: RunStatus) => runActions({ ...run, status })
+  assert.deepEqual(
+    Object.fromEntries((['pending', 'running', 'suspended', 'succeeded', 'failed', 'cancelled', 'interrupted', 'unknown'] as const).map((s) => [s, offered(s)])),
+    {
+      pending: ['stop'],
+      running: ['stop'],
+      suspended: ['retry', 'stop'],
+      succeeded: ['again'],
+      failed: ['retry', 'again'],
+      cancelled: ['again'],
+      interrupted: ['recover', 'again'],
+      unknown: []
+    }
+  )
+})
+
+test('a suspended run is offered a resume only when no gate waits and none was just approved', () => {
+  const gates = parseApprovals(fx('gated.approvals'))
+  assert.deepEqual(runActions(parseRun(fx('gated.def'), fx('gated.run-suspended'), gates)), ['stop'], 'a waiting gate is decided, not resumed past')
+  assert.deepEqual(runActions(parseRun(fx('gated.def'), fx('gated.run-approved'), gates)), ['stop'], 'the approve already started resume')
+})
+
+test('a failed run can be retried from each step that ran, and from none that was skipped after the failure', () => {
+  const run = parseRun(fx('breaks.def'), fx('breaks.run-failed'))
+  assert.deepEqual([...retryFrom(run)].map(([s, job]) => `${job}/${s.name}: ${s.status}`), ['main/start: succeeded', 'main/left: succeeded', 'main/right: failed'])
+  assert.equal(retryFrom({ ...run, status: 'succeeded' }).size, 0, 'only a failed run retries from a step')
+})
+
+test('a workflow’s declared inputs become form fields with required marks, defaults and choices', () => {
+  assert.deepEqual(parseInputs(fx('issue-factory.def')).map((f) => [f.name, f.type, f.required, f.default]), [
+    ['issueId', 'string', true, 'ISSUE-101'],
+    ['mode', 'string', false, 'fast'],
+    ['risk', 'string', false, undefined]
+  ])
+  assert.deepEqual(parseInputs(fx('breaks.def')), [], 'a workflow with no inputs has no form')
+  const fields = parseInputs({ inputs: { required: ['env'], properties: { env: { type: 'string', enum: ['dev', 'prod'] }, replicas: { type: 'integer', default: 2 }, dry: { type: 'boolean' } } } })
+  assert.deepEqual(fields, [
+    { name: 'env', type: 'string', required: true, options: ['dev', 'prod'] },
+    { name: 'replicas', type: 'integer', required: false, default: '2' },
+    { name: 'dry', type: 'boolean', required: false, options: ['true', 'false'] }
+  ])
+})
+
+test('form text becomes the typed value swamp expects, and an input the workflow does not declare is refused', () => {
+  const fields = parseInputs({ inputs: { properties: { name: { type: 'string' }, replicas: { type: 'integer' }, dry: { type: 'boolean' }, tags: { type: 'array' } } } })
+  assert.deepEqual(typedInputs(fields, { name: '42', replicas: '3', dry: 'true', tags: '["a","b"]' }), { name: '42', replicas: 3, dry: true, tags: ['a', 'b'] })
+  assert.deepEqual(typedInputs(fields, { name: '  ', replicas: '' }), {}, 'an empty field is left to the default')
+  assert.deepEqual(typedInputs(fields, { replicas: 'three' }), { replicas: 'three' }, 'swamp names the input that is not a number')
+  assert.throws(() => typedInputs(fields, { '--repo-dir': '/x' }), /no input '--repo-dir'/)
+})
+
+test('a run in flight carries when a step last began or ended, and a finished run carries nothing', () => {
+  const raw = fx('issue-factory.run') as { status: string; jobs: { steps: { startedAt?: string; completedAt?: string }[] }[] }
+  const times = raw.jobs.flatMap((j) => j.steps.flatMap((s) => [s.startedAt, s.completedAt])).filter(Boolean).sort()
+  const run = parseRun(fx('issue-factory.def'), { ...raw, status: 'running' })
+  assert.ok(run.activeAt! >= new Date(times.at(-1)!).toISOString())
+  assert.ok(run.activeAt! > run.startedAt!)
+  assert.ok(!('activeAt' in parseRun(fx('issue-factory.def'), fx('issue-factory.run'))))
+})
+
+test('the list reads vitals for the runs in flight only, by workflow id and run id', () => {
+  const entry = (runId: string, status: string) => ({ runId, workflowId: 'wf-1', workflowName: 'build', status, startedAt: '2026-11-11T10:00:00.000Z' })
+  const history = { results: [entry('a', 'running'), entry('b', 'succeeded'), entry('c', 'pending'), entry('d', 'suspended')] }
+  const asked: string[] = []
+  const runs = parseRecent(history, (workflowId, runId) => {
+    asked.push(`${workflowId}/${runId}`)
+    return runId === 'a' ? { activeAt: '2026-11-11T10:05:00.000Z', gone: true } : {}
+  })
+  assert.deepEqual(asked.sort(), ['wf-1/a', 'wf-1/c'])
+  assert.deepEqual(runs.find((r) => r.runId === 'a'), { workflow: 'build', runId: 'a', status: 'running', startedAt: '2026-11-11T10:00:00.000Z', activeAt: '2026-11-11T10:05:00.000Z', gone: true })
+  assert.ok(!('activeAt' in runs.find((r) => r.runId === 'b')!))
+  assert.ok(parseRecent(history).every((r) => !('gone' in r)))
+})
+
+test('a run keeps the later of its last step time and its files\u2019 last change', () => {
+  const run = { activeAt: '2026-11-11T10:05:00.000Z' }
+  assert.deepEqual(withVitals(run, { activeAt: '2026-11-11T10:09:00.000Z', gone: true }), { activeAt: '2026-11-11T10:09:00.000Z', gone: true })
+  assert.deepEqual(withVitals(run, { activeAt: '2026-11-11T10:01:00.000Z' }), run)
+  assert.deepEqual(withVitals(run, {}), run)
+  assert.deepEqual(withVitals({}, {}), {})
 })

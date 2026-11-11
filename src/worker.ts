@@ -5,18 +5,25 @@ import type { OrcaWorkerApi } from 'orca/worker'
 import {
   parseApprovals,
   parseDecision,
+  parseInputs,
   parseLogs,
   parseRecent,
   parseRun,
   parseWorkflowList,
+  rawInputs,
   repoKey,
   SwampFailure,
+  inFlight,
+  typedInputs,
+  withVitals,
+  type ReadVitals,
   type Repo,
   type RepoDir,
   type Run,
   type RunId
 } from './domain'
 import { inboxRepos, readInbox } from './inbox'
+import { LOG, readChunk, type LogAsk } from './log'
 import { failurePrompt, firstFailed } from './present'
 import type { AgentTerminal } from './protocol'
 import { focusPinKey, parsePins, parseWorkspaces, remembered, rememberedLookups, resolveRepo, type Pins } from './repo'
@@ -33,7 +40,7 @@ import {
   safeName,
   STUDIO_TYPE
 } from './stagecraft'
-import { copyToClipboard, startResume, startStudio, stopStudios, swamp } from './swamp'
+import { copyToClipboard, logReader, runFile, runVitals, startBackground, startStudio, stopStudios, swamp, type Background } from './swamp'
 import { parseThemeId, type ThemeId } from './theme'
 
 // A failed run is not kept: `swamp workflow resume --run <id> --from <step>` retries it under the same id.
@@ -103,6 +110,70 @@ function noteOf(value: unknown): string | undefined {
   return note || undefined
 }
 
+/** The form's values: one text per input name. The names are checked against the workflow's own inputs before use. */
+function textsOf(value: unknown): Record<string, string> {
+  const texts = value === undefined ? {} : value
+  if (typeof texts !== 'object' || texts === null || Array.isArray(texts)) return refuse('the inputs are not a set of named values')
+  for (const [name, text] of Object.entries(texts)) {
+    if (typeof text !== 'string') refuse(`the input '${name}' is not text`)
+    if (text.length > NOTE_LIMIT) refuse(`the input '${name}' is ${text.length} characters; keep it under ${NOTE_LIMIT}`)
+  }
+  return texts as Record<string, string>
+}
+
+/** An input's name is the start of one `name:json=value` argument, so it may not hold the characters that end the name. */
+function inputNames(inputs: Record<string, unknown>): Record<string, unknown> {
+  for (const name of Object.keys(inputs)) if (!/^[\w.-]+$/.test(name)) refuse(`the input name '${name}' has a character swamp's --input cannot carry`)
+  return inputs
+}
+
+/** A byte offset into a run's log. */
+function offsetOf(value: unknown, what: string): number {
+  return Number.isSafeInteger(value) && (value as number) >= 0 ? (value as number) : refuse(`${what} '${String(value)}' is not a byte offset`)
+}
+
+function logAskOf(after: unknown, before: unknown): LogAsk {
+  if (after !== undefined && before !== undefined) refuse('a log read is after an offset or before one, not both')
+  return after !== undefined ? { after: offsetOf(after, 'after') } : before !== undefined ? { before: offsetOf(before, 'before') } : {}
+}
+
+function logLimitOf(value: unknown, ask: LogAsk): number {
+  if (value === undefined) return 'after' in ask ? LOG.chunkBytes : LOG.firstBytes
+  if (typeof value !== 'number' || Number.isNaN(value)) refuse('the log limit is not a number of bytes')
+  return Math.min(LOG.maxBytes, Math.max(LOG.minBytes, Math.floor(value as number)))
+}
+
+// The workflow id of each run read in this worker's life: with the run's id it names the run's files.
+const workflowIds = new Map<string, string>()
+
+const START_WAIT_MS = 10_000
+const START_POLL_MS = 500
+
+/**
+ * Starts `run` or `resume` in the background, then asks `shows` twice a second until it answers what the start was
+ * for, swamp ends, or 10 s pass. `shows` hears whether swamp has ended. What swamp says when it refuses is thrown; a
+ * swamp that ends with an error and no words has run the workflow to a failed end, which the run itself shows.
+ */
+async function started<T>(repo: Repo, command: Background, shows: (ended: boolean) => Promise<T | undefined>): Promise<T | undefined> {
+  let exit: { error?: SwampFailure } | undefined
+  startBackground(repo, command, (error) => (exit = { error }))
+  for (let waited = 0; waited < START_WAIT_MS; waited += START_POLL_MS) {
+    await new Promise((r) => setTimeout(r, START_POLL_MS))
+    const ended = exit as { error?: SwampFailure } | undefined
+    if (ended?.error && !ended.error.silent) throw ended.error
+    const shown = await shows(!!ended).catch(() => undefined)
+    if (shown !== undefined || ended) return shown
+  }
+  return undefined
+}
+
+const latestRunId = (repo: Repo, workflow: string): Promise<string | undefined> =>
+  swamp(repo, { cmd: 'history.get', workflow }).then(
+    (raw) => String((raw as { id?: unknown } | null)?.id ?? '') || undefined,
+    // A workflow that never ran has no latest run, which swamp reports as an error.
+    () => undefined
+  )
+
 async function getRun(repo: Repo, workflow: string, runId?: RunId): Promise<Run> {
   const key = `${repoKey(repo)}\0${runId}`
   const cached = runId && finishedRuns.get(key)
@@ -113,7 +184,12 @@ async function getRun(repo: Repo, workflow: string, runId?: RunId): Promise<Run>
   ])
   const suspended = (raw as { status?: unknown }).status === 'suspended'
   const gates = suspended ? parseApprovals(await swamp(repo, { cmd: 'approvals' })) : []
-  const run = sameWorkflow(parseRun(def, raw, gates), workflow)
+  const parsed = sameWorkflow(parseRun(def, raw, gates), workflow)
+  const workflowId = (raw as { workflowId?: unknown }).workflowId
+  if (typeof workflowId === 'string') workflowIds.set(`${repoKey(repo)}\0${parsed.id}`, workflowId)
+  // Read for a run in flight on this machine; a remote repo's run keeps the step times alone.
+  const file = (raw as { path?: unknown }).path
+  const run = repo.kind === 'local' && inFlight(parsed.status) && typeof file === 'string' ? withVitals(parsed, runVitals(file)) : parsed
   if (run.status === 'succeeded' || run.status === 'cancelled') finishedRuns.set(`${repoKey(repo)}\0${run.id}`, run)
   const failedResume = resumeFailures.get(`${repoKey(repo)}\0${run.id}`)
   return failedResume ? withFailedResume(run, failedResume) : run
@@ -233,10 +309,12 @@ export default function activate(orca: OrcaWorkerApi): void {
       swamp(repo, { cmd: 'approvals' }),
       version.catch(() => '')
     ])
+    // Files of the runs in flight, read from this machine's disk: no swamp call, and none at all for a remote repo.
+    const vitals: ReadVitals | undefined = repo.kind === 'local' ? (workflowId, runId) => runVitals(runFile(repo.dir, workflowId, runId)) : undefined
     return {
-      workflows: parseWorkflowList(search, history),
+      workflows: parseWorkflowList(search, history, vitals),
       gates: parseApprovals(approvals),
-      runs: parseRecent(history),
+      runs: parseRecent(history, vitals),
       version: v
     }
   })
@@ -251,6 +329,19 @@ export default function activate(orca: OrcaWorkerApi): void {
     return parseLogs(await swamp(repo, { cmd: 'history.logs', runId }), logTag)
   })
 
+  orca.panels.handle('log.tail', async (input) => {
+    const [repo, runId] = [repoOf(input?.repo), word<RunId>(input.runId, 'run id')]
+    if (!/^[\w-]{1,64}$/.test(runId)) refuse(`'${runId}' is not a run id`)
+    const ask = logAskOf(input.after, input.before)
+    const limit = logLimitOf(input.limit, ask)
+    const key = `${repoKey(repo)}\0${runId}`
+    const workflowId = workflowIds.get(key) ?? String(((await swamp(repo, { cmd: 'history.get', workflow: runId, runId })) as { workflowId?: unknown } | null)?.workflowId ?? '')
+    // The path is built from the two ids, which `runFile` checks; the panel never names a file.
+    const record = runFile(repo.dir, workflowId, runId) || refuse(`swamp named no workflow for run ${runId}`)
+    workflowIds.set(key, workflowId)
+    return readChunk(logReader(repo, record), ask, limit)
+  })
+
   orca.panels.handle('gate.decide', async (input) => {
     const repo = repoOf(input?.repo)
     const [workflow, runId, step] = [word(input.workflow, 'workflow'), word<RunId>(input.runId, 'run id'), word(input.step, 'step')]
@@ -259,12 +350,58 @@ export default function activate(orca: OrcaWorkerApi): void {
     if (decision === 'approve' && parseDecision(answer).allGatesDecided) {
       const key = `${repoKey(repo)}\0${runId}`
       resumeFailures.delete(key)
-      startResume(repo, workflow, runId, (e) => {
+      startBackground(repo, { cmd: 'resume', workflow, runId }, (e) => {
+        if (!e) return
         orca.log(`swamp resume ${runId} failed: ${e.message}`)
         resumeFailures.set(key, `Approved, but \`swamp workflow resume ${workflow} --run ${runId}\` failed: ${e.message}. Run it in a terminal to try again.`)
       })
     }
     return getRun(repo, workflow, runId)
+  })
+
+  orca.panels.handle('workflow.inputs', async (input) =>
+    parseInputs(await swamp(repoOf(input?.repo), { cmd: 'workflow.get', workflow: word(input.workflow, 'workflow') }))
+  )
+
+  orca.panels.handle('run.start', async (input) => {
+    const [repo, workflow] = [repoOf(input?.repo), word(input.workflow, 'workflow')]
+    const again = input.again === undefined ? undefined : word<RunId>(input.again, 'run id')
+    const texts = textsOf(input.inputs)
+    const [inputs, before] = await Promise.all([
+      again
+        ? swamp(repo, { cmd: 'history.get', workflow, runId: again }).then((raw) => {
+            // swamp finds a run by its id alone, and another workflow's inputs are not this one's.
+            const of = (raw as { workflowName?: unknown } | null)?.workflowName
+            return of === workflow ? rawInputs(raw) : refuse(`run ${again} belongs to workflow ${String(of)}, not ${workflow}`)
+          })
+        : swamp(repo, { cmd: 'workflow.get', workflow }).then((def) => typedInputs(parseInputs(def), texts)),
+      latestRunId(repo, workflow)
+    ])
+    const runId = await started(repo, { cmd: 'run', workflow, inputs: inputNames(inputs) }, async () => {
+      const latest = await latestRunId(repo, workflow)
+      return latest !== before ? (latest as RunId) : undefined
+    })
+    return runId ? { runId } : {}
+  })
+
+  orca.panels.handle('run.act', async (input) => {
+    const [repo, workflow, runId] = [repoOf(input?.repo), word(input.workflow, 'workflow'), word<RunId>(input.runId, 'run id')]
+    const action = oneOf(input.action, ['stop', 'retry', 'recover'] as const, 'action')
+    const from = input.from === undefined ? undefined : { job: word(input.from?.job, 'job'), step: word(input.from?.step, 'step') }
+    if (from && action !== 'retry') refuse(`only a retry starts from a step, not ${action}`)
+    if (action === 'stop') {
+      await swamp(repo, { cmd: 'cancel', workflow, runId })
+      return getRun(repo, workflow, runId)
+    }
+    if (action === 'recover') await swamp(repo, { cmd: 'recover', workflow, runId })
+    resumeFailures.delete(`${repoKey(repo)}\0${runId}`)
+    // Until resume takes the run, it reads as it does now: failed, or suspended after a recover.
+    const before = (await getRun(repo, workflow, runId)).status
+    const moved = await started(repo, { cmd: 'resume', workflow, runId, from }, async (ended) => {
+      const run = await getRun(repo, workflow, runId)
+      return ended || run.status !== before ? run : undefined
+    })
+    return moved ?? getRun(repo, workflow, runId)
   })
 
   orca.panels.handle('agent.terminal', () => agentTerminal(orca))

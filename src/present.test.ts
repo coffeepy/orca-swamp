@@ -3,7 +3,7 @@ import { assert, test } from 'orca/testing'
 import { parseApprovals, parseRun } from './domain'
 import type { RecentRun, Repo, RepoDir, RunId, RunStatus, SshHost } from './domain'
 import type { InboxItem } from './inbox'
-import { inboxGroups, inboxId, inboxPlace, ago, approveCommand, duration, failurePrompt, firstFailed, groupWorkflows, logLine, originOf, parent, parsePlace, placeIn, resolutionIn, withPlace, ALL_RUNS, parseRunsView, runGroups, runsShown, runsViewIn, workflowsShown, type RunsView, withResolution, type Place, workspaceKey, payloadBlocks, remoteOff, retryCommand, runPill, shortName } from './present'
+import { ACTION_LOOK, actionCommand, actionLabel, inboxGroups, inboxId, inboxPlace, ago, approveCommand, duration, failurePrompt, firstFailed, groupWorkflows, logLine, originOf, parent, parsePlace, placeIn, resolutionIn, withPlace, ALL_RUNS, parseRunsView, runGroups, runsShown, runsViewIn, workflowsShown, type RunsView, withResolution, type Place, workspaceKey, payloadBlocks, remoteOff, retryCommand, runPill, shortName } from './present'
 
 const fx = (name: string): unknown => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'))
 
@@ -322,4 +322,15 @@ test('each repo keeps how its runs were narrowed, and anything malformed reads a
   assert.deepEqual(runsViewIn(saved, '/never-seen'), ALL_RUNS)
   assert.deepEqual(runsViewIn([{ repo: '/a', place: {}, runs: { status: 'toString', when: 7, sort: 'name' } }], '/a'), { status: 'all', when: 'all', sort: 'name' })
   assert.deepEqual(parseRunsView(null), ALL_RUNS)
+})
+
+test('run controls read by status, ask before they stop or recover, and name the swamp command they run', () => {
+  const run = parseRun(fx('breaks.def'), fx('breaks.run-failed'))
+  assert.equal(actionLabel('retry', 'failed'), 'Retry failed steps')
+  assert.equal(actionLabel('retry', 'suspended'), 'Resume')
+  assert.equal(actionLabel('stop', 'pending'), 'Stop')
+  assert.deepEqual(Object.entries(ACTION_LOOK).filter(([, look]) => look.confirm).map(([a]) => a), ['stop', 'recover'])
+  assert.equal(actionCommand('stop', run), `swamp workflow cancel breaks --run ${run.id}`)
+  assert.equal(actionCommand('retry', run), `swamp workflow resume breaks --run ${run.id}`)
+  assert.ok(actionCommand('recover', run).startsWith(`swamp workflow recover breaks --run ${run.id} --acknowledge-unknown`))
 })
