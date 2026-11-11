@@ -7,7 +7,7 @@ import { isLive } from './domain'
 
 // Stand-ins on PATH for the orca CLI and ssh: orca answers captured JSON with its /home/dev paths moved under
 // a temp folder, and ssh runs the remote command string in a local sh, as the remote login shell would.
-const fake = mkdtempSync(join(tmpdir(), 'orca-swamp-fake-'))
+const fake = mkdtempSync(join(tmpdir(), 'swampling-fake-'))
 const fixture = (name: string) => new URL(`./fixtures/${name}.json`, import.meta.url).pathname
 function script(name: string, body: string): string {
   const path = join(fake, 'bin', name)
@@ -52,7 +52,7 @@ process.stderr.write(a.stderr ?? '')
 process.stdout.write(a.stdout ?? '', () => setTimeout(() => process.exit(a.exit ?? 0), a.delay ?? 0))
 `
 )
-process.env.ORCA_SWAMP_BIN = script('swamp', `ELECTRON_RUN_AS_NODE=1 exec ${JSON.stringify(process.execPath)} '${join(fake, 'swamp.cjs')}' "$@"`)
+process.env.SWAMPLING_BIN = script('swamp', `ELECTRON_RUN_AS_NODE=1 exec ${JSON.stringify(process.execPath)} '${join(fake, 'swamp.cjs')}' "$@"`)
 const main = await import('./worker')
 
 type Answer = string | { stdout?: string; stderr?: string; exit?: number; delay?: number }
@@ -75,7 +75,7 @@ function localRepo(answers: Record<string, Answer | Answer[]>) {
 const read = (name: string) => readFileSync(fixture(name), 'utf8')
 
 function folder(...repos: string[]): string {
-  const root = mkdtempSync(join(tmpdir(), 'orca-swamp-'))
+  const root = mkdtempSync(join(tmpdir(), 'swampling-'))
   for (const r of repos) {
     mkdirSync(join(root, r), { recursive: true })
     writeFileSync(join(root, r, '.swamp.yaml'), 'swampVersion: test\n')
@@ -115,7 +115,7 @@ test('a pin wins over the focused workspace and survives the next resolve', asyn
   const open = await worker.request('repo.resolve', {})
   assert.equal(open.repo, null)
   assert.ok(open.candidates.some((c) => c.repo.dir === other), 'a repo another workspace sits in is offered')
-  process.env.ORCA_SWAMP_PINS = join(folder(), 'pins.json')
+  process.env.SWAMPLING_PINS = join(folder(), 'pins.json')
   const pinned = await worker.request('repo.pin', { repo: { kind: 'local', dir: other } as never })
   assert.deepEqual(pinned.repo, { kind: 'local', dir: other })
   assert.deepEqual((await worker.request('repo.resolve', {})).repo, { kind: 'local', dir: other }, 'the pin survives the next resolve')
@@ -123,7 +123,7 @@ test('a pin wins over the focused workspace and survives the next resolve', asyn
 
 test('the chosen theme survives a worker restart, and a damaged settings file falls back to Orca', async () => {
   const dir = folder()
-  process.env.ORCA_SWAMP_PINS = join(dir, 'pins.json')
+  process.env.SWAMPLING_PINS = join(dir, 'pins.json')
   const first = await mountWorker(main, { host: host(dir) })
   assert.deepEqual(await first.request('theme.get', {}), { theme: 'orca' })
   await first.request('theme.set', { theme: 'peat' })
@@ -151,7 +151,7 @@ test('a focused workspace Orca does not list is reported, not silently empty', a
 })
 
 test('with the focus on a remote Orca server, its repos are offered, a pick is remembered, and workflows are read there over ssh', async () => {
-  const repo = join(fake, 'home/orca-swamp-playground')
+  const repo = join(fake, 'home/swampling-playground')
   mkdirSync(join(fake, 'home/.local/bin'), { recursive: true })
   mkdirSync(repo, { recursive: true })
   writeFileSync(join(repo, '.swamp.yaml'), 'swampVersion: test\n')
@@ -177,7 +177,7 @@ test('with the focus on a remote Orca server, its repos are offered, a pick is r
       }
     })
   })
-  process.env.ORCA_SWAMP_PINS = join(fake, 'pins.json')
+  process.env.SWAMPLING_PINS = join(fake, 'pins.json')
   const offered = await worker.request('repo.resolve', {})
   const playground = { kind: 'ssh', host: 'jarvis', dir: repo }
   assert.equal(offered.repo, null, 'Orca names no workspace, so nothing is chosen for the person')
@@ -186,7 +186,7 @@ test('with the focus on a remote Orca server, its repos are offered, a pick is r
   assert.ok(offered.candidates.every((c) => c.repo.kind === 'ssh'), 'a workspace on a remote host is not offered the repos of this Mac')
   assert.ok(offered.candidates.every((c) => c.repo.kind === 'ssh'), 'a remote focus is offered only remote repos')
   const mac = folder('.')
-  writeFileSync(process.env.ORCA_SWAMP_PINS, JSON.stringify({ '@remote-or-none': { kind: 'local', dir: mac } }))
+  writeFileSync(process.env.SWAMPLING_PINS, JSON.stringify({ '@remote-or-none': { kind: 'local', dir: mac } }))
   assert.equal((await worker.request('repo.resolve', {})).repo, null, 'a local repo pinned during a remote focus does not stick to remote workspaces')
   await worker.request('repo.pin', { repo: playground as never })
   const answer = await worker.request('repo.resolve', {})
@@ -200,10 +200,10 @@ test('with the focus on a remote Orca server, its repos are offered, a pick is r
 
 test('a workspace Orca names but does not list gets the remote repos: its own by name and branch, or a pick that is remembered', async () => {
   // The test before left a swamp repo and a swamp stand-in under the fake remote home.
-  const playground = { kind: 'ssh', host: 'jarvis', dir: join(fake, 'home/orca-swamp-playground') }
+  const playground = { kind: 'ssh', host: 'jarvis', dir: join(fake, 'home/swampling-playground') }
   const unlisted = (displayName: string, branch: string) =>
     mountWorker(main, { host: mockHost({ results: { 'workspace.readContext': { displayName, branch, terminals: [] }, 'workspace.list': { truncated: false, workspaces: [] } } }) })
-  process.env.ORCA_SWAMP_PINS = join(fake, 'pins-unlisted.json')
+  process.env.SWAMPLING_PINS = join(fake, 'pins-unlisted.json')
   const own = await (await unlisted('master', 'master')).request('repo.resolve', {})
   assert.deepEqual(own.repo, playground, 'the one remote workspace of this name and branch sits in this repo')
   assert.deepEqual(own.workspace, { name: 'master', listed: false })
@@ -214,7 +214,7 @@ test('a workspace Orca names but does not list gets the remote repos: its own by
   assert.deepEqual(offered.candidates.find((c) => c.repo.kind === 'ssh')?.repo, playground)
   assert.ok(offered.candidates.every((c) => c.repo.kind === 'ssh'), 'a workspace on a remote host is not offered the repos of this Mac')
   assert.deepEqual((await worker.request('repo.pin', { repo: playground as never })).repo, playground)
-  assert.deepEqual(JSON.parse(readFileSync(process.env.ORCA_SWAMP_PINS, 'utf8')), { elsewhere: playground }, 'the pick is saved for this workspace only')
+  assert.deepEqual(JSON.parse(readFileSync(process.env.SWAMPLING_PINS, 'utf8')), { elsewhere: playground }, 'the pick is saved for this workspace only')
   assert.deepEqual((await worker.request('repo.resolve', {})).repo, playground, 'the pick holds for the next resolve')
   const asked = readFileSync(join(fake, 'ssh.log'), 'utf8')
   const dir = folder('.')
@@ -309,7 +309,7 @@ test('malformed panel input gets a clear failure instead of a crash or a silentl
 })
 
 test('a theme that does not exist is refused and the saved theme stays', async () => {
-  process.env.ORCA_SWAMP_PINS = join(folder(), 'pins.json')
+  process.env.SWAMPLING_PINS = join(folder(), 'pins.json')
   const worker = await mountWorker(main, { host: host(folder()) })
   await worker.request('theme.set', { theme: 'peat' })
   await assert.rejects(worker.request('theme.set', { theme: 'neon' as never }), /neon/)
@@ -482,7 +482,7 @@ test('among six workspaces named main, the focused one is found by its terminal 
 })
 
 test('a repo picked in one workspace named main is not chosen in another workspace named main', async () => {
-  process.env.ORCA_SWAMP_PINS = join(folder(), 'pins.json')
+  process.env.SWAMPLING_PINS = join(folder(), 'pins.json')
   const ops = folder('.')
   const { focus } = mains()
   const extra = [{ id: 'ops', kind: 'folder', name: 'ops', path: ops, branch: null, hostId: null }]
@@ -491,11 +491,11 @@ test('a repo picked in one workspace named main is not chosen in another workspa
   assert.deepEqual((await first.request('repo.resolve', {})).repo, { kind: 'local', dir: ops }, 'the pick holds where it was made')
   const other = await mountWorker(main, { host: focus(4, extra) })
   assert.equal((await other.request('repo.resolve', {})).repo, null, 'another main workspace is not given that pick')
-  assert.deepEqual(Object.keys(JSON.parse(readFileSync(process.env.ORCA_SWAMP_PINS, 'utf8'))), ['m1'], 'saved under that workspace’s id')
+  assert.deepEqual(Object.keys(JSON.parse(readFileSync(process.env.SWAMPLING_PINS, 'utf8'))), ['m1'], 'saved under that workspace’s id')
 })
 
 test('a repo picked in one of two workspaces that share a folder is not chosen in the other', async () => {
-  process.env.ORCA_SWAMP_PINS = join(folder(), 'pins.json')
+  process.env.SWAMPLING_PINS = join(folder(), 'pins.json')
   const home = folder('a', 'b')
   const ws = (id: string, name: string) => ({ id, kind: 'folder', name, path: home, branch: null, hostId: null })
   for (const id of ['snapper', 'grayling']) {
@@ -517,9 +517,9 @@ test('a repo picked in one of two workspaces that share a folder is not chosen i
 })
 
 test('a pin saved under a workspace name before is still read while that name is unique, and ignored once it is not', async () => {
-  process.env.ORCA_SWAMP_PINS = join(folder(), 'pins.json')
+  process.env.SWAMPLING_PINS = join(folder(), 'pins.json')
   const ops = folder('.')
-  writeFileSync(process.env.ORCA_SWAMP_PINS, JSON.stringify({ main: ops, demo: ops }))
+  writeFileSync(process.env.SWAMPLING_PINS, JSON.stringify({ main: ops, demo: ops }))
   const unique = await mountWorker(main, { host: host(folder()) })
   assert.deepEqual((await unique.request('repo.resolve', {})).repo, { kind: 'local', dir: ops })
   const { focus } = mains()
@@ -528,7 +528,7 @@ test('a pin saved under a workspace name before is still read while that name is
 })
 
 test('with several workspaces named main and no terminal to tell them apart, nothing is chosen and the panel is told why', async () => {
-  process.env.ORCA_SWAMP_PINS = join(folder(), 'pins.json')
+  process.env.SWAMPLING_PINS = join(folder(), 'pins.json')
   const { dirs, focus } = mains()
   for (const d of dirs) writeFileSync(join(d, '.swamp.yaml'), 'swampVersion: test\n')
   const worker = await mountWorker(main, { host: focus(null) })

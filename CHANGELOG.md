@@ -3,7 +3,7 @@
 ## Unreleased
 
 - A change of workspace shows what that workspace showed last at once and refreshes behind it; the Refresh icon turns while it does.
-- The plugin will be renamed from "Swamp" (`orca-swamp`) to "Swampling" (`swampling`), because Orca reserves ids that start with `orca-`.
+- The plugin is renamed from "Swamp" (`orca-swamp`) to "Swampling" (`swampling`), because Orca reserves ids that start with `orca-`. Its settings folder is now `~/.config/swampling/`; move `~/.config/orca-swamp/` there to keep your picks and theme.
 - Workflows tab: the repo's own workflows first, then one group per extension.
 - Workflows tab: a workflow's recent runs under its latest run.
 - The "Factories" tab becomes "StageCraft": a searchable factory list, a grid of tickets by stage, status filters and recent runs.

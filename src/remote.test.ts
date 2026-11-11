@@ -32,7 +32,7 @@ test("a server's workspaces carry their name, branch and path on that server", (
 // bash and zsh for hosts whose sh is one of them, against a stand-in swamp that prints what it received,
 // shows each argument arrives whole.
 function fakeHome(): string {
-  const home = mkdtempSync(join(tmpdir(), 'orca-swamp-home-'))
+  const home = mkdtempSync(join(tmpdir(), 'swampling-home-'))
   mkdirSync(join(home, '.local/bin'), { recursive: true })
   const swamp = join(home, '.local/bin/swamp')
   writeFileSync(swamp, `#!/bin/sh\nELECTRON_RUN_AS_NODE=1 exec ${JSON.stringify(process.execPath)} -e 'console.log(JSON.stringify({cwd: process.cwd(), args: process.argv.slice(1)}))' -- "$@"\n`)
@@ -40,7 +40,7 @@ function fakeHome(): string {
   return home
 }
 
-const NASTY = [`it's "fine"`, '$(touch /tmp/orca-swamp-pwned)', '`id`', 'two\nlines', '; rm -rf ~', '$HOME', '*', '-n', '\\', '']
+const NASTY = [`it's "fine"`, '$(touch /tmp/swampling-pwned)', '`id`', 'two\nlines', '; rm -rf ~', '$HOME', '*', '-n', '\\', '']
 
 for (const shell of ['sh', 'bash', 'zsh']) {
   test(`every swamp argument reaches the remote swamp unchanged through ${shell}`, () => {
@@ -55,7 +55,7 @@ for (const shell of ['sh', 'bash', 'zsh']) {
 }
 
 test('a host without swamp says so with exit 127, which the panel reports as swamp missing there', () => {
-  const home = mkdtempSync(join(tmpdir(), 'orca-swamp-empty-'))
+  const home = mkdtempSync(join(tmpdir(), 'swampling-empty-'))
   let failure: { status?: number; stderr?: string } = {}
   try {
     execFileSync('sh', ['-c', remoteCommand(home, ['version'])], { env: { PATH: '/usr/bin:/bin', HOME: home, SHELL: '/bin/sh' }, encoding: 'utf8', stdio: 'pipe' })
@@ -63,12 +63,12 @@ test('a host without swamp says so with exit 127, which the panel reports as swa
     failure = e as typeof failure
   }
   assert.equal(failure.status, 127)
-  assert.ok(String(failure.stderr).includes('orca-swamp: swamp is not installed'))
+  assert.ok(String(failure.stderr).includes('swampling: swamp is not installed'))
 })
 
 test('the probe names the repo at or above the folder, then the registry', () => {
   const home = fakeHome()
-  const repo = mkdtempSync(join(tmpdir(), 'orca-swamp-probe-'))
+  const repo = mkdtempSync(join(tmpdir(), 'swampling-probe-'))
   writeFileSync(join(repo, '.swamp.yaml'), 'swampVersion: test\n')
   mkdirSync(join(repo, 'a/b'), { recursive: true })
   const out = execFileSync('sh', ['-c', remoteCommand(join(repo, 'a/b'), [], 'probe')], { env: { ...process.env, HOME: home }, encoding: 'utf8' })
@@ -78,7 +78,7 @@ test('the probe names the repo at or above the folder, then the registry', () =>
 })
 
 test('a resume that fails on the host within its first seconds exits with its error, and one still running exits 0', () => {
-  const home = mkdtempSync(join(tmpdir(), 'orca-swamp-resume-'))
+  const home = mkdtempSync(join(tmpdir(), 'swampling-resume-'))
   mkdirSync(join(home, '.local/bin'), { recursive: true })
   const swamp = join(home, '.local/bin/swamp')
   const run = () => {

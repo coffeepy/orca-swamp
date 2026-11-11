@@ -99,12 +99,12 @@ const repoData = new Map<string, RepoData>()
 
 // Each repo keeps the place the person was last at, so coming back to a repo opens there. The places live in
 // localStorage, because the frame can reload when Orca remounts the panel.
-const PLACE_KEY = 'orca-swamp.place'
+const PLACE_KEY = 'swampling.place'
 let places: Places = []
 /** The repo `state.place` is a place in, and whose data `state` holds. */
 let placeOf: string | undefined
 // The repo each workspace resolved to last, shown at once on a switch back while the worker is asked again.
-const RESOLUTIONS_KEY = 'orca-swamp.resolutions'
+const RESOLUTIONS_KEY = 'swampling.resolutions'
 let resolutions: Resolutions = []
 function restorePlace(): void {
   try {
@@ -130,7 +130,7 @@ const placeAttr = (place: Place): string => `data-place="${esc(JSON.stringify(pl
 const goTo = (place: Place): string => `data-action="go" ${placeAttr(place)}`
 
 // The worker's settings file is the record; this copy only paints the saved theme before the worker answers.
-const THEME_KEY = 'orca-swamp.theme'
+const THEME_KEY = 'swampling.theme'
 function applyTheme(id: ThemeId): void {
   state.theme = id
   if (id === 'orca') delete document.documentElement.dataset.theme

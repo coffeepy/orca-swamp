@@ -52,7 +52,7 @@
         "linkedItems": []
       },
       {
-        "id": "70df28cd-8346-4108-a33a-dd80db2a9756::/home/dev/orca-swamp-playground",
+        "id": "70df28cd-8346-4108-a33a-dd80db2a9756::/home/dev/swampling-playground",
         "identity": {
           "key": "wt2:local:4c3c6be0-4fa7-4d12-bc84-b56985b6e509",
           "executionHostId": "local",
@@ -61,7 +61,7 @@
         "instanceId": "4c3c6be0-4fa7-4d12-bc84-b56985b6e509",
         "repoId": "70df28cd-8346-4108-a33a-dd80db2a9756",
         "hostId": "local",
-        "path": "/home/dev/orca-swamp-playground",
+        "path": "/home/dev/swampling-playground",
         "head": "12f2e17bd5d3d2de7eece5a8eedb47fe23de35bc",
         "branch": "refs/heads/master",
         "isBare": false,
@@ -91,7 +91,7 @@
         "childWorktreeIds": [],
         "lineage": null,
         "git": {
-          "path": "/home/dev/orca-swamp-playground",
+          "path": "/home/dev/swampling-playground",
           "head": "12f2e17bd5d3d2de7eece5a8eedb47fe23de35bc",
           "branch": "refs/heads/master",
           "isBare": false,
