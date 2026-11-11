@@ -48,6 +48,8 @@ orca plugin install coffeepy/swampling
 
 Orca shows the access the plugin asks for (below) and the command to approve it. Then open the panel from Orca's right sidebar.
 
+Orca installs the newest released version. To get a later version, run `orca plugin update coffeepy.swampling`. To install one version, add it to the name, such as `coffeepy/swampling@v0.2.0`. The versions are on the [releases page](https://github.com/coffeepy/swampling/releases).
+
 ## Access it asks for
 
 The plugin runs code, so Orca asks you to approve it before it installs.

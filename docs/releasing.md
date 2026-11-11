@@ -1,11 +1,12 @@
 # Releasing
 
-Orca installs the newest `vX.Y.Z` tag of this repository, so a tag is a release.
+Each new `version` in `orca-plugin.json` that reaches `main` becomes a release. Orca installs the newest `vX.Y.Z` tag of this repository, so each release is a version that people can install.
 
 1. Set `version` in `orca-plugin.json`.
 2. In `CHANGELOG.md`, rename `## Unreleased` to `## X.Y.Z` and add an empty `## Unreleased` above it.
-3. Commit and merge to `main`.
-4. Run `scripts/release.sh` on a machine with Orca. It checks the version, runs `orca plugin validate` and the tests, then makes the tag.
-5. Run `git push origin vX.Y.Z`. The Release workflow checks the tag and publishes a GitHub release with the changelog section as its notes.
+3. Run `orca plugin validate .` and `orca plugin test .` on a machine with Orca. CI cannot run the tests, because they need files that only Orca ships.
+4. Merge to `main`. The Release workflow makes the tag `vX.Y.Z` and a GitHub release with the changelog section as its notes.
 
-CI (`.github/workflows/ci.yml`) checks the manifest version and the changelog on each push. It cannot run the tests, because they need files that only Orca ships. `scripts/release.sh` is the test gate.
+A push to `main` that does not change the version releases nothing.
+
+To install one version: `orca plugin install coffeepy/swampling@vX.Y.Z`. To get the newest: `orca plugin update coffeepy.swampling`.
