@@ -86,16 +86,9 @@ test('quiet outranks slow, and a run that is active stays slow however long it t
   assert.equal(paceOf(running({ activeAt: iso(29 * MIN) }), 2 * MIN, at(30 * MIN))!.state, 'slow')
 })
 
-test('a run whose process is gone says so whatever else holds', () => {
-  const p = paceOf(running({ activeAt: iso(0), gone: true as const }), 6 * MIN, at(1 * MIN))!
-  assert.equal(p.state, 'gone')
-  assert.equal(paceRow(p), 'its process is gone')
-  assert.match(PACE_LOOK.gone.hint!, /Stop it/)
-})
-
 test('only a run in flight has a pace', () => {
   for (const status of ['succeeded', 'failed', 'cancelled', 'suspended', 'interrupted', 'unknown'] as const) {
-    assert.equal(paceOf({ status, startedAt: START, gone: true }, 6 * MIN, at(MIN)), undefined)
+    assert.equal(paceOf({ status, startedAt: START }, 6 * MIN, at(MIN)), undefined)
   }
   assert.equal(paceOf({ status: 'pending', startedAt: START }, 6 * MIN, at(MIN))!.state, 'on-pace')
   assert.equal(paceOf({ status: 'running', startedAt: '' }, 6 * MIN, at(MIN)), undefined)

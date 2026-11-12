@@ -127,24 +127,35 @@ export type Run = {
   jobs: Job[]
   /** Who started the run, as swamp records it, such as `user:dev`. */
   by?: string
+  /** An interrupted run that swamp still lists as running. swamp takes a cancel for it, and for no other interrupted run. */
+  listedRunning?: true
 } & Vitals
 
 /**
  * Signs of life of a run in flight. `activeAt` is when it last showed activity: a step began or ended, or, for a repo
- * on this machine, its record or log file changed. `gone` is a run whose swamp process no longer exists on this machine.
+ * on this machine, its record or log file changed.
  */
-export type Vitals = { activeAt?: string; gone?: true }
+export type Vitals = { activeAt?: string }
 
-/** A run swamp lists as started and not ended. swamp keeps a run so after its process died. */
+/** What a run's files on this machine say. `gone` is a run whose swamp process no longer exists. */
+export type RunFiles = Vitals & { gone?: true }
+
+/** A run that started and has not ended. */
 export const inFlight = (status: RunStatus): boolean => status === 'running' || status === 'pending'
 
-/** Reads the vitals of the run `runId` of the workflow with id `workflowId`; nothing when they are not known. */
-export type ReadVitals = (workflowId: string, runId: string) => Vitals
+/** Reads the files of the run `runId` of the workflow with id `workflowId`; nothing when they are not known. */
+export type ReadVitals = (workflowId: string, runId: string) => RunFiles
 
-/** The run with what its files say: the later of the two activity times, and whether its process is gone. */
-export function withVitals<R extends Vitals>(run: R, files: Vitals): R {
-  const activeAt = [run.activeAt, files.activeAt].filter(Boolean).sort().at(-1)
-  return { ...run, ...(activeAt && { activeAt }), ...(files.gone && { gone: true as const }) }
+/**
+ * swamp keeps listing a run as running after its swamp process died, until someone recovers or cancels it. Such a
+ * run was interrupted, and it is read as one here, so nothing past the parsers tells the two apart.
+ */
+const statusWith = (listed: RunStatus, files: RunFiles): RunStatus => (files.gone && inFlight(listed) ? 'interrupted' : listed)
+
+/** The run with one more sign of activity: the later of the two times. */
+export function withVitals<R extends Vitals>(run: R, more: Vitals): R {
+  const activeAt = [run.activeAt, more.activeAt].filter(Boolean).sort().at(-1)
+  return { ...run, ...(activeAt && { activeAt }) }
 }
 
 export type Gate = { workflow: string; runId: RunId; step: string; prompt: string; since?: string; expired: boolean; input?: string }
@@ -181,8 +192,11 @@ export const LOG_LIMIT_BYTES = 15 * 1024
 
 const RUN_STATUSES: readonly RunStatus[] = ['pending', 'running', 'suspended', 'succeeded', 'failed', 'cancelled', 'interrupted']
 
-/** What a person can do to a run from the panel. `again` starts a new run with this run's inputs. */
-export type RunAction = 'stop' | 'retry' | 'recover' | 'again'
+/**
+ * What a person can do to a run from the panel. `again` starts a new run with this run's inputs. `discard` cancels an
+ * interrupted run, so it reads as cancelled and no longer as a failure.
+ */
+export type RunAction = 'stop' | 'retry' | 'recover' | 'again' | 'discard'
 
 /**
  * The actions swamp accepts for a run of each status, in the order the buttons are drawn. `retry` is
@@ -204,7 +218,8 @@ const allSteps = (run: Run): Step[] => run.jobs.flatMap((j) => j.stages.flat())
 /** The actions the run's screen offers. A suspended run with a gate to decide, or one resuming after its gates, is not offered `retry`. */
 export function runActions(run: Run): readonly RunAction[] {
   const decides = run.status === 'suspended' && allSteps(run).some((s) => s.status === 'waiting' || s.status === 'resuming')
-  return decides ? RUN_ACTIONS[run.status].filter((a) => a !== 'retry') : RUN_ACTIONS[run.status]
+  const offered = decides ? RUN_ACTIONS[run.status].filter((a) => a !== 'retry') : RUN_ACTIONS[run.status]
+  return run.listedRunning ? [...offered, 'discard'] : offered
 }
 
 /**
@@ -272,9 +287,11 @@ const firstInput = (value: unknown): string | undefined => Object.values(inputVa
 
 const recentRun = (r: Json, vitals?: ReadVitals): RecentRun => {
   const values = Object.values(inputValues(r.inputs))
-  const [runId, status] = [runIdOf(r.runId, 'history entry'), runStatus(r.status)]
+  const [runId, listed] = [runIdOf(r.runId, 'history entry'), runStatus(r.status)]
+  const files = vitals && inFlight(listed) ? vitals(str(r.workflowId) ?? '', runId) : {}
+  const status = statusWith(listed, files)
   return {
-    ...(vitals && inFlight(status) && vitals(str(r.workflowId) ?? '', runId)),
+    ...(inFlight(status) && files.activeAt && { activeAt: files.activeAt }),
     workflow: str(r.workflowName) ?? '?',
     runId,
     status,
@@ -288,7 +305,7 @@ const recentRun = (r: Json, vitals?: ReadVitals): RecentRun => {
 
 const newestFirst = (a: { startedAt: string }, b: { startedAt: string }) => b.startedAt.localeCompare(a.startedAt)
 
-/** Every run, newest first, at most RUNS_LIMIT. A run in flight carries what `vitals` reads for it. */
+/** Every run, newest first, at most RUNS_LIMIT. A run in flight is read with what `vitals` says of its files. */
 export function parseRecent(history: unknown, vitals?: ReadVitals): RecentRun[] {
   return plain(arr(obj(history, 'history').results, 'history.results').map((raw) => recentRun(obj(raw, 'history entry'), vitals)).sort(newestFirst).slice(0, RUNS_LIMIT))
 }
@@ -307,14 +324,15 @@ export function parseWorkflowList(search: unknown, history: unknown, vitals?: Re
       const runs = (byWorkflow.get(name) ?? []).sort((a, b) => (time(b.startedAt) ?? '').localeCompare(time(a.startedAt) ?? ''))
       const last = runs[0]
       const progress = (last?.stepProgress ?? {}) as Json
+      const recent = runs.slice(0, HISTORY_LENGTH).map((r) => recentRun(r, vitals))
       return {
         name,
         description: str(w.description) ?? '',
         steps: num(w.stepCount) ?? 0,
-        runs: runs.slice(0, HISTORY_LENGTH).map((r) => recentRun(r, vitals)),
+        runs: recent,
         latest: last && {
-          runId: runIdOf(last.runId, 'history entry'),
-          status: runStatus(last.status),
+          runId: recent[0].runId,
+          status: recent[0].status,
           startedAt: time(last.startedAt) ?? '',
           done: num(progress.completed) ?? 0,
           total: num(progress.total) ?? 0,
@@ -411,7 +429,8 @@ function parseStep(s: Json, def: (StepDef & { logTag?: string }) | undefined, ru
     case 'pending':
       return { ...base, status: 'pending' }
     case 'running':
-      return { ...base, status: 'running', startedAt: time(s.startedAt) ?? '' }
+      // swamp marks the steps an interrupted run left running as unknown once it notices; until then this does.
+      return run === 'interrupted' ? { ...base, status: 'unknown', raw: 'unknown' } : { ...base, status: 'running', startedAt: time(s.startedAt) ?? '' }
     case 'waiting_approval':
       return { ...base, status: 'waiting', prompt: def?.prompt ?? '', since: time(s.startedAt), expired: expired.has(base.name) }
     case 'succeeded': {
@@ -444,10 +463,13 @@ export function layerSteps<T extends { name: string }>(steps: readonly T[], depe
   return layers.filter(Boolean)
 }
 
-export function parseRun(def: unknown, run: unknown, gates: readonly Gate[] = []): Run {
+/** `files` reads the run's own files, and is asked only for a run in flight. */
+export function parseRun(def: unknown, run: unknown, gates: readonly Gate[] = [], files?: () => RunFiles): Run {
   const r = obj(run, 'run')
   const jobs = parseDefinition(def)
-  const status = runStatus(r.status)
+  const listed = runStatus(r.status)
+  const read = files && inFlight(listed) ? files() : {}
+  const status = statusWith(listed, read)
   const id = runIdOf(r.id, 'run')
   const inputs = inputValues(r.inputs)
   const expired = new Set(gates.filter((g) => g.expired && g.runId === id).map((g) => g.step))
@@ -455,11 +477,12 @@ export function parseRun(def: unknown, run: unknown, gates: readonly Gate[] = []
   // When a step or job last began or ended, which is all a remote repo tells of a run's activity.
   const rawSteps = rawJobs.flatMap((j) => arr(j.steps, 'run job.steps').map((s) => obj(s, 'run step')))
   const moved = [r, ...rawJobs, ...rawSteps].flatMap((x) => [time(x.startedAt), time(x.completedAt)])
-  const activeAt = inFlight(status) ? moved.filter(Boolean).sort().at(-1) : undefined
+  const activeAt = inFlight(status) ? [...moved, read.activeAt].filter(Boolean).sort().at(-1) : undefined
   return plain({
     id,
     workflow: str(r.workflowName) ?? '?',
     status,
+    ...(status !== listed && { listedRunning: true as const }),
     activeAt,
     startedAt: time(r.startedAt),
     durationMs: num(r.duration),

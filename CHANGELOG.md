@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.5.2
+
+- A run that was left unfinished because swamp itself stopped (the computer restarted, or its terminal was closed) now reads "interrupted", like any interrupted run, and counts under the Failed chip. Before, it stayed "running · its process is gone" under Running, with a red dot, for as long as swamp listed it. Its screen says what happened in one sentence and offers Recover and resume, which continues it from its last checkpoint, and Run again. Discard, in place of Stop, cancels it so it leaves the Failed chip. This is known for repos on this Mac only; on a remote host such a run still reads as running.
+- On a run's screen the button that starts a new run of the workflow reads "New run", not "Run", so it does not read as an action on the run that is open.
+
 ## 0.5.1
 
 - A server that Orca reaches with a pairing code, not over SSH, works. On a workspace there the panel shows "Connect Swampling to" the server, with one field for an SSH login. The field holds the address Orca connects to, and the panel names the user ssh logs in as when you give none. Connect tries the login for 20 seconds at most, with Cancel, and then lists the swamp repos there. A workspace that Orca names goes straight to the repo when the login has one. "My repo is not listed" takes the repo's folder on the server, as a full path or one under `~`.

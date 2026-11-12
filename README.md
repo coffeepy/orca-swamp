@@ -19,9 +19,9 @@ The screenshots use a demo repo with invented data.
 - Opens a workflow on its latest run, with that workflow's recent runs below it.
 - Shows each run's steps, including parallel steps, with their logs, outputs and data.
 - Approves or rejects a step that waits for approval. After an approval, the run continues by itself.
-- Starts a workflow, with a form for its inputs. Stops a run, retries a failed run from the step you choose, and recovers a run that was cut off.
+- Starts a workflow, with a form for its inputs. Stops a run, retries a failed run from the step you choose, and recovers a run that was interrupted.
 - Shows a running run's log as it is written, follows the newest line, and narrows it to one step.
-- Shows how long a workflow usually takes and how far along a running run is, and says when a run or a ticket has shown no activity for a long time or a run's process is gone.
+- Shows how long a workflow usually takes and how far along a running run is, and says when a run or a ticket has shown no activity for a long time. A run left unfinished because swamp itself stopped reads as interrupted, not running.
 - Sends a failed run to an agent terminal in your workspace, or copies the command to retry it.
 
 **StageCraft tab** (when the repo has the `@swamp/stagecraft` extension)

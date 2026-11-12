@@ -15,9 +15,7 @@ import {
   sshHostOf,
   SwampFailure,
   tidyLogin,
-  inFlight,
   typedInputs,
-  withVitals,
   type ReadVitals,
   type Repo,
   type RepoDir,
@@ -210,12 +208,11 @@ async function getRun(repo: Repo, workflow: string, runId?: RunId): Promise<Run>
   ])
   const suspended = (raw as { status?: unknown }).status === 'suspended'
   const gates = suspended ? parseApprovals(await swamp(repo, { cmd: 'approvals' })) : []
-  const parsed = sameWorkflow(parseRun(def, raw, gates), workflow)
-  const workflowId = (raw as { workflowId?: unknown }).workflowId
-  if (typeof workflowId === 'string') workflowIds.set(`${repoKey(repo)}\0${parsed.id}`, workflowId)
   // Read for a run in flight on this machine; a remote repo's run keeps the step times alone.
   const file = (raw as { path?: unknown }).path
-  const run = repo.kind === 'local' && inFlight(parsed.status) && typeof file === 'string' ? withVitals(parsed, runVitals(file)) : parsed
+  const run = sameWorkflow(parseRun(def, raw, gates, repo.kind === 'local' && typeof file === 'string' ? () => runVitals(file) : undefined), workflow)
+  const workflowId = (raw as { workflowId?: unknown }).workflowId
+  if (typeof workflowId === 'string') workflowIds.set(`${repoKey(repo)}\0${run.id}`, workflowId)
   if (run.status === 'succeeded' || run.status === 'cancelled') finishedRuns.set(`${repoKey(repo)}\0${run.id}`, run)
   const failedResume = resumeFailures.get(`${repoKey(repo)}\0${run.id}`)
   return failedResume ? withFailedResume(run, failedResume) : run
@@ -485,10 +482,10 @@ export default function activate(orca: OrcaWorkerApi): void {
 
   orca.panels.handle('run.act', async (input) => {
     const [repo, workflow, runId] = [repoOf(input?.repo), word(input.workflow, 'workflow'), word<RunId>(input.runId, 'run id')]
-    const action = oneOf(input.action, ['stop', 'retry', 'recover'] as const, 'action')
+    const action = oneOf(input.action, ['stop', 'retry', 'recover', 'discard'] as const, 'action')
     const from = input.from === undefined ? undefined : { job: word(input.from?.job, 'job'), step: word(input.from?.step, 'step') }
     if (from && action !== 'retry') refuse(`only a retry starts from a step, not ${action}`)
-    if (action === 'stop') {
+    if (action === 'stop' || action === 'discard') {
       await swamp(repo, { cmd: 'cancel', workflow, runId })
       return getRun(repo, workflow, runId)
     }

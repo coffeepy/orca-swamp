@@ -17,10 +17,9 @@ export const PACE = {
 
 /**
  * How a run in flight is doing. `quietMs` is how long since its record or log last changed, when that is known.
- * `gone` is a run swamp lists as running whose swamp process no longer exists; `quiet` is not a failure: a long step
- * that writes nothing reads the same.
+ * `quiet` is not a failure: a long step that writes nothing reads the same.
  */
-export type Pace = { elapsedMs: number; usualMs?: number; quietMs?: number; state: 'on-pace' | 'slow' | 'quiet' | 'gone' }
+export type Pace = { elapsedMs: number; usualMs?: number; quietMs?: number; state: 'on-pace' | 'slow' | 'quiet' }
 
 /** The usual time of durations given newest first: their median, or none for fewer than PACE.minSample. */
 export function usualMs(durations: readonly number[]): number | undefined {
@@ -56,12 +55,7 @@ export function paceOf(run: { status: RunStatus; startedAt?: string } & Vitals, 
   const elapsedMs = Math.max(0, now - started)
   const active = Date.parse(run.activeAt ?? '')
   const quietMs = Number.isNaN(active) ? undefined : Math.max(0, now - active)
-  const state = run.gone
-    ? 'gone'
-    : quietMs !== undefined && quietMs > Math.max(PACE.quietMinMs, usual ?? 0)
-      ? 'quiet'
-      : usual !== undefined && elapsedMs > usual * PACE.slowFactor
-        ? 'slow'
-        : 'on-pace'
+  const state =
+    quietMs !== undefined && quietMs > Math.max(PACE.quietMinMs, usual ?? 0) ? 'quiet' : usual !== undefined && elapsedMs > usual * PACE.slowFactor ? 'slow' : 'on-pace'
   return { elapsedMs, ...(usual !== undefined && { usualMs: usual }), ...(quietMs !== undefined && { quietMs }), state }
 }
