@@ -3,7 +3,7 @@ import { assert, test } from 'orca/testing'
 import { parseApprovals, parseRun } from './domain'
 import type { RecentRun, Repo, RepoDir, RunId, RunStatus, SshHost } from './domain'
 import type { InboxItem } from './inbox'
-import { ACTION_LOOK, actionCommand, actionLabel, inboxGroups, inboxId, inboxPlace, ago, approveCommand, duration, failurePrompt, firstFailed, groupWorkflows, logLine, originOf, parent, parsePlace, placeIn, resolutionIn, withPlace, ALL_RUNS, parseRunsView, runGroups, runsShown, runsViewIn, workflowsShown, type RunsView, withResolution, type Place, workspaceKey, payloadBlocks, remoteOff, retryCommand, runPill, shortName } from './present'
+import { ACTION_LOOK, actionCommand, actionLabel, inboxGroups, inboxId, inboxPlace, ago, approveCommand, duration, failurePrompt, firstFailed, groupWorkflows, logLine, originOf, parent, parsePlace, placeIn, resolutionIn, withPlace, ALL_RUNS, parseRunsView, runGroups, runsShown, runsViewIn, workflowsShown, type RunsView, withResolution, type Place, workspaceKey, payloadBlocks, pickerNotice, FAULT_SAYS, keySteps, sayPlain, type ConnectFault, remoteOff, retryCommand, runPill, shortName } from './present'
 
 const fx = (name: string): unknown => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'))
 
@@ -333,4 +333,52 @@ test('run controls read by status, ask before they stop or recover, and name the
   assert.equal(actionCommand('stop', run), `swamp workflow cancel breaks --run ${run.id}`)
   assert.equal(actionCommand('retry', run), `swamp workflow resume breaks --run ${run.id}`)
   assert.ok(actionCommand('recover', run).startsWith(`swamp workflow recover breaks --run ${run.id} --acknowledge-unknown`))
+})
+
+test('the picker shows one card: the connect form first, then a login that is down, then any other failure', () => {
+  const offline = { code: 'server_unreachable' as const, message: 'Could not list the workspaces on Orca server lab: the host did not answer', server: 'lab' }
+  const lab = { name: 'lab', address: '203.0.113.7' as SshHost }
+  const login = 'dev@lab-box' as SshHost
+  const paired = { repo: null, candidates: [], remoteHosts: [], sshless: [lab], workspace: { name: 'factory-fixes', listed: false } }
+  assert.deepEqual(pickerNotice(paired), { kind: 'connect', servers: [lab], workspace: 'factory-fixes' })
+  assert.deepEqual(pickerNotice({ ...paired, problem: offline }), { kind: 'connect', servers: [lab], workspace: 'factory-fixes', offline: 'lab' }, 'an offline server is one line in the card, not a second error')
+  const fault = { login, cause: 'no-answer' as const, said: 'ssh: connect to host lab-box port 22: Operation timed out' }
+  const down = { ...paired, remoteHosts: [login], logins: [login], problem: { code: 'host_unreachable' as const, message: 'x', ssh: fault } }
+  assert.deepEqual(pickerNotice(down), { kind: 'login-down', fault })
+  assert.deepEqual(pickerNotice({ ...down, logins: [] }), { kind: 'problem', title: 'cannot connect over SSH', message: 'x' }, "a host of Orca's own is not a login to change")
+  assert.deepEqual(pickerNotice({ ...paired, remoteHosts: [login], problem: offline }), { kind: 'problem', title: 'an Orca server did not answer', message: offline.message })
+})
+
+test('right after a connect the picker says so, and never asks whether the workspace is on that login', () => {
+  const login = 'dev@lab-box' as SshHost
+  const choice = { repo: { kind: 'ssh' as const, host: login, dir: '/srv/factory' as never }, label: 'factory · srv' }
+  const res = { repo: null, candidates: [choice], remoteHosts: [login], logins: [login], workspace: { name: 'factory-fixes', listed: false } }
+  assert.deepEqual(pickerNotice(res, login), { kind: 'connected', login })
+  assert.deepEqual(pickerNotice({ ...res, candidates: [] }, login), { kind: 'no-repos', login, connected: true })
+  assert.deepEqual(pickerNotice({ ...res, candidates: [] }), { kind: 'no-repos', login, connected: false }, 'a later visit still asks for the folder')
+  assert.deepEqual(pickerNotice(res), { kind: 'remote', hosts: [login], workspace: 'factory-fixes' })
+  assert.deepEqual(pickerNotice({ repo: null, candidates: [], workspace: { name: 'factory', listed: false } }), { kind: 'unlisted', name: 'factory' })
+  assert.equal(pickerNotice({ repo: null, candidates: [], workspace: { name: 'factory', listed: true } }), null)
+})
+
+test('every fault has plain words with the next step, and none tells the person to run a command that cannot ask a question', () => {
+  const facts = { login: 'dev@lab-box', address: '203.0.113.7', folder: '/srv/nope' }
+  const faults = Object.keys(FAULT_SAYS) as ConnectFault[]
+  for (const fault of faults) {
+    const plain = sayPlain(FAULT_SAYS[fault](facts), 'Permission denied (publickey).')
+    assert.ok(!/BatchMode|`|\.\.|swamp tracks|pairing code/.test(plain), `${fault}: ${plain}`)
+    assert.ok(plain.endsWith('ssh said: Permission denied (publickey).'), plain)
+  }
+  assert.equal(FAULT_SAYS['asks-password'](facts).keys, true, 'a login that asks for a password shows how to set up a key')
+  assert.equal(FAULT_SAYS['host-key-unknown'](facts).run, 'ssh dev@lab-box true')
+  assert.equal(FAULT_SAYS['unknown-name']({ login: 'dev@lab-bx', address: '203.0.113.7' }).text, 'No server named lab-bx was found. Check the spelling, or use the address Orca connects to: 203.0.113.7.')
+  assert.equal(FAULT_SAYS['unknown-name']({ login: 'lab-bx' }).text, 'No server named lab-bx was found. Check the spelling.')
+  assert.ok(!FAULT_SAYS['timed-out'](facts).text.includes('swamp'), 'a connection that hung is not blamed on swamp')
+  assert.ok(FAULT_SAYS['swamp-missing'](facts).text.includes('Install swamp on the server'))
+  assert.deepEqual(keySteps('dev@lab-box').map((s) => s.run), ['ssh-keygen -t ed25519', 'ssh-copy-id dev@lab-box', 'ssh dev@lab-box true'], 'a key is made before it is copied')
+})
+
+test('a remembered resolution keeps the servers and logins it named, and drops an address or login that is none', () => {
+  const stored = [{ workspace: 'w', resolution: { repo: null, candidates: [], remoteHosts: ['lab-box', '-oX'], logins: ['dev@lab-box', '$(id)'], sshless: [{ name: 'lab', address: '203.0.113.7' }, { name: 'farm', address: '-oProxyCommand=id' }, 'old'], sshUser: 'dev' } }]
+  assert.deepEqual(resolutionIn(stored, 'w'), { repo: null, candidates: [], remoteHosts: ['lab-box'], logins: ['dev@lab-box'], sshless: [{ name: 'lab', address: '203.0.113.7' }, { name: 'farm' }], sshUser: 'dev' })
 })

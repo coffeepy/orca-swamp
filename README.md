@@ -65,12 +65,26 @@ The plugin runs code, so Orca asks you to approve it before it installs.
 
 The plugin changes your swamp repo only when you press a button. Start, stop, retry and recover a workflow run; approve, reject and resume one; approve or decline a ticket; and start the studio. Everything else only reads.
 
-It writes its own settings to `~/.config/swampling/`: the repo you picked for each workspace, your theme, and SSH connection sockets.
+It writes its own settings to `~/.config/swampling/`: the repo you picked for each workspace, your theme, the SSH logins you added, and SSH connection sockets.
+
+## Server paired with a code
+
+Orca can reach a server through a pairing code instead of SSH. Orca then names the server but gives Swampling no way to run `swamp` there, so Swampling needs its own SSH login to that server. Your Orca pairing is not changed.
+
+1. Focus a workspace on that server and open the Swampling panel. It shows "Connect Swampling to" and the server's name.
+2. Check the SSH login. The panel fills in the address Orca connects to. Change it to what you would type after `ssh` in a terminal, such as `dev@203.0.113.7` or a name from your SSH config.
+3. Press Connect. The panel tries the login and lists the swamp repos there. With one repo, it opens it.
+
+If the login does not work, the panel says why and what to do next. It does not save a login that failed. If this Mac has no SSH key on the server yet, open "No SSH login to this server yet?" under the form for the three commands that set one up.
+
+If your repo is not in the list, press "My repo is not listed" and type its folder on the server.
+
+The gear menu lists your SSH logins. Remove one there, or add another. A workspace whose repo was on a removed login has no repo picked afterwards.
 
 ## Troubleshooting
 
 - **"swamp is not installed".** Install swamp on that machine so it is in `~/.local/bin` or on your `PATH`, then press Refresh.
-- **A remote repo does not load.** The panel shows the exact `ssh` command it tried. Run it in a terminal. If it asks for a password or to trust a host key, fix that first.
+- **A remote repo does not load.** The panel says why `ssh` could not connect, with the command to run when one fixes it, and shows ssh's own message under it.
 - **The wrong repo shows.** Use the repo picker in the panel header. The pick applies to the current workspace only.
 - **The StageCraft tab says the extension is missing.** Run `swamp extension pull @swamp/stagecraft` in the repo.
 - **Plugin logs.** Run `orca plugin logs <plugin id>`. Run `orca plugin list` to find the id.

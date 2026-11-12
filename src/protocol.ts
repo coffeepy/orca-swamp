@@ -1,6 +1,7 @@
-import type { Gate, InputField, LogText, RecentRun, Repo, Run, RunAction, RunId, WorkflowSummary } from './domain'
+import type { Gate, InputField, LogText, RecentRun, Repo, Run, RunAction, RunId, SshHost, WorkflowSummary } from './domain'
 import type { Inbox } from './inbox'
 import type { LogChunk } from './log'
+import type { ConnectFault } from './present'
 import type { Resolution } from './repo'
 import type { Board, Factories, WorkItemDetail } from './stagecraft'
 import type { ThemeId } from './theme'
@@ -8,6 +9,13 @@ import type { ThemeId } from './theme'
 /** `runs` is every run of the repo, newest first, at most RUNS_LIMIT. */
 export type ListData = { workflows: WorkflowSummary[]; gates: Gate[]; runs: RecentRun[]; version: string }
 export type AgentTerminal = { id: string; title: string; workspace: string }
+/**
+ * What a Connect or Find repo press came to. A fault is an answer, not an error: the panel has words for each.
+ * `login` is the login as the worker read it; `said` is ssh's own last line; `folder` is the folder with no repo.
+ */
+export type Connected =
+  | { ok: true; login: SshHost; resolution: Resolution }
+  | { ok: false; fault: ConnectFault; login: string; said?: string; folder?: string }
 
 declare module 'orca' {
   interface PluginRequests {
@@ -18,6 +26,16 @@ declare module 'orca' {
     'repo.resolve': { input: { fresh?: boolean }; output: Resolution }
     /** Remembers `repo` as the focused workspace's repo and resolves again. */
     'repo.pin': { input: { repo: Repo }; output: Resolution }
+    /**
+     * Connects an SSH login, for a server Orca reaches without SSH. The login is asked first, and one ssh cannot use
+     * is answered as a fault with nothing saved. One that answers is saved and the answer offers its repos. With
+     * `dir`, the swamp repo at or above that folder becomes the focused workspace's; without, a login with one repo
+     * gives it to a workspace Orca names. `replaces` is a login this one takes the place of: it is removed, and the
+     * repos picked on it move to the new login where it has them.
+     */
+    'hosts.add': { input: { host: string; dir?: string; replaces?: string }; output: Connected }
+    /** Forgets a login the person added, unpicks the repos picked on it, and resolves again. */
+    'hosts.remove': { input: { host: string }; output: { resolution: Resolution; unpicked: number } }
     /** Each workflow with its run history, every gate waiting in the repo, every run, and the swamp version. */
     'workflows.list': { input: { repo: Repo }; output: ListData }
     /** One run; the latest when `runId` is omitted. */

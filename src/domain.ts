@@ -1,7 +1,33 @@
 export type RepoDir = string & { readonly __brand: 'RepoDir' }
 export type RunId = string & { readonly __brand: 'RunId' }
-/** A destination `ssh` connects to without a prompt: the name Orca gives its SSH target, which is the person's ~/.ssh/config Host. */
+/**
+ * What `ssh` is given to connect with, without a prompt: a Host from ~/.ssh/config, a server name or address, with or
+ * without `user@`. The panel calls it an SSH login.
+ */
 export type SshHost = string & { readonly __brand: 'SshHost' }
+
+/**
+ * The one way a string becomes an SshHost. ssh reads a destination that starts with `-` as an option; a ~/.ssh/config
+ * ProxyCommand may hand the name to a shell; and the panel prints the login inside commands a person pastes into a
+ * terminal. So it holds letters, digits and `. _ - @ : % +` only, none of which a shell reads.
+ */
+export const sshHostOf = (value: unknown): SshHost | null =>
+  typeof value === 'string' && /^(?!-)[\w.@:%+-]{1,253}$/.test(value) ? (value as SshHost) : null
+
+const LOOPBACK = /^(localhost|127(\.\d+){3}|::1)$/i
+
+/** A login as people paste it: `ssh dev@lab-box` and `ws://203.0.113.7:6768/` both mean their host part. */
+export function tidyLogin(text: string): string {
+  const typed = text.trim().replace(/^ssh\s+/, '')
+  const url = /^wss?:\/\/([^/]*)/i.exec(typed)
+  return url ? url[1].replace(/:\d+$/, '').replace(/^\[(.*)\]$/, '$1') : typed
+}
+
+/** The address in one of Orca's endpoints, when ssh could try it: not this Mac's own end of an SSH tunnel. */
+export function addressOf(endpoint: unknown): SshHost | null {
+  const address = typeof endpoint === 'string' && /^wss?:\/\//i.test(endpoint) ? sshHostOf(tidyLogin(endpoint)) : null
+  return address && !LOOPBACK.test(address) ? address : null
+}
 
 /** Where a swamp repo lives: on this machine, or on a host reached over SSH (a workspace on a remote Orca server). */
 export type Repo = { kind: 'local'; dir: RepoDir } | { kind: 'ssh'; host: SshHost; dir: RepoDir }
@@ -9,12 +35,51 @@ export type Repo = { kind: 'local'; dir: RepoDir } | { kind: 'ssh'; host: SshHos
 /** One string per repo, for map keys, pins and the picker: the path, or `host:path` for a remote one. */
 export const repoKey = (r: Repo): string => (r.kind === 'local' ? r.dir : `${r.host}:${r.dir}`)
 
-export type FailureCode = 'swamp_not_found' | 'not_a_swamp_repo' | 'timeout' | 'swamp_error' | 'parse_error' | 'host_unreachable' | 'orca_cli_missing'
+/** Why ssh could not run a command on a host. */
+export type SshCause = 'asks-password' | 'host-key-unknown' | 'host-key-changed' | 'unknown-name' | 'no-answer' | 'timed-out' | 'other'
+
+// The first pattern that matches names the cause: a changed host key also prints "Host key verification failed".
+const SSH_SAYS: [RegExp, SshCause][] = [
+  [/REMOTE HOST IDENTIFICATION HAS CHANGED|Host key for .* has changed/i, 'host-key-changed'],
+  [/Host key verification failed|host key is known/i, 'host-key-unknown'],
+  [/Permission denied|Too many authentication failures|No more authentication methods/i, 'asks-password'],
+  [/Could not resolve hostname/i, 'unknown-name'],
+  [/connect to host|Connection timed out|Operation timed out|No route to host|Network is unreachable/i, 'no-answer']
+]
+
+/** Reads the cause off what ssh printed and how it ended; `killed` is an ssh stopped at the panel's own time limit. */
+export function sshCause(stderr: string, exit: { killed?: boolean }): SshCause {
+  if (exit.killed) return 'timed-out'
+  return SSH_SAYS.find(([says]) => says.test(stderr))?.[1] ?? 'other'
+}
+
+/** ssh's own last line, for a person who wants the exact words. */
+export const sshSaid = (stderr: string): string =>
+  stderr
+    .split('\n')
+    .map((l) => l.replace(/[\x00-\x1f\x7f]/g, '').trim())
+    .filter(Boolean)
+    .at(-1) ?? ''
+
+/** A login ssh could not use, with why. */
+export type SshFault = { login: SshHost; cause: SshCause; said: string }
+
+export type FailureCode =
+  | 'swamp_not_found'
+  | 'not_a_swamp_repo'
+  | 'timeout'
+  | 'swamp_error'
+  | 'parse_error'
+  | 'host_unreachable'
+  | 'orca_cli_missing'
+  | 'server_unreachable'
 
 export class SwampFailure extends Error {
   code: FailureCode
   /** swamp exited with an error code and printed no reason. For `run` and `resume` that is a run that ended failed or cancelled, not a refusal. */
   silent?: true
+  /** Set when ssh itself failed, before or while it ran the command. */
+  ssh?: SshFault
   constructor(code: FailureCode, message: string) {
     super(message)
     this.code = code

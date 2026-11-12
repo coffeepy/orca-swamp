@@ -1,4 +1,4 @@
-import { HISTORY_LENGTH, inFlight, isLive, RECENT_LENGTH, repoKey, retryFrom, runActions, withVitals, type InputField, type LogText, type RecentRun, type Repo, type Run, type RunAction, type RunId, type RunStatus, type Step, type WorkflowSummary } from './domain'
+import { HISTORY_LENGTH, inFlight, isLive, RECENT_LENGTH, repoKey, retryFrom, runActions, sshHostOf, tidyLogin, withVitals, type InputField, type LogText, type RecentRun, type Repo, type Run, type RunAction, type RunId, type RunStatus, type SshHost, type Step, type WorkflowSummary } from './domain'
 import type { Inbox, InboxItem } from './inbox'
 import {
   ACTION_LOOK,
@@ -66,12 +66,18 @@ import {
   paceProgress,
   paceRow,
   brief,
+  pickerNotice,
+  PROBLEM_TITLE,
+  FAULT_SAYS,
+  sayPlain,
+  keySteps,
+  type PickerNotice,
   type Tone
 } from './present'
 import { LOG, logText, type LogChunk, type LogLine } from './log'
 import { paceOf, usualTimes } from './pace'
-import type { AgentTerminal, ListData } from './protocol'
-import type { Resolution } from './repo'
+import type { AgentTerminal, Connected, ListData } from './protocol'
+import type { CodeServer, Resolution } from './repo'
 import type { Board, Factories, FactorySummary, Product, Stage, TicketStatus, WorkItem, WorkItemDetail } from './stagecraft'
 import { ORCA_STATUS, PALETTES, paletteCss, parseThemeId, THEME_IDS, type ThemeId } from './theme'
 
@@ -134,7 +140,37 @@ const state = {
   inboxReading: false,
   inboxOn: true,
   /** A repo opened from the inbox, on screen in place of the focused workspace's until the person goes back. */
-  visiting: undefined as { repo: Repo; label: string } | undefined
+  visiting: undefined as { repo: Repo; label: string } | undefined,
+  connect: newConnect()
+}
+
+type Fault = Extract<Connected, { ok: false }>
+/**
+ * The two forms that connect Swampling to a server over SSH, and what the last press on them came to. The login form
+ * asks for an SSH login; the folder form asks where the repo is on a login that is already saved.
+ */
+type Connect = {
+  /** The login form shows outside the first card: opened from the gear menu, the link under the repos, or Change SSH login. */
+  open: boolean
+  /** The login typed. Undefined until the person types, so the address Orca connects to shows as the suggestion. */
+  login: string | undefined
+  /** The saved login the typed one takes the place of. */
+  replaces?: SshHost
+  /** Whether the steps that set up an SSH key show under the login form. */
+  help: boolean
+  folder: { open: boolean; dir: string; on?: SshHost }
+  /** The form whose request is out, with the login it asks. */
+  pending?: { form: 'login' | 'folder'; login: string }
+  fault?: Fault & { form: 'login' | 'folder' }
+  /** A request that failed with no fault to name, in the worker's words. */
+  error?: { form: 'login' | 'folder'; message: string }
+  /** The login connected last, for the confirmation over its repos. */
+  done?: SshHost
+  /** One line under the header that says what the last press did. */
+  note?: { text: string; tone: 'ok' | 'fail' | 'muted' }
+}
+function newConnect(): Connect {
+  return { open: false, login: undefined, help: false, folder: { open: false, dir: '' } }
 }
 
 /** What the panel last read from one repo: the parts of `state` that may only show under that repo's header. */
@@ -296,7 +332,23 @@ function themeMenu(): string {
       <span style="flex:1;min-width:0"><span style="display:block;font-weight:500">Needs you tab</span><span class="muted" style="display:block;font-size:11.5px">One list of what waits for you in all your repos</span></span>
       <span class="theme-check">${state.inboxOn ? CHECK : ''}</span>
     </button>
+    ${loginsMenu()}
   </div>`
+}
+
+/** The gear menu's part for the SSH logins the person added. It shows once there is a login, or a server that needs one. */
+function loginsMenu(): string {
+  const res = state.resolution.data
+  const logins = res?.logins ?? []
+  if (!logins.length && !res?.sshless?.length) return ''
+  return `<div class="menu-label" id="logins-label">SSH logins</div>
+    ${logins
+      .map(
+        (h) => `<div class="menu-row"><span class="mono ellipsis" style="flex:1">${esc(h)}</span>
+          <button role="menuitem" tabindex="-1" class="btn-outline ctl" data-action="loginRemove" data-host="${esc(h)}" aria-label="Remove ${esc(h)}">Remove</button></div>`
+      )
+      .join('')}
+    <button role="menuitem" tabindex="-1" class="theme-item" data-action="loginAdd"><span style="font-weight:500">Add an SSH login…</span></button>`
 }
 
 const repoDir = (): Repo | null => state.visiting?.repo ?? state.resolution.data?.repo ?? null
@@ -334,19 +386,16 @@ function header(): string {
           <button class="btn-outline" style="min-height:28px;padding:0 10px;flex-shrink:0" data-action="leave">Back</button>
         </div>`
       : ''
+  }${state.connect.note ? `<div class="stale note-${state.connect.note.tone}" role="status" style="margin-bottom:10px">${esc(state.connect.note.text)}</div>` : ''}${
+    state.connect.open && !firstCard() ? `<div style="padding:0 16px 10px">${loginCard()}</div>` : ''
   }`
-}
-
-const PROBLEM_TITLE: Record<string, string> = {
-  host_unreachable: 'cannot connect over SSH',
-  orca_cli_missing: 'orca command not found',
-  swamp_not_found: 'swamp is not installed there',
-  timeout: 'swamp timed out'
 }
 
 function errorBox(e: { code: string; message: string }): string {
   const res = state.resolution.data
   if (e.code === 'not_a_swamp_repo' && res) return repoPicker('This folder is not a swamp repo', res)
+  const repo = repoDir()
+  if (e.code === 'host_unreachable' && repo?.kind === 'ssh') return downCard(repo.host, e.message, repo)
   const missing = e.code === 'swamp_not_found'
   return `<div class="card" style="border-color:var(--fail);background:var(--fail-bg);display:flex;flex-direction:column;gap:8px">
     <div style="font-weight:600">${missing ? 'swamp CLI not found' : esc(PROBLEM_TITLE[e.code] ?? 'swamp failed')}</div>
@@ -356,46 +405,210 @@ function errorBox(e: { code: string; message: string }): string {
   </div>`
 }
 
-function repoPicker(title: string, res: Resolution): string {
-  const unlisted = res.workspace && !res.workspace.listed
-  const shared = res.workspace?.sharedName
-  const hosts = res.remoteHosts ?? []
-  return `<div class="body">
+/** A saved login that cannot be reached now. `why` is the cause in plain words, with ssh's own line last; a login the person added can be changed here. */
+function downCard(login: SshHost, why: string, repo?: Repo): string {
+  const [cause, said] = why.split(' ssh said: ')
+  const mine = state.resolution.data?.logins?.includes(login)
+  return `<div class="card" style="border-color:var(--fail);background:var(--fail-bg);display:flex;flex-direction:column;gap:8px">
+    <div style="font-weight:600">Cannot reach ${esc(login)} right now</div>
+    <div style="line-height:1.5">${repo ? `${esc(repo.dir.split('/').pop())} is read from ${esc(login)} over SSH, and ${esc(login)} could not be reached. ` : ''}Your setup is kept.</div>
+    <div class="muted" style="font-size:12px;line-height:1.5">${esc(cause)}</div>
+    ${said ? `<div class="said">ssh said: ${esc(said)}</div>` : ''}
+    <div class="ctls"><button class="btn-outline" data-action="refresh" style="min-height:32px;padding:0 12px">Retry</button>
+      ${mine ? `<button class="btn-outline" data-action="loginChange" data-host="${esc(login)}" style="min-height:32px;padding:0 12px">Change SSH login</button>` : ''}</div>
+  </div>`
+}
+
+const SPINNER = `<svg width="16" height="16" viewBox="0 0 18 18" class="spin" aria-hidden="true" style="flex-shrink:0"><circle cx="9" cy="9" r="7" fill="none" stroke="var(--dim)" stroke-width="2"/><path d="M9 2a7 7 0 0 1 7 7" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round"/></svg>`
+
+const listOf = (names: string[]): string => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`)
+
+/** The login field's text: what the person typed, or the one address Orca connects to. */
+const loginText = (): string => {
+  const servers = state.resolution.data?.sshless ?? []
+  return state.connect.login ?? (servers.length === 1 ? (servers[0].address ?? '') : '')
+}
+
+// The commands name the login only when it is one: what is typed is never put into a command as it is.
+function keyHelp(login: string, address?: string): string {
+  const to = sshHostOf(login) ?? `user@${address ?? 'server'}`
+  return `<ol class="steps">${keySteps(to)
+    .map((step, i) => `<li>${esc(step.say)}${copyRow(step.run, `key-${i}`)}</li>`)
+    .join('')}</ol><div class="muted" style="font-size:12px">Then press Connect.</div>`
+}
+
+function faultHtml(form: 'login' | 'folder', address?: string): string {
+  const { fault, error } = state.connect
+  if (error?.form === form) return `<div class="ctl-error" role="alert" id="${form}-error">${esc(error.message)}</div>`
+  if (fault?.form !== form) return ''
+  const says = FAULT_SAYS[fault.fault]({ login: fault.login, folder: fault.folder, address })
+  return `<div class="ctl-error" role="alert" id="${form}-error">${esc(says.text)}</div>
+    ${says.run ? copyRow(says.run, 'fault-run') : ''}
+    ${says.keys ? keyHelp(fault.login, address) : ''}
+    ${fault.said ? `<div class="said">ssh said: ${esc(fault.said)}</div>` : ''}`
+}
+
+const busyRow = (text: string): string =>
+  `<div class="ctls" style="align-items:center" role="status">${SPINNER}<span style="flex:1;min-width:0"><span style="display:block">${esc(text)}</span><span class="muted" style="font-size:12px">Up to 20 seconds.</span></span>
+    <button type="button" class="btn-outline" style="min-height:38px;padding:0 14px" data-action="connectCancel">Cancel</button></div>`
+
+/** The form that asks for an SSH login. `servers` are the ones Orca reaches without SSH, whose addresses it offers. */
+function loginForm(servers: CodeServer[]): string {
+  const c = state.connect
+  const text = loginText()
+  const pending = c.pending?.form === 'login' ? c.pending : undefined
+  const one = servers.length === 1 ? servers[0] : undefined
+  const address = one?.address
+  const user = state.resolution.data?.sshUser
+  const offered = one ? [] : servers.filter((x) => x.address)
+  return `<form class="run-form" data-form="login" novalidate>
+    <label for="login-field" style="font-weight:600">${one ? `SSH login for ${esc(one.name)}` : 'SSH login'}</label>
     ${
-      res.problem
-        ? `<div class="card" style="border-color:var(--fail);background:var(--fail-bg);display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-            <div style="font-weight:600">Remote repos: ${esc(PROBLEM_TITLE[res.problem.code] ?? 'swamp failed')}</div>
-            <div class="muted" style="line-height:1.5;overflow-wrap:anywhere">${esc(res.problem.message)}</div>
-            <div><button class="btn-outline" data-action="refresh" style="min-height:32px;padding:0 12px">Retry</button></div>
-          </div>`
-        : !res.workspace && hosts.length
-        ? `<div class="card" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-            <div style="font-weight:600">Is this a workspace on ${esc(hosts.join(', '))}?</div>
-            <div class="muted" style="line-height:1.5">Orca does not tell plugins which remote workspace is focused. Pick its swamp repo below; the panel runs swamp there over SSH and remembers the pick for remote workspaces.</div>
-          </div>`
-        : shared
-        ? `<div class="card" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-            <div style="font-weight:600">${shared} workspaces are named ${esc(res.workspace!.name)}</div>
-            <div class="muted" style="line-height:1.5">Orca tells plugins which one is focused only through its terminals, and this one has none. Open a terminal in it and the panel finds its repo, or pick one below for now.</div>
-          </div>`
-        : unlisted && hosts.length
-        ? `<div class="card" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-            <div style="font-weight:600">Is ${esc(res.workspace!.name)} a workspace on ${esc(hosts.join(', '))}?</div>
-            <div class="muted" style="line-height:1.5">Orca does not tell plugins where this workspace is, so it is probably on a remote host. Pick its swamp repo below; for a remote repo the panel runs swamp there over SSH. The panel remembers the pick for this workspace.</div>
-          </div>`
-        : unlisted
-        ? `<div class="card" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-            <div style="font-weight:600">${esc(res.workspace!.name)} is not visible to plugins</div>
-            <div class="muted" style="line-height:1.5">Orca does not give plugins this workspace, so the panel cannot read its swamp repo. Run <span class="mono">swamp</span> in that workspace's terminal, or pick a repo below.</div>
-          </div>`
+      offered.length
+        ? `<div class="chips" role="group" aria-label="Addresses Orca connects to">${offered.map((x) => `<button type="button" class="fchip tight" data-action="loginUse" data-login="${esc(x.address)}" ${pending ? 'disabled' : ''}>${esc(x.name)}: ${esc(x.address)}</button>`).join('')}</div>`
         : ''
     }
-    <section class="section">
-      <div class="label">${esc(title.toUpperCase())}</div>
+    <input class="note" id="login-field" data-input="login" value="${esc(text)}" placeholder="dev@${esc(address ?? 'server.example')}" required aria-describedby="login-error login-help" autocapitalize="off" autocomplete="off" spellcheck="false" ${pending ? 'disabled' : ''}>
+    ${faultHtml('login', address)}
+    <div class="muted" id="login-help" style="font-size:12px;line-height:1.45">What you would type after <span class="mono">ssh</span> in a terminal, such as <span class="mono">dev@${esc(address ?? 'server.example')}</span> or a name from your SSH config.${
+      address ? ` Orca connects to ${esc(one!.name)} at <span class="mono">${esc(address)}</span>.` : offered.length ? ' Pick a server above to fill in the address Orca connects to.' : ''
+    }${user ? ` Without a user name, ssh logs in as <span class="mono">${esc(user)}</span>.` : ''}</div>
+    ${
+      pending
+        ? busyRow(`Connecting to ${pending.login}…`)
+        : `<div class="ctls"><button type="submit" class="btn-accent" style="padding:0 18px" ${text.trim() ? '' : 'disabled'}>Connect</button>
+            ${c.open ? '<button type="button" class="btn-outline" style="min-height:38px;padding:0 14px" data-action="loginClose">Close</button>' : ''}</div>`
+    }
+    ${
+      c.fault?.form === 'login' && FAULT_SAYS[c.fault.fault](c.fault).keys
+        ? ''
+        : `<div><button type="button" class="link" data-action="keyHelp" aria-expanded="${c.help}">No SSH login to this server yet?</button></div>${c.help ? keyHelp(tidyLogin(text), address) : ''}`
+    }
+  </form>`
+}
+
+function folderForm(logins: SshHost[]): string {
+  const c = state.connect
+  const on = c.folder.on && logins.includes(c.folder.on) ? c.folder.on : logins[0]
+  const pending = c.pending?.form === 'folder' ? c.pending : undefined
+  return `<form class="run-form" data-form="folder" novalidate>
+    <label for="folder-field" style="font-weight:600">Folder of the repo on ${logins.length > 1 ? '' : esc(on)}</label>
+    ${
+      logins.length > 1
+        ? `<select class="note" data-change="folderOn" aria-label="SSH login" ${pending ? 'disabled' : ''}>${logins.map((h) => `<option value="${esc(h)}" ${h === on ? 'selected' : ''}>${esc(h)}</option>`).join('')}</select>`
+        : ''
+    }
+    <input class="note" id="folder-field" data-input="folder" value="${esc(c.folder.dir)}" placeholder="/srv/factory" required aria-describedby="folder-error folder-help" autocapitalize="off" autocomplete="off" spellcheck="false" ${pending ? 'disabled' : ''}>
+    ${faultHtml('folder')}
+    <div class="muted" id="folder-help" style="font-size:12px;line-height:1.45">The full path, such as <span class="mono">/srv/factory</span> or <span class="mono">~/factory</span>. Swampling finds the swamp repo at that folder or above it.</div>
+    ${pending ? busyRow(`Looking on ${pending.login}…`) : `<div class="ctls"><button type="submit" class="btn-accent" style="padding:0 18px" ${c.folder.dir.trim() ? '' : 'disabled'}>Find repo</button></div>`}
+  </form>`
+}
+
+const card = (title: string, body: string, more = ''): string =>
+  `<div class="card" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+    <div style="font-weight:600">${title}</div>
+    <div class="muted" style="line-height:1.5">${body}</div>${more}
+  </div>`
+
+/** Whether the picker's first card is the connect form, so the form does not also show under the header. */
+const firstCard = (): boolean => {
+  const res = state.resolution.data
+  return !!res && state.switching === undefined && !repoDir() && pickerNotice(res, state.connect.done)?.kind === 'connect'
+}
+
+/** The login form on its own card: opened from the gear menu, the link under the repos, or Change SSH login. */
+function loginCard(): string {
+  const old = state.connect.replaces
+  return card(
+    old ? `Change the SSH login ${esc(old)}` : 'Add an SSH login',
+    old
+      ? `Connect with another login in place of ${esc(old)}. Repos picked on ${esc(old)} move to the new login where it has them.`
+      : 'For a server Orca reaches with a pairing code. Swampling reads the swamp repos there through this login.',
+    loginForm(state.resolution.data?.sshless ?? [])
+  )
+}
+
+function noticeCard(n: PickerNotice | null, res: Resolution): string {
+  if (!n) return ''
+  if (n.kind === 'connect') {
+    const names = n.servers.map((x) => x.name)
+    const one = names.length === 1 ? esc(names[0]) : undefined
+    const where = n.workspace ? esc(n.workspace) : 'This workspace'
+    return card(
+      one ? `Connect Swampling to ${one}` : 'Connect Swampling to a server',
+      one
+        ? `${where} is on the server ${one}. Orca reaches ${one} with a pairing code, but Swampling needs its own SSH login there to read the swamp repo. Your Orca pairing is not changed.`
+        : `${where} is on one of the servers ${esc(listOf(names))}. Orca reaches them with a pairing code, but Swampling needs its own SSH login on that server to read the swamp repo. Your Orca pairing is not changed.`,
+      `${
+        n.offline === undefined
+          ? ''
+          : `<div class="stale" style="margin:0" role="status">Orca cannot reach ${n.offline ? `the server ${esc(n.offline)}` : 'a server'} right now. If it is off, Connect will not reach it either.</div>`
+      }${loginForm(n.servers)}`
+    )
+  }
+  if (n.kind === 'connected') return card(`Connected to ${esc(n.login)}`, 'Pick the swamp repo this workspace uses.')
+  if (n.kind === 'no-repos') {
+    return card(
+      n.connected ? `Connected to ${esc(n.login)}, but no repos are listed there` : `No repos are listed on ${esc(n.login)}`,
+      `swamp on ${esc(n.login)} has no repo in its list. Type the folder of your repo there and Swampling finds it.`,
+      folderForm(res.logins ?? [n.login])
+    )
+  }
+  if (n.kind === 'login-down') return `<div style="margin-bottom:12px">${downCard(n.fault.login, sayPlain(FAULT_SAYS[n.fault.cause]({ login: n.fault.login }), n.fault.said))}</div>`
+  if (n.kind === 'problem') {
+    return `<div class="card" style="border-color:var(--fail);background:var(--fail-bg);display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+      <div style="font-weight:600">Remote repos: ${esc(n.title)}</div>
+      <div class="muted" style="line-height:1.5;overflow-wrap:anywhere">${esc(n.message)}</div>
+      <div><button class="btn-outline" data-action="refresh" style="min-height:32px;padding:0 12px">Retry</button></div>
+    </div>`
+  }
+  if (n.kind === 'shared') {
+    return card(
+      `${n.count} workspaces are named ${esc(n.name)}`,
+      'Orca tells plugins which one is focused only through its terminals, and this one has none. Open a terminal in it and the panel finds its repo, or pick one below for now.'
+    )
+  }
+  if (n.kind === 'unlisted') {
+    return card(
+      `${esc(n.name)} is not visible to plugins`,
+      `Orca does not give plugins this workspace, so the panel cannot read its swamp repo. Run <span class="mono">swamp</span> in that workspace's terminal, or pick a repo below.`
+    )
+  }
+  const hosts = esc(n.hosts.join(', '))
+  return n.workspace
+    ? card(
+        `Is ${esc(n.workspace)} a workspace on ${hosts}?`,
+        'Orca does not tell plugins where this workspace is, so it is probably on a remote host. Pick its swamp repo below; for a remote repo the panel runs swamp there over SSH. The panel remembers the pick for this workspace.'
+      )
+    : card(
+        `Is this a workspace on ${hosts}?`,
+        'Orca does not tell plugins which remote workspace is focused. Pick its swamp repo below; the panel runs swamp there over SSH and remembers the pick for remote workspaces.'
+      )
+}
+
+
+function repoPicker(title: string, res: Resolution): string {
+  const shared = res.workspace?.sharedName
+  const logins = res.logins ?? []
+  const notice = pickerNotice(res, state.connect.done)
+  const kind = notice?.kind
+  // These cards are the whole answer while there is no repo to list under them.
+  const alone = (kind === 'connect' || kind === 'no-repos' || kind === 'login-down') && !res.candidates.length
+  const onLogin = notice?.kind === 'connected' && res.candidates.every((c) => c.repo.kind === 'ssh' && c.repo.host === notice.login) ? `Repos on ${notice.login}` : undefined
+  const more = res.remoteHosts && kind !== 'connect' && (logins.length || res.sshless?.length)
+  const unlistedLink = logins.length && kind !== 'no-repos' && kind !== 'login-down'
+  return `<div class="body">
+    ${noticeCard(notice, res)}
+    ${
+      alone
+        ? ''
+        : `<section class="section">
+      <div class="label">${esc((onLogin ?? (kind === 'connected' ? 'Swamp repos' : title)).toUpperCase())}</div>
       ${
         res.candidates.length === 0
           ? '<div class="muted" style="line-height:1.5">No folder in your Orca workspaces has a <span class="mono">.swamp.yaml</span>. Open a swamp repo as a workspace, then refresh.</div>'
-          : `<div class="muted" style="font-size:12px;margin-bottom:4px">Pick the swamp repo this workspace uses.${shared ? '' : ' The panel remembers it.'}</div>
+          : `${kind === 'connected' ? '' : `<div class="muted" style="font-size:12px;margin-bottom:4px">Pick the swamp repo this workspace uses.${shared ? '' : ' The panel remembers it.'}</div>`}
              ${res.candidates
                .map(
                  (c) => `<button class="card row-btn" data-action="pick" data-key="${esc(repoKey(c.repo))}">
@@ -403,7 +616,17 @@ function repoPicker(title: string, res: Resolution): string {
                )
                .join('')}`
       }
-    </section>
+    </section>`
+    }
+    ${
+      more
+        ? `<div class="ctls" style="gap:4px 16px">
+            ${unlistedLink ? `<button class="link" data-action="folderToggle" aria-expanded="${state.connect.folder.open}">My repo is not listed</button>` : ''}
+            ${state.connect.open ? '' : '<button class="link" data-action="loginAdd">Add an SSH login</button>'}
+          </div>
+          ${unlistedLink && state.connect.folder.open ? folderForm(logins) : ''}`
+        : ''
+    }
   </div>`
 }
 
@@ -1865,9 +2088,72 @@ async function startRun(repo: Repo, input: { workflow: string; inputs?: Record<s
   if (here()) go({ tab: 'workflows', workflow: input.workflow, ...(runId && { runId }) })
 }
 
+/** Says what the last press did, in one line under the header. A line that reports success leaves by itself. */
+function note(text: string, tone: 'ok' | 'fail'): void {
+  const shown = { text, tone }
+  state.connect.note = shown
+  render()
+  if (tone === 'ok') {
+    setTimeout(() => {
+      if (state.connect.note !== shown) return
+      state.connect.note = undefined
+      render()
+    }, 8000)
+  }
+}
+
+function openLogin(replaces?: SshHost): void {
+  state.themeMenu = false
+  Object.assign(state.connect, { open: true, replaces, login: replaces, fault: undefined, error: undefined })
+  render()
+  const field = document.getElementById('login-field') as HTMLInputElement | null
+  field?.focus()
+  field?.select()
+}
+
+let connectAsk = 0
+
+async function connect(form: 'login' | 'folder'): Promise<void> {
+  const c = state.connect
+  if (c.pending) return
+  const logins = state.resolution.data?.logins ?? []
+  const login = form === 'login' ? tidyLogin(loginText()) : ((c.folder.on && logins.includes(c.folder.on) ? c.folder.on : logins[0]) ?? '')
+  const dir = form === 'folder' ? c.folder.dir.trim() : undefined
+  const ask = ++connectAsk
+  const at = focused
+  Object.assign(c, { pending: { form, login }, fault: undefined, error: undefined })
+  render()
+  const failed = (change: Pick<Connect, 'fault' | 'error'>) => {
+    Object.assign(c, change, { pending: undefined })
+    render()
+    const field = document.getElementById(`${form}-field`) as HTMLInputElement | null
+    field?.focus()
+    field?.select()
+  }
+  let answer: Connected
+  try {
+    // Longer than the worker can take: 20 s for ssh, and Orca's servers asked meanwhile.
+    answer = await orca.plugin.request('hosts.add', { host: login, ...(dir !== undefined && { dir }), ...(form === 'login' && c.replaces && { replaces: c.replaces }) }, { timeoutMs: 90_000 })
+  } catch (e) {
+    if (ask === connectAsk && c === state.connect) failed({ error: { form, message: failure(e).message } })
+    return
+  }
+  // Cancel was pressed.
+  if (ask !== connectAsk) return
+  // The answer is about the workspace focused at the press. For another one, the panel asks again what holds now.
+  if (at !== focused || c !== state.connect) return void loadRepo()
+  if (!answer.ok) return failed({ fault: { ...answer, form } })
+  const { resolution } = answer
+  state.connect = { ...newConnect(), done: answer.login }
+  const shown = resolution.repo && resolution.candidates.find((x) => repoKey(x.repo) === repoKey(resolution.repo!))
+  if (resolution.repo) note(`Connected to ${answer.login}. Showing ${shown ? repoTitle(shown).split(' · ')[0] : resolution.repo.dir}.`, 'ok')
+  await loadRepo(async () => resolution)
+}
+
 function pin(key: string): void {
   const choice = state.resolution.data?.candidates.find((c) => repoKey(c.repo) === key)
   if (!choice) return
+  state.connect.done = undefined
   // A pick of a remote repo asks the host again, which takes seconds: say so at once.
   state.switching = repoTitle(choice)
   state.visiting = undefined
@@ -1953,6 +2239,49 @@ const actions: Record<string, (el: HTMLElement) => void> = {
       state.run = { data }
       delete state.notes[step]
     })
+  },
+  loginAdd: () => openLogin(),
+  loginChange: (el) => openLogin(sshHostOf(el.dataset.host) ?? undefined),
+  loginClose: () => {
+    Object.assign(state.connect, { open: false, replaces: undefined, login: undefined, fault: undefined, error: undefined })
+    render()
+  },
+  loginUse: (el) => {
+    state.connect.login = el.dataset.login
+    render()
+    document.getElementById('login-field')?.focus()
+  },
+  keyHelp: () => {
+    state.connect.help = !state.connect.help
+    render()
+  },
+  folderToggle: () => {
+    state.connect.folder.open = !state.connect.folder.open
+    render()
+    document.getElementById('folder-field')?.focus()
+  },
+  connectCancel: () => {
+    // The worker's ssh ends on its own timer; its answer is dropped when it comes.
+    connectAsk++
+    const form = state.connect.pending?.form
+    state.connect.pending = undefined
+    render()
+    document.getElementById(`${form}-field`)?.focus()
+  },
+  loginRemove: (el) => {
+    const host = el.dataset.host!
+    const at = focused
+    state.themeMenu = false
+    state.connect.note = { text: `Removing ${host}…`, tone: 'muted' }
+    render()
+    orca.plugin.request('hosts.remove', { host }, { timeoutMs: 60_000 }).then(
+      ({ resolution, unpicked }) => {
+        const lost = unpicked === 1 ? ' The workspace that used a repo on it has no repo picked now.' : unpicked ? ` The ${unpicked} workspaces that used a repo on it have no repo picked now.` : ''
+        note(`Removed ${host}.${lost}`, 'ok')
+        void loadRepo(at === focused ? async () => resolution : undefined)
+      },
+      (e) => note(`${host} was not removed: ${failure(e).message}`, 'fail')
+    )
   },
   run: (el) => {
     const dir = repoDir()
@@ -2173,7 +2502,7 @@ document.addEventListener('click', (e) => {
 })
 document.addEventListener('keydown', (e) => {
   if (!state.themeMenu) return
-  const items = Array.from(root.querySelectorAll<HTMLElement>('.theme-item'))
+  const items = Array.from(root.querySelectorAll<HTMLElement>('.theme-menu button'))
   const at = items.indexOf(document.activeElement as HTMLElement)
   const move: Record<string, number> = { ArrowDown: at + 1, ArrowUp: at - 1, Home: 0, End: items.length - 1 }
   if (e.key === 'Escape' || e.key === 'Tab') {
@@ -2192,10 +2521,21 @@ root.addEventListener('input', (e) => {
     render()
   } else if (el.dataset.input === 'note') state.notes[el.dataset.step ?? ''] = el.value
   else if (el.dataset.input === 'field' && state.form) state.form.values[el.dataset.field!] = el.value
+  else if (el.dataset.input === 'login' || el.dataset.input === 'folder') {
+    if (el.dataset.input === 'login') state.connect.login = el.value
+    else state.connect.folder.dir = el.value
+    // The button is off while its field is empty, and the key steps name the login typed.
+    render()
+  }
+})
+root.addEventListener('submit', (e) => {
+  e.preventDefault()
+  void connect((e.target as HTMLElement).dataset.form as 'login' | 'folder')
 })
 root.addEventListener('change', (e) => {
   const el = e.target as HTMLSelectElement
   if (el.dataset.change === 'pick') pin(el.value)
+  else if (el.dataset.change === 'folderOn') state.connect.folder.on = sshHostOf(el.value) ?? undefined
 })
 
 
@@ -2220,7 +2560,7 @@ ${paletteCss()}
 body { margin: 0; background: var(--panel); color: var(--text); font: 13px/1.35 var(--sans); overflow-wrap: anywhere; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
-button:disabled { cursor: default; opacity: 0.6; }
+button:disabled, input:disabled, select:disabled { cursor: default; opacity: 0.6; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
 .root { min-height: 100vh; display: flex; flex-direction: column; }
 .mono { font-family: var(--mono); }
@@ -2304,7 +2644,17 @@ button.wf:hover, .row-btn:hover, .recent:hover, .node:hover { border-color: var(
 .from.quiet { opacity: 0; }
 .with-from:hover .from.quiet, .from.quiet:focus-visible { opacity: 1; }
 .btn-accent { min-height: 38px; border-radius: 8px; border: none; background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.link { background: none; border: none; padding: 4px 0; color: var(--muted); font-size: 12px; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.link:hover { color: var(--text); }
+.steps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 12px; line-height: 1.45; color: var(--muted); }
+.steps .copy-row { margin-top: 4px; color: var(--text); }
+.said { font-size: 11.5px; color: var(--muted); }
+.menu-label { margin-top: 2px; padding: 8px 8px 2px; border-top: 1px solid var(--border); font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: 0.02em; }
+.menu-row { display: flex; align-items: center; gap: 8px; padding: 3px 8px; min-width: 0; }
 .stale { margin: 0 16px; padding: 8px 10px; border-radius: 8px; font-size: 12px; color: var(--gold); background: var(--gold-bg); }
+.note-ok { color: var(--ok); background: var(--ok-bg); }
+.note-fail { color: var(--fail); background: var(--fail-bg); }
+.note-muted { color: var(--muted); background: var(--raised); }
 .segs { margin: 0 16px; display: flex; background: var(--raised); border-radius: 8px; padding: 3px; }
 .seg { flex: 1 1 auto; white-space: nowrap; border: none; border-radius: 6px; padding: 7px 4px; background: none; color: var(--muted); }
 .seg[aria-selected="true"] { background: var(--panel); color: var(--text); font-weight: 500; }
@@ -2401,6 +2751,8 @@ orca.on('workspace.changed', ({ context }) => {
     // Send types into a terminal of the focused workspace, so ask again which one.
     state.agent = undefined
     state.visiting = undefined
+    // The forms and their messages are about the workspace left behind.
+    state.connect = newConnect()
     const known = resolutionIn(resolutions, key)
     if (known) {
       // What this workspace showed last shows at once; the answer on its way replaces it.

@@ -72,7 +72,7 @@ test('a run with no activity for longer than the floor reads "no activity", and 
   const p = paceOf(running({ activeAt: iso(1 * MIN) }), undefined, at(13 * MIN))!
   assert.deepEqual(p, { elapsedMs: 13 * MIN, quietMs: 12 * MIN, state: 'quiet' })
   assert.equal(paceRow(p), 'no activity for 12m')
-  assert.doesNotMatch(paceLabel(p)! + PACE_LOOK.quiet.hint, /fail|dead/)
+  assert.ok(!/fail|dead/.test(paceLabel(p)! + PACE_LOOK.quiet.hint))
 })
 
 test('a long quiet step of a workflow that usually takes hours is not called quiet until it is quiet for longer than the usual time', () => {

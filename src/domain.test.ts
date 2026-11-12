@@ -13,6 +13,11 @@ import {
   parseWorkflowList,
   retryFrom,
   runActions,
+  addressOf,
+  sshCause,
+  sshHostOf,
+  sshSaid,
+  tidyLogin,
   stepKind,
   SwampFailure,
   typedInputs,
@@ -361,4 +366,48 @@ test('a run keeps the later of its last step time and its files\u2019 last chang
   assert.deepEqual(withVitals(run, { activeAt: '2026-11-11T10:01:00.000Z' }), run)
   assert.deepEqual(withVitals(run, {}), run)
   assert.deepEqual(withVitals({}, {}), {})
+})
+
+test('an SSH login is a plain name, address or user@name: nothing ssh would read as an option, and no shell text', () => {
+  for (const ok of ['lab-box', 'dev@lab-box', 'lab.example.com', '203.0.113.7', 'fe80::1', 'fe80::1%en0', 'lab_2', 'build+arm']) assert.equal(sshHostOf(ok), ok)
+  const bad = ['-oProxyCommand=x', '-lab', '', ' lab', 'lab box', 'lab;id', '$(id)', '`id`', "lab'", 'lab"', 'lab|id', 'lab&', 'lab>x', 'lab\nid', 'lab\\', 'a/b', 'lab*', '~lab', '=lab', 'lab{a,b}', 'x'.repeat(254), 7, null, undefined, ['lab']]
+  for (const b of bad) assert.equal(sshHostOf(b), null, `${JSON.stringify(b)} is refused`)
+})
+
+test('a login pasted with ssh in front, or as the address Orca shows, is read as the login', () => {
+  assert.equal(tidyLogin('  ssh dev@lab-box '), 'dev@lab-box')
+  assert.equal(tidyLogin('ws://203.0.113.7:6768'), '203.0.113.7')
+  assert.equal(tidyLogin('wss://lab.example.com:6768/path'), 'lab.example.com')
+  assert.equal(tidyLogin('ws://[fe80::1]:6768/'), 'fe80::1')
+  assert.equal(tidyLogin('dev@lab-box'), 'dev@lab-box')
+  assert.equal(sshHostOf(tidyLogin('ssh -oProxyCommand=id lab')), null, 'an option after ssh is not a login')
+})
+
+test("the address Orca connects to is offered as a login only when ssh could try it", () => {
+  assert.equal(addressOf('ws://203.0.113.7:6768'), '203.0.113.7')
+  for (const tunnel of ['ws://127.0.0.1:57274/', 'ws://localhost:6768', 'ws://[::1]:6768']) assert.equal(addressOf(tunnel), null, `${tunnel} is this Mac's end of an SSH tunnel`)
+  for (const bad of ['ws://-oProxyCommand=id:6768', 'ws://$(id):6768', 'ws://lab box:1', 'http://203.0.113.7', '203.0.113.7', '', null, 7]) assert.equal(addressOf(bad), null, `${JSON.stringify(bad)} is not offered`)
+})
+
+// Lines ssh 9.x prints on macOS and Linux, each as its last words before it exits with 255.
+test("ssh's own words name why it could not connect", () => {
+  const says: [string, string][] = [
+    ['dev@lab-box: Permission denied (publickey,password).', 'asks-password'],
+    ['Permission denied, please try again.\ndev@lab-box: Permission denied (publickey,password,keyboard-interactive).', 'asks-password'],
+    ['Received disconnect from 203.0.113.7 port 22:2: Too many authentication failures', 'asks-password'],
+    ['No ED25519 host key is known for lab-box and you have requested strict checking.\nHost key verification failed.', 'host-key-unknown'],
+    ['Host key verification failed.', 'host-key-unknown'],
+    ['@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\nOffending ED25519 key in /Users/dev/.ssh/known_hosts:7\nHost key for lab-box has changed and you have requested strict checking.\nHost key verification failed.', 'host-key-changed'],
+    ['ssh: Could not resolve hostname lab-bx: nodename nor servname provided, or not known', 'unknown-name'],
+    ['ssh: Could not resolve hostname lab-bx: Name or service not known', 'unknown-name'],
+    ['ssh: connect to host lab-box port 22: Connection refused', 'no-answer'],
+    ['ssh: connect to host lab-box port 22: Operation timed out', 'no-answer'],
+    ['ssh: connect to host 203.0.113.7 port 22: No route to host', 'no-answer'],
+    ['ssh: connect to host lab-box port 22: Network is unreachable', 'no-answer'],
+    ['kex_exchange_identification: Connection closed by remote host', 'other'],
+    ['', 'other']
+  ]
+  for (const [stderr, cause] of says) assert.equal(sshCause(stderr, {}), cause, stderr)
+  assert.equal(sshCause('dev@lab-box: Permission denied (publickey).', { killed: true }), 'timed-out', 'an ssh stopped at the time limit timed out, whatever it printed')
+  assert.equal(sshSaid('Warning: Permanently added lab-box\r\nssh: connect to host lab-box port 22: Connection refused\r\n\n'), 'ssh: connect to host lab-box port 22: Connection refused')
 })

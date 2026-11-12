@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.5.1
+
+- A server that Orca reaches with a pairing code, not over SSH, works. On a workspace there the panel shows "Connect Swampling to" the server, with one field for an SSH login. The field holds the address Orca connects to, and the panel names the user ssh logs in as when you give none. Connect tries the login for 20 seconds at most, with Cancel, and then lists the swamp repos there. A workspace that Orca names goes straight to the repo when the login has one. "My repo is not listed" takes the repo's folder on the server, as a full path or one under `~`.
+- When ssh cannot connect, the panel says why in plain words and what to do: the login asks for a password, this Mac has never connected to it, its host key changed, the name was not found, nothing answered, or it timed out. The command to run has a Copy button, and ssh's own message is under it. A login that failed is not saved. The same words replace the `ssh -o BatchMode=yes` hint for every remote repo.
+- "No SSH login to this server yet?" under the form shows the three commands that put an SSH key on the server, with your login filled in.
+- The gear menu lists your SSH logins, with Remove and "Add an SSH login…". Removing a login unpicks the repos picked on it and says so. When a saved login does not answer, the panel keeps your setup and offers Retry and "Change SSH login", which moves your picks to the new login. Logins are kept in `~/.config/swampling/settings.json` as `sshHosts`.
+- With a server paired without SSH, a workspace on it is no longer offered the repos of this Mac. While Orca's server list cannot be read, the repos of this Mac are offered but a pick of one is not saved for remote workspaces.
+- An answer that names a problem is kept for 10 seconds, so a server that is off no longer holds every workspace switch for the `orca` command's timeout. Refresh and Retry read again.
+- An SSH name may hold letters, digits and `. _ - @ : % +` only. A name with another character, from Orca or from `pins.json`, is not used, and its entry stays in `pins.json`.
+- `scripts/typecheck.sh` type-checks the plugin and its tests.
+
 ## 0.5.0
 
 - Live log on a run's screen. A run that is running shows what it logs under its buttons, and new lines appear as swamp writes them, with no terminal. The view follows the newest line until you scroll up; then it stays where you are and "Jump to latest" takes you back. A click on a step shows that step's lines only. When the run ends the log stays, below the steps, and a failed run opens at its first error line when the log has one. The log opens on its newest lines and "Show earlier" pages back. Text in it can be selected, and Copy takes what is shown. Color codes a workflow prints are removed. Works for repos on remote hosts.

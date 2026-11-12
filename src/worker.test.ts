@@ -6,7 +6,8 @@ import { assert, mockHost, mountWorker, test } from 'orca/testing'
 import { isLive } from './domain'
 
 // Stand-ins on PATH for the orca CLI and ssh: orca answers captured JSON with its /home/dev paths moved under
-// a temp folder, and ssh runs the remote command string in a local sh, as the remote login shell would.
+// a temp folder, and ssh runs the remote command string in a local sh, as the remote login shell would. It fails
+// like an unreachable host for `down`, and takes a second to connect to `slow`.
 const fake = mkdtempSync(join(tmpdir(), 'swampling-fake-'))
 const fixture = (name: string) => new URL(`./fixtures/${name}.json`, import.meta.url).pathname
 function script(name: string, body: string): string {
@@ -25,7 +26,7 @@ process.env.ORCA_CLI_COMMAND = script(
   "terminal show") echo "$4" >> '${fake}/terminal.log'; cat "${fake}/terminal-$4.json" 2>/dev/null ;;
 esac`
 )
-script('ssh', `for a; do last=$a; done; printf '%s\\n' "$*" >> '${fake}/ssh.log'; HOME='${fake}/home' exec sh -c "$last"`)
+script('ssh', `for a; do host=$prev; last=$a; prev=$a; done; printf '%s\\n' "$*" >> '${fake}/ssh.log'; [ "$host" = down ] && { echo 'ssh: connect to host down port 22: Connection refused' >&2; exit 255; }; [ "$host" = slow ] && sleep 1; HOME='${fake}/home' exec sh -c "$last"`)
 process.env.PATH = `${fake}/bin:${process.env.PATH}`
 
 // A local swamp stand-in: answers by the longest key its arguments start with from $FAKE_SWAMP_ANSWERS, and logs
@@ -784,4 +785,143 @@ test('log.tail builds the file path from ids it checks, and says so when the run
   await assert.rejects(worker.request('log.tail', { repo: outside.repo, runId: LOG_RUN }), /named no workflow/)
   const none = logRepo(undefined)
   await assert.rejects(worker.request('log.tail', { repo: none.repo, runId: LOG_RUN }), /outside the repo/)
+})
+
+// A workspace on a server Orca does not list, with the remote home's swamp registry naming `repos`. The stand-in
+// ssh answers for any login but `down`, from the one fake remote home.
+async function remoteWorkspace(context: { displayName: string; branch: string; terminals: [] } | null, repos: string[], run: (w: { worker: Awaited<ReturnType<typeof mountWorker>>; host: ReturnType<typeof mockHost>; dir: string; pins: () => Record<string, unknown>; logins: () => unknown; sshCalls: () => number }) => Promise<void>) {
+  const dir = folder()
+  const [answers, pinsWere] = [join(fake, 'answers.json'), process.env.SWAMPLING_PINS]
+  const before = readFileSync(answers, 'utf8')
+  process.env.SWAMPLING_PINS = join(dir, 'pins.json')
+  writeFileSync(answers, JSON.stringify({ ...JSON.parse(before), 'workspace list': JSON.stringify({ workspaces: repos.map((path) => ({ name: path.split('/').pop(), path, folder: 'ok' })) }) }))
+  try {
+    const host = mockHost({ results: { 'workspace.readContext': context, 'workspace.list': { truncated: false, workspaces: [] } } })
+    const read = (file: string) => {
+      try {
+        return JSON.parse(readFileSync(join(dir, file), 'utf8'))
+      } catch {
+        return {}
+      }
+    }
+    await run({ worker: await mountWorker(main, { host }), host, dir, pins: () => read('pins.json'), logins: () => read('settings.json').sshHosts, sshCalls: () => readFileSync(join(fake, 'ssh.log'), 'utf8').split('\n').length })
+  } finally {
+    writeFileSync(answers, before)
+    process.env.SWAMPLING_PINS = pinsWere
+  }
+}
+const playground = join(fake, 'home/swampling-playground')
+const onLab = (dir: string) => ({ kind: 'ssh', host: 'lab-box', dir })
+const factoryFixes = { displayName: 'factory-fixes', branch: 'main', terminals: [] as [] }
+
+test('Connect asks the login before it saves it: what is no login, or does not answer, is answered as a fault with nothing saved and no ssh started', async () => {
+  await remoteWorkspace(null, [playground], async ({ worker, logins }) => {
+    const add = (host: unknown) => worker.request('hosts.add', { host } as never)
+    for (const host of ['-oProxyCommand=id', 'lab box', '$(id)', 'lab;id', 'ssh -oProxyCommand=id lab']) assert.equal((await add(host)).ok === false && (await add(host) as { fault: string }).fault, 'not-a-login', host)
+    for (const host of ['', '   ', 7]) assert.deepEqual(await add(host), { ok: false, fault: 'empty', login: '' })
+    assert.ok(!readFileSync(join(fake, 'ssh.log'), 'utf8').includes('ProxyCommand'), 'ssh is never started for what is not a login')
+    assert.deepEqual(await add('down'), { ok: false, fault: 'no-answer', login: 'down', said: 'ssh: connect to host down port 22: Connection refused' })
+    assert.equal(logins(), undefined, 'nothing was saved')
+
+    const added = await add('ssh lab-box')
+    assert.ok(added.ok && added.login === 'lab-box', 'a login pasted with ssh in front is read as the login')
+    assert.deepEqual(logins(), ['lab-box'])
+    assert.deepEqual(added.resolution.logins, ['lab-box'])
+    assert.deepEqual(added.resolution.candidates.find((c) => c.repo.kind === 'ssh' && c.repo.host === 'lab-box')?.repo, onLab(playground))
+    assert.equal(added.resolution.repo, null, 'Orca names no workspace, so the person picks even among one')
+    const again = await add('ws://lab-box:6768')
+    assert.ok(again.ok && again.login === 'lab-box', 'the address as Orca shows it is read as the login')
+    assert.deepEqual(logins(), ['lab-box'], 'a login added twice is listed once')
+  })
+})
+
+test('Find repo takes a folder on a saved login with one ssh call, picks the repo at or above it, and names a folder that is wrong', async () => {
+  await remoteWorkspace(null, [], async ({ worker, pins, logins, sshCalls, dir }) => {
+    const find = (folderTyped: unknown, host = 'lab-box') => worker.request('hosts.add', { host, dir: folderTyped } as never)
+    const empty = await worker.request('hosts.add', { host: 'lab-box' })
+    assert.ok(empty.ok && !empty.resolution.candidates.some((c) => c.repo.kind === 'ssh' && c.repo.host === 'lab-box'), 'swamp lists no repo there')
+    const asked = sshCalls()
+    for (const bad of ['srv/factory', '~other/x', '/srv/fac\ntory', '', 7]) assert.deepEqual(await find(bad), { ok: false, fault: 'folder-not-path', login: 'lab-box' }, JSON.stringify(bad))
+    assert.equal(sshCalls(), asked, 'a folder that is no full path starts no ssh')
+    assert.deepEqual(await find(join(fake, 'home/no-repo-here')), { ok: false, fault: 'folder-no-repo', login: 'lab-box', folder: join(fake, 'home/no-repo-here') })
+    assert.deepEqual(await find('/srv/x', 'new-box'), { ok: false, fault: 'folder-no-repo', login: 'new-box', folder: '/srv/x' })
+    assert.deepEqual(logins(), ['lab-box', 'new-box'], 'a login that answers is saved even when the folder is wrong')
+
+    const unread = { odd: { kind: 'ssh', host: 'lab box', dir: '/srv/x' }, later: { kind: 'tunnel', via: ['a', 1] }, mac: '/Users/dev/repo' }
+    writeFileSync(join(dir, 'pins.json'), JSON.stringify(unread))
+    mkdirSync(join(playground, 'deep/er'), { recursive: true })
+    const before = sshCalls()
+    const picked = await find('~/swampling-playground/deep/er/')
+    assert.equal(sshCalls() - before, 1, 'one ssh call finds the repo and answers')
+    assert.ok(picked.ok)
+    assert.deepEqual(picked.resolution.repo, onLab(playground), 'a folder under ~ finds the repo at or above it')
+    assert.deepEqual(pins(), { ...unread, '@remote-or-none': onLab(playground) }, 'pins this version cannot read are kept as they were')
+
+    await assert.rejects(worker.request('hosts.remove', { host: '-x' }), /not an SSH login/)
+    const removed = await worker.request('hosts.remove', { host: 'lab-box' })
+    assert.equal(removed.unpicked, 1)
+    assert.equal(removed.resolution.repo, null, 'the repo picked on the removed login is no longer used')
+    assert.deepEqual(removed.resolution.logins, ['new-box'])
+    assert.deepEqual(pins(), unread)
+    assert.deepEqual(logins(), ['new-box'])
+    assert.equal((await worker.request('hosts.remove', { host: 'new-box' })).unpicked, 0)
+    assert.equal(logins(), undefined, 'the settings file names no login again')
+  })
+})
+
+test('a login with one repo gives it to a workspace Orca names, and to no workspace when there are several repos or no name', async () => {
+  const second = join(fake, 'home/second-repo')
+  mkdirSync(second, { recursive: true })
+  writeFileSync(join(second, '.swamp.yaml'), 'swampVersion: test\n')
+  await remoteWorkspace(factoryFixes, [playground], async ({ worker, pins }) => {
+    const added = await worker.request('hosts.add', { host: 'lab-box' })
+    assert.ok(added.ok)
+    assert.deepEqual(added.resolution.repo, onLab(playground))
+    assert.deepEqual(pins(), { 'factory-fixes': onLab(playground) }, "the pick is saved under the workspace's own name")
+    assert.deepEqual((await worker.request('repo.resolve', {})).repo, onLab(playground))
+  })
+  await remoteWorkspace(factoryFixes, [playground, second], async ({ worker, pins }) => {
+    const added = await worker.request('hosts.add', { host: 'lab-box' })
+    assert.ok(added.ok && added.resolution.repo === null, 'with two repos the person picks')
+    assert.deepEqual(pins(), {})
+  })
+  await remoteWorkspace(null, [playground], async ({ worker, pins }) => {
+    const added = await worker.request('hosts.add', { host: 'lab-box' })
+    assert.ok(added.ok && added.resolution.repo === null)
+    assert.deepEqual(pins(), {}, 'nothing is saved under the key all unnamed remote workspaces share')
+  })
+})
+
+test('a workspace switch while Connect waits for ssh does not move the pick to the workspace switched to', async () => {
+  const other = { displayName: 'other', branch: 'main', terminals: [] as [] }
+  await remoteWorkspace(factoryFixes, [playground], async ({ worker, host, pins }) => {
+    const finding = worker.request('hosts.add', { host: 'slow', dir: playground })
+    await new Promise((r) => setTimeout(r, 300))
+    host.respond('workspace.readContext', other)
+    await finding
+    assert.deepEqual(pins(), { 'factory-fixes': { kind: 'ssh', host: 'slow', dir: playground } }, 'the folder the person named is picked for the workspace they named it in')
+  })
+  await remoteWorkspace(factoryFixes, [playground], async ({ worker, host, pins }) => {
+    const adding = worker.request('hosts.add', { host: 'slow' })
+    await new Promise((r) => setTimeout(r, 300))
+    host.respond('workspace.readContext', other)
+    const added = await adding
+    assert.ok(added.ok && added.resolution.repo === null)
+    assert.deepEqual(pins(), {}, 'no repo is picked for a workspace the person has left')
+  })
+})
+
+test('Change SSH login moves the picks to the new login where it has the repo, and removing a login Orca itself uses keeps its picks', async () => {
+  await remoteWorkspace(factoryFixes, [], async ({ worker, pins, logins, dir }) => {
+    writeFileSync(join(dir, 'settings.json'), JSON.stringify({ sshHosts: ['old-box', 'jarvis'] }))
+    const gone = { kind: 'ssh', host: 'old-box', dir: join(fake, 'home/deleted') }
+    writeFileSync(join(dir, 'pins.json'), JSON.stringify({ 'factory-fixes': { kind: 'ssh', host: 'old-box', dir: playground }, elsewhere: gone, kept: { kind: 'ssh', host: 'jarvis', dir: playground } }))
+    const changed = await worker.request('hosts.add', { host: 'lab-box', replaces: 'old-box' })
+    assert.ok(changed.ok)
+    assert.deepEqual(changed.resolution.repo, onLab(playground), 'this workspace shows its repo through the new login')
+    assert.deepEqual(logins(), ['jarvis', 'lab-box'])
+    assert.deepEqual(pins(), { 'factory-fixes': onLab(playground), kept: { kind: 'ssh', host: 'jarvis', dir: playground } })
+    assert.equal((await worker.request('hosts.remove', { host: 'jarvis' })).unpicked, 0)
+    assert.deepEqual(pins().kept, { kind: 'ssh', host: 'jarvis', dir: playground }, 'jarvis is still the SSH host of a paired server')
+  })
 })

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { assert, test } from 'orca/testing'
 import { SwampFailure, type Repo, type RepoDir, type RunId, type SshHost } from './domain'
-import { probeRemote, runFile, runVitals, sshTryCommand, startBackground, swamp } from './swamp'
+import { probeRemote, runFile, runVitals, startBackground, swamp } from './swamp'
 
 // A stand-in `ssh` on PATH logs its argv, then hands the command string to the remote person's login shell
 // ($LOGIN_SHELL) with stdin attached, as sshd does. The remote home holds a stand-in swamp that answers what it got.
@@ -113,24 +113,18 @@ test('a remote repo folder that is gone is reported as not a swamp repo', async 
   assert.ok(e.message.includes(join(fake, 'gone')), e.message)
 })
 
-test('an unreachable host is reported as unreachable with the command to try', async () => {
+test('an unreachable host is reported in plain words with why, and with no command that cannot ask a question', async () => {
   const e = await failure(withEnv({ FAKE_SSH: 'unreachable' }, () => swamp(remoteRepo(remoteHome), { cmd: 'version' })))
   assert.equal(e.code, 'host_unreachable')
-  assert.ok(e.message.includes('Connection refused') && e.message.includes(sshTryCommand(box)), e.message)
+  assert.deepEqual(e.ssh, { login: box, cause: 'no-answer', said: 'ssh: connect to host x port 22: Connection refused' })
+  assert.ok(e.message.startsWith(`${box} did not answer on the SSH port.`) && e.message.endsWith('ssh said: ssh: connect to host x port 22: Connection refused'), e.message)
+  assert.ok(!/BatchMode|`|\.\./.test(e.message), e.message)
 })
 
 test('a host name starting with a dash is passed to ssh as the host, never as an option', async () => {
   await failure(swamp({ kind: 'ssh', host: '-oProxyCommand=touch x' as SshHost, dir: remoteHome as RepoDir }, { cmd: 'version' })).catch(() => {})
   const argv = sshCalls().at(-1)!
   assert.equal(argv[argv.indexOf('-oProxyCommand=touch x') - 1], '--')
-})
-
-test('the ssh command shown to try is safe to paste for any host name', () => {
-  const marker = join(fake, 'pasted')
-  const host = `-oProxyCommand=x $(touch ${marker}) \`touch ${marker}\`` as SshHost
-  const words = execFileSync('sh', ['-c', `ssh() { printf '%s\\n' "$@"; }; ${sshTryCommand(host)}`], { encoding: 'utf8' }).trim().split('\n')
-  assert.ok(!existsSync(marker), 'pasting it ran nothing')
-  assert.deepEqual(words.slice(-3), ['--', host, 'true'])
 })
 
 test('connection sharing lives in the home folder, and is left off where its socket path would pass the 104-byte limit', async () => {
