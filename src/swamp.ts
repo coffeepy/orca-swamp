@@ -2,7 +2,7 @@ import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { accessSync, closeSync, constants, existsSync, fstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, statSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { sshCause, sshSaid, SwampFailure, type Repo, type RepoDir, type RunId, type SshHost, type Vitals } from './domain'
+import { sshCause, sshSaid, SwampFailure, type Repo, type RepoDir, type RunId, type RunFiles, type SshHost } from './domain'
 import type { LogRead, ReadLog } from './log'
 import { FAULT_SAYS, sayPlain } from './present'
 import { studioUrl, WORK_ITEM_TYPE, type Expected } from './stagecraft'
@@ -72,7 +72,7 @@ function argv(c: Command): string[] {
     case 'resume':
       return ['workflow', 'resume', c.workflow, '--run', c.runId, ...(c.from ? ['--from', c.from.step, '--job', c.from.job] : [])]
     case 'recover':
-      // The steps that were running when the run was cut off have no guard to say whether they finished, so swamp
+      // The steps that were running when the run was interrupted have no guard to say whether they finished, so swamp
       // asks for this flag before it runs them again. The panel's second press is that word.
       return ['workflow', 'recover', c.workflow, '--run', c.runId, '--acknowledge-unknown']
     case 'decide':
@@ -288,13 +288,13 @@ function exists(pid: number): boolean {
 
 /**
  * What the files of a run in flight on this machine say: when its record or its log last changed, and whether the
- * swamp process its record names is gone, which is how swamp itself tells a run cut off (`owner_process_dead`).
+ * swamp process its record names is gone, which is how swamp itself tells a run interrupted (`owner_process_dead`).
  * Nothing for a record that is not there, such as one in a datastore outside the repo.
- * ponytail: a pid another process took over reads as alive, so the run only loses the label. A run started in a
+ * ponytail: a pid another process took over reads as alive, so the run keeps reading as running. A run started in a
  * container or on another machine that shares this folder names a pid this machine does not have, and would read
- * as gone; compare the process start time or skip such repos if one shows up.
+ * as interrupted; compare the process start time or skip such repos if one shows up.
  */
-export function runVitals(file: string): Vitals {
+export function runVitals(file: string): RunFiles {
   try {
     const pid = Number(/^pid: (\d+)$/m.exec(readFileSync(file, 'utf8'))?.[1])
     const changed = [file, file.replace(/\.yaml$/, '.log')].map((f) => statSync(f, { throwIfNoEntry: false })?.mtimeMs ?? 0)

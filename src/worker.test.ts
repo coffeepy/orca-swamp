@@ -692,7 +692,7 @@ test('run controls refuse a word that is not theirs before swamp runs anything',
   assert.ok(!verbs(calls()).includes('workflow run'), 'an input the workflow does not declare starts nothing')
 })
 
-test('a running run of a local repo whose swamp process died is marked gone on its row and its screen, with no further swamp call', async () => {
+test('a running run of a local repo whose swamp process died reads as interrupted on its row and its screen, with no further swamp call', async () => {
   const running = { ...JSON.parse(read('breaks.run-failed')), status: 'running' }
   const { repo, calls } = localRepo({
     'workflow search': JSON.stringify({ results: [{ name: 'breaks', stepCount: 2 }] }),
@@ -708,16 +708,17 @@ test('a running run of a local repo whose swamp process died is marked gone on i
   writeFileSync(join(dir, 'answers.json'), JSON.stringify({ ...JSON.parse(readFileSync(join(dir, 'answers.json'), 'utf8')), [`workflow history get ${BROKEN_RUN}`]: JSON.stringify({ ...running, path: file }) }))
   const worker = await mountWorker(main, { host: host(folder()) })
   const list = await worker.request('workflows.list', { repo })
-  assert.equal(list.runs[0].gone, true)
-  assert.equal(list.workflows[0].runs[0].gone, true)
-  assert.ok(Date.parse(list.runs[0].activeAt!) > Date.parse('2026-11-11T10:00:00.000Z'))
+  assert.deepEqual([list.runs[0].status, list.workflows[0].runs[0].status, list.workflows[0].latest?.status], ['interrupted', 'interrupted', 'interrupted'])
   const listCalls = calls().length
   assert.equal(listCalls, 4, 'search, history, approvals and version')
   const run = await worker.request('run.get', { repo, workflow: 'breaks', runId: BROKEN_RUN })
-  assert.equal(run.gone, true)
+  assert.equal(run.status, 'interrupted')
   assert.equal(calls().length - listCalls, 2, 'the definition and the run')
   writeFileSync(file, `id: ${BROKEN_RUN}\nstatus: running\npid: ${process.pid}\n`)
-  assert.ok(!('gone' in (await worker.request('run.get', { repo, workflow: 'breaks', runId: BROKEN_RUN }))))
+  const alive = await worker.request('run.get', { repo, workflow: 'breaks', runId: BROKEN_RUN })
+  assert.equal(alive.status, 'running')
+  assert.ok(Date.parse(alive.activeAt!) > Date.parse('2026-11-11T10:00:00.000Z'), 'a run in flight carries when its files last changed')
+  assert.equal((await worker.request('workflows.list', { repo })).runs[0].status, 'running')
 })
 
 const LOG_RUN = '7c1f0a52-3b6e-4d18-9a47-5e2d8c90b113' as never

@@ -25,7 +25,7 @@ import {
   type Run,
   type RunStatus
 } from './domain'
-import { runLook, stepTime } from './present'
+import { ALL_RUNS, runLook, runsShown, stepTime } from './present'
 
 const fx = (name: string): unknown => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'))
 
@@ -352,17 +352,40 @@ test('the list reads vitals for the runs in flight only, by workflow id and run 
   const asked: string[] = []
   const runs = parseRecent(history, (workflowId, runId) => {
     asked.push(`${workflowId}/${runId}`)
-    return runId === 'a' ? { activeAt: '2026-11-11T10:05:00.000Z', gone: true } : {}
+    return runId === 'a' ? { activeAt: '2026-11-11T10:05:00.000Z' } : {}
   })
   assert.deepEqual(asked.sort(), ['wf-1/a', 'wf-1/c'])
-  assert.deepEqual(runs.find((r) => r.runId === 'a'), { workflow: 'build', runId: 'a', status: 'running', startedAt: '2026-11-11T10:00:00.000Z', activeAt: '2026-11-11T10:05:00.000Z', gone: true })
+  assert.deepEqual(runs.find((r) => r.runId === 'a'), { workflow: 'build', runId: 'a', status: 'running', startedAt: '2026-11-11T10:00:00.000Z', activeAt: '2026-11-11T10:05:00.000Z' })
   assert.ok(!('activeAt' in runs.find((r) => r.runId === 'b')!))
-  assert.ok(parseRecent(history).every((r) => !('gone' in r)))
+})
+
+test('a run swamp lists as running whose swamp process no longer exists is an interrupted run', () => {
+  const entry = (runId: string, status: string, startedAt: string) => ({ runId, workflowId: 'wf-1', workflowName: 'build', status, startedAt })
+  const history = { results: [entry('dead', 'running', '2026-11-11T10:00:00.000Z'), entry('alive', 'pending', '2026-11-11T09:00:00.000Z'), entry('ended', 'succeeded', '2026-11-11T08:00:00.000Z')] }
+  const files = (_: string, runId: string) => ({ activeAt: '2026-11-11T10:05:00.000Z', ...(runId !== 'alive' && { gone: true as const }) })
+  const runs = parseRecent(history, files)
+  assert.deepEqual(runs.map((r) => r.status), ['interrupted', 'pending', 'succeeded'])
+  assert.deepEqual(runs[0], { workflow: 'build', runId: 'dead', status: 'interrupted', startedAt: '2026-11-11T10:00:00.000Z' }, 'it reads as any interrupted run does')
+  const { counts } = runsShown(runs, ALL_RUNS, '', Date.parse('2026-11-11T11:00:00.000Z'))
+  assert.deepEqual([counts.running, counts.failed], [1, 1], 'it counts under Failed, not Running')
+  const [card] = parseWorkflowList({ results: [{ name: 'build', stepCount: 2 }] }, history, files)
+  assert.equal(card.latest?.status, 'interrupted', 'its workflow\u2019s card does not read as running')
+  assert.equal(card.runs[0].status, 'interrupted')
+
+  const raw = { ...(fx('breaks.run-failed') as object), status: 'running' }
+  const stepsRunning = { ...raw, jobs: (raw as unknown as { jobs: { steps: object[] }[] }).jobs.map((j) => ({ ...j, steps: j.steps.map((s) => ({ ...s, status: 'running' })) })) }
+  const run = parseRun(fx('breaks.def'), stepsRunning, [], () => ({ gone: true }))
+  assert.equal(run.status, 'interrupted')
+  assert.deepEqual(runActions(run), ['recover', 'again', 'discard'], 'swamp recovers it as it does a run it lists as interrupted, and still takes a cancel for it')
+  assert.ok(!isLive(run) && !('activeAt' in run))
+  assert.ok(run.jobs.every((j) => j.stages.flat().every((s) => s.status === 'unknown')), 'no step of it reads as running')
+  assert.equal(parseRun(fx('breaks.def'), raw, [], () => ({})).status, 'running', 'a run whose process lives is running')
+  assert.equal(parseRun(fx('breaks.def'), fx('breaks.run-failed'), [], () => ({ gone: true })).status, 'failed', 'a run that ended keeps how it ended')
 })
 
 test('a run keeps the later of its last step time and its files\u2019 last change', () => {
   const run = { activeAt: '2026-11-11T10:05:00.000Z' }
-  assert.deepEqual(withVitals(run, { activeAt: '2026-11-11T10:09:00.000Z', gone: true }), { activeAt: '2026-11-11T10:09:00.000Z', gone: true })
+  assert.deepEqual(withVitals(run, { activeAt: '2026-11-11T10:09:00.000Z' }), { activeAt: '2026-11-11T10:09:00.000Z' })
   assert.deepEqual(withVitals(run, { activeAt: '2026-11-11T10:01:00.000Z' }), run)
   assert.deepEqual(withVitals(run, {}), run)
   assert.deepEqual(withVitals({}, {}), {})

@@ -61,6 +61,7 @@ import {
   stepsOf,
   stepTime,
   stepTone,
+  INTERRUPTED_HINT,
   PACE_LOOK,
   paceLabel,
   paceProgress,
@@ -643,8 +644,8 @@ const controlText = (id: string, label: string, busy: string): string => esc(sta
 const controlError = (id: string): string => (state.actionError && state.acted === id ? `<div class="ctl-error">${esc(state.actionError)}</div>` : '')
 
 /** Run on a workflow: it starts at once, or opens the form when the workflow declares inputs. */
-const runButton = (workflow: string): string =>
-  `<button class="btn-outline ctl" data-action="run" data-workflow="${esc(workflow)}" title="Start a new run" ${off()}>${controlText(`run:${workflow}`, 'Run', 'Asking swamp…')}</button>`
+const runButton = (workflow: string, label = 'Run'): string =>
+  `<button class="btn-outline ctl" data-action="run" data-workflow="${esc(workflow)}" title="Start a new run of this workflow" ${off()}>${controlText(`run:${workflow}`, label, 'Asking swamp…')}</button>`
 
 /** The open Run form of `workflow`: one field per declared input, the required ones marked, the defaults filled in. */
 function runForm(workflow: string): string {
@@ -702,7 +703,7 @@ function recentRow(o: { place: Place | null; color: string; name: string; detail
   </${tag}>`
 }
 
-/** A run's color and what its row says of its pace; a run in flight that is slow, quiet or gone takes that pace's color. */
+/** A run's color and what its row says of its pace; a run in flight that is slow or quiet takes that pace's color. */
 function rowPace(r: RecentRun, now: number, usual?: number): { color: string; text?: string } {
   const pace = paceOf(r, usual, now)
   return { color: pace && pace.state !== 'on-pace' ? TONE_VAR[PACE_LOOK[pace.state].tone] : runTone(r.status), text: pace && paceRow(pace) }
@@ -1019,7 +1020,7 @@ function failureActions(run: Run, step: Extract<Step, { status: 'failed' }>): st
 }
 
 /**
- * The run's controls: what its status offers, then Run for a new run of the workflow. An action that needs it shows
+ * The run's controls: what its status offers, then New run for a new run of the workflow. An action that needs it shows
  * its question and its swamp command in place of the buttons until a second press or a way out.
  */
 function runBar(run: Run): string {
@@ -1033,7 +1034,7 @@ function runBar(run: Run): string {
         <div class="ctls">${button(asked, 'btn-danger')}<button class="btn-outline ctl" data-action="unconfirm" ${off()}>${asked === 'stop' ? 'Keep running' : 'Cancel'}</button></div>
         <span class="mono muted" style="font-size:11.5px">runs: ${esc(actionCommand(asked, run))}</span>
       </div>`
-    : `<div class="ctls">${actions.map((a) => button(a, 'btn-outline')).join('')}${runButton(run.workflow)}</div>`
+    : `<div class="ctls">${actions.map((a) => button(a, 'btn-outline')).join('')}${runButton(run.workflow, 'New run')}</div>`
   return row + runForm(run.workflow) + [...actions, `run:${run.workflow}`].map(controlError).join('')
 }
 
@@ -1062,9 +1063,11 @@ function runScreen(run: Run): string {
         <div><span class="muted">${esc(paceProgress(pace))}</span>${look!.label ? `<span style="color:${TONE_VAR[look!.tone]};font-weight:600"> · ${esc(paceLabel(pace))}</span>` : ''}</div>
         ${look!.hint ? `<div class="muted">${esc(look!.hint)}</div>` : ''}
       </div>`
-    : !inFlight(run.status) && usual !== undefined
-      ? `<div class="muted" style="font-size:12px">usually ${brief(usual)}</div>`
-      : ''
+    : run.status === 'interrupted'
+      ? `<div class="muted" role="status" style="font-size:12px;line-height:1.45">${esc(INTERRUPTED_HINT)}</div>`
+      : usual !== undefined
+        ? `<div class="muted" style="font-size:12px">usually ${brief(usual)}</div>`
+        : ''
   return `<div class="body" style="gap:12px;flex:1">
     <div style="display:flex;align-items:center;gap:8px">
       <button class="back" data-action="back" aria-label="Back">‹</button>
@@ -1687,7 +1690,8 @@ function takeChunk(chunk: LogChunk, earlier: boolean, run: Run): void {
   logLines.insertAdjacentHTML('beforeend', html)
   if (first || chunk.reset) tail.from = chunk.from
   tail.next = chunk.next
-  tail.done = chunk.done
+  // swamp's record may keep an interrupted run as running, so the run's own status ends the read too.
+  tail.done = chunk.done || (!inFlight(run.status) && chunk.next >= chunk.size)
   // A person reading older lines keeps them for twice as long before the oldest go.
   const over = tail.lines.length - LOG.keepLines * (tail.pinned ? 1 : 2)
   if (over > 0) {
@@ -1713,8 +1717,8 @@ async function loadTail(run: Run, dir: Repo, earlier = false): Promise<void> {
   }
   const t = tail
   t.steps = new Map(stepsOf(run).flatMap((s) => (s.logTag ? [[s.logTag, s.name]] : [])))
-  // A run that ended is read to its end once, and one whose process is gone will write no more.
-  if (t.asking || (!earlier && t.next !== undefined && (run.gone || (t.done && !inFlight(run.status))))) return
+  // A run that ended is read to its end once.
+  if (t.asking || (!earlier && t.next !== undefined && t.done && !inFlight(run.status))) return
   t.asking = true
   try {
     // A backlog longer than one answer is read in a few asks now, not one per poll.
@@ -1752,11 +1756,9 @@ function syncLog(place = false): void {
     ? `<span style="color:var(--fail)">${esc(tail.error)}</span>`
     : tail.next === undefined
       ? 'Reading the log…'
-      : run.gone
-        ? 'not following: the run’s process is gone'
-        : live
-          ? '<span style="color:var(--run)">following</span>'
-          : `${shown} line${shown === 1 ? '' : 's'}`
+      : live
+        ? '<span style="color:var(--run)">following</span>'
+        : `${shown} line${shown === 1 ? '' : 's'}`
   const head = `<span class="label">LOG</span><span class="muted" role="status" style="font-size:12px">${status}</span>
     ${step && filter ? `<button class="log-filter" data-action="select" data-step="${esc(step.name)}" title="Show every step’s lines">${esc(step.name)} ✕</button>` : ''}
     <button class="btn-outline" style="margin-left:auto;min-height:26px;padding:0 10px" data-action="logCopy" data-flash="logCopy" ${shown ? '' : 'disabled'}>${state.flash?.action === 'logCopy' ? esc(state.flash.text) : 'Copy'}</button>`
@@ -2723,8 +2725,7 @@ document.body.append(root)
 
 function nextDelay(): number {
   if (state.place.tab !== 'workflows') return IDLE_MS
-  // A run whose process is gone will not move by itself, so it is not read at the fast rate.
-  if ('workflow' in state.place) return state.run.data && isLive(state.run.data) && !state.run.data.gone ? LIVE_MS : IDLE_MS
+  if ('workflow' in state.place) return state.run.data && isLive(state.run.data) ? LIVE_MS : IDLE_MS
   return state.list.data?.workflows.some((w) => w.latest?.status === 'running' || w.latest?.status === 'pending') ? LIVE_MS : IDLE_MS
 }
 

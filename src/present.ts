@@ -20,6 +20,10 @@ const RUN_LOOK: Record<RunStatus, Pill> = {
 
 export const runLook = (status: RunStatus): Pill => RUN_LOOK[status]
 
+/** What an interrupted run's screen says of it, above its two buttons. */
+export const INTERRUPTED_HINT =
+  'swamp stopped before this run ended, for example because the computer restarted or its terminal was closed. Recover and resume continues it from its last checkpoint.'
+
 export const stepsOf = (run: Run): Step[] => run.jobs.flatMap((j) => j.stages.flat())
 
 /** "Waiting · 7/8": steps that passed, plus gates waiting, out of all steps. */
@@ -82,8 +86,7 @@ export const PACE_LOOK: Record<Pace['state'], { tone: Tone; label?: (p: Pace) =>
     tone: 'warm',
     label: (p) => `no activity for ${brief(p.quietMs ?? p.elapsedMs)}`,
     hint: 'It may be in a long step that writes nothing, or it may have stopped. Stop it if it does not move.'
-  },
-  gone: { tone: 'fail', label: () => 'its process is gone', hint: 'swamp still lists it as running, but the swamp process that ran it no longer exists. Stop it to clear it, then run it again.' }
+  }
 }
 
 /** "2m of about 6m", or "2m" for a workflow with no usual time yet. */
@@ -91,8 +94,8 @@ export const paceProgress = (p: Pace): string => (p.usualMs === undefined ? brie
 
 export const paceLabel = (p: Pace): string | undefined => PACE_LOOK[p.state].label?.(p)
 
-/** What a run's row has room for: that it went quiet or its process is gone, else how far along it is. */
-export const paceRow = (p: Pace): string => (p.state === 'quiet' || p.state === 'gone' ? paceLabel(p)! : paceProgress(p))
+/** What a run's row has room for: that it went quiet, else how far along it is. */
+export const paceRow = (p: Pace): string => (p.state === 'quiet' ? paceLabel(p)! : paceProgress(p))
 
 export const ago = (iso: string | undefined, now: number): string => {
   const s = since(iso, now)
@@ -489,8 +492,9 @@ export const retryCommand = (run: Run, step: string): string => actionCommand('r
 export const ACTION_LOOK: Record<RunAction, { label: string | Partial<Record<RunStatus, string>>; busy: string; confirm?: string }> = {
   stop: { label: 'Stop', busy: 'Stopping…', confirm: 'Stop this run? The step that is running is ended and the rest are skipped.' },
   retry: { label: { failed: 'Retry failed steps', suspended: 'Resume' }, busy: 'Starting…' },
-  recover: { label: 'Recover and resume', busy: 'Recovering…', confirm: 'This run was cut off. A step that was running then runs again from its start.' },
-  again: { label: 'Run again', busy: 'Starting…' }
+  recover: { label: 'Recover and resume', busy: 'Recovering…', confirm: 'This run was interrupted. A step that was running then runs again from its start.' },
+  again: { label: 'Run again', busy: 'Starting…' },
+  discard: { label: 'Discard', busy: 'Discarding…', confirm: 'Discard this run? swamp marks it cancelled, and it cannot be recovered after that.' }
 }
 
 export const actionLabel = (action: RunAction, status: RunStatus): string => {
@@ -503,6 +507,7 @@ export function actionCommand(action: Exclude<RunAction, 'again'>, run: Run, fro
   const target = `${run.workflow} --run ${run.id}`
   switch (action) {
     case 'stop':
+    case 'discard':
       return `swamp workflow cancel ${target}`
     case 'retry':
       return `swamp workflow resume ${target}${from ? ` --from ${from}` : ''}`
