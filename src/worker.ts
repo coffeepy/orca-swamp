@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir, userInfo } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, posix } from 'node:path'
 import type { OrcaWorkerApi } from 'orca/worker'
 import {
   parseApprovals,
@@ -12,7 +12,9 @@ import {
   parseWorkflowList,
   rawInputs,
   repoKey,
+  sshHostOf,
   SwampFailure,
+  tidyLogin,
   inFlight,
   typedInputs,
   withVitals,
@@ -20,13 +22,14 @@ import {
   type Repo,
   type RepoDir,
   type Run,
-  type RunId
+  type RunId,
+  type SshHost
 } from './domain'
 import { inboxRepos, readInbox } from './inbox'
 import { LOG, readChunk, type LogAsk } from './log'
-import { failurePrompt, firstFailed } from './present'
-import type { AgentTerminal } from './protocol'
-import { focusPinKey, parsePins, parseWorkspaces, remembered, rememberedLookups, resolveRepo, type Pins } from './repo'
+import { failurePrompt, firstFailed, type ConnectFault } from './present'
+import type { AgentTerminal, Connected } from './protocol'
+import { focusPinKey, parsePins, parseWorkspaces, remembered, rememberedLookups, resolveRepo, serversUnread, UNNAMED, type Pins, type Resolution } from './repo'
 import {
   expectedOf,
   FACTORY_TYPE,
@@ -51,32 +54,44 @@ const versions = new Map<string, Promise<string>>()
 // ponytail: pins live in a small JSON file because `storage:own` would add a capability.
 const pinsFile = (): string => process.env.SWAMPLING_PINS ?? join(homedir(), '.config/swampling/pins.json')
 
-function readPins(): Pins {
+/** The pins file as it is written: entries this version cannot read are kept as they are on a rewrite. */
+function rawPins(): Record<string, unknown> {
   try {
-    return parsePins(JSON.parse(readFileSync(pinsFile(), 'utf8')))
+    const raw: unknown = JSON.parse(readFileSync(pinsFile(), 'utf8'))
+    return raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}
   } catch {
     return {}
   }
 }
 
+const readPins = (): Pins => parsePins(rawPins())
+
+function writePins(raw: Record<string, unknown>): Pins {
+  mkdirSync(dirname(pinsFile()), { recursive: true })
+  writeFileSync(pinsFile(), JSON.stringify(raw, null, 2))
+  return parsePins(raw)
+}
+
 const settingsFile = (): string => join(dirname(pinsFile()), 'settings.json')
 
-/** `inbox` is whether the panel shows the "Needs you" tab and reads every repo for it. */
-type Settings = { theme: ThemeId; inbox: boolean }
+/** `inbox` is whether the panel shows the "Needs you" tab and reads every repo for it. `sshHosts` are the SSH logins the person added. */
+type Settings = { theme: ThemeId; inbox: boolean; sshHosts: SshHost[] }
 
 function readSettings(): Settings {
   try {
-    const saved = JSON.parse(readFileSync(settingsFile(), 'utf8')) as { theme?: unknown; inbox?: unknown } | null
-    return { theme: parseThemeId(saved?.theme), inbox: saved?.inbox !== false }
+    const saved = JSON.parse(readFileSync(settingsFile(), 'utf8')) as { theme?: unknown; inbox?: unknown; sshHosts?: unknown } | null
+    const hosts = Array.isArray(saved?.sshHosts) ? saved.sshHosts.flatMap((h) => sshHostOf(h) ?? []) : []
+    return { theme: parseThemeId(saved?.theme), inbox: saved?.inbox !== false, sshHosts: [...new Set(hosts)] }
   } catch {
-    return { theme: 'orca', inbox: true }
+    return { theme: 'orca', inbox: true, sshHosts: [] }
   }
 }
 
 function saveSettings(change: Partial<Settings>): Settings {
   const settings = { ...readSettings(), ...change }
   mkdirSync(dirname(settingsFile()), { recursive: true })
-  writeFileSync(settingsFile(), JSON.stringify(settings, null, 2))
+  // The file names the logins only while there are some, so it reads as 0.5.0 wrote it for a person with none.
+  writeFileSync(settingsFile(), JSON.stringify({ ...settings, sshHosts: settings.sshHosts.length ? settings.sshHosts : undefined }, null, 2))
   return settings
 }
 
@@ -94,6 +109,17 @@ function word<T extends string = string>(value: unknown, what: string): T {
 
 function repoOf(value: unknown): Repo {
   return parsePins({ repo: value }).repo ?? refuse('the panel sent no repo, or one that is not an absolute folder')
+}
+
+function hostOf(value: unknown): SshHost {
+  return sshHostOf(value) ?? refuse(`'${String(value)}' is not an SSH login`)
+}
+
+/** A folder on a remote host as the probe takes it: a full path, or one under `~`, with no trailing slash, `..` or control character. */
+function remoteDirOf(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 4096 || /[\x00-\x1f\x7f]/.test(value)) return null
+  const dir = posix.normalize(value.trim()).replace(/(.)\/$/, '$1')
+  return /^(\/|~$|~\/)/.test(dir) ? dir : null
 }
 
 function oneOf<T extends string>(value: unknown, allowed: readonly T[], what: string): T {
@@ -281,20 +307,93 @@ export default function activate(orca: OrcaWorkerApi): void {
   const readRegistry = remembered(REGISTRY_FRESH_MS, () => swamp({ kind: 'local', dir: homedir() as RepoDir }, { cmd: 'workspaces' }).then(parseWorkspaces))
   const registry = (fresh?: boolean) => readRegistry(fresh).catch(() => [])
 
-  orca.panels.handle('repo.resolve', async (input) => {
-    const fresh = input?.fresh === true
-    return resolveRepo(orca, registry(fresh), readPins(), { look, fresh })
+  const resolve = async (pins: Pins, more: { picked?: Repo; fresh?: boolean; added?: SshHost[] } = {}): Promise<Resolution> => {
+    const added = more.added ?? readSettings().sshHosts
+    const answer = await resolveRepo(orca, registry(more.fresh), pins, { ...more, look, added })
+    return { ...answer, ...(added.length && { logins: added }), sshUser: userInfo().username }
+  }
+
+  orca.panels.handle('repo.resolve', async (input) => resolve(readPins(), { fresh: input?.fresh === true }))
+
+  /** Remembers `repo` as the focused workspace's and resolves again. */
+  async function pin(repo: Repo) {
+    const { key } = await focusPinKey(orca, look)
+    // With several workspaces of this name and nothing to tell them apart, a saved pick would follow the person to all of them.
+    // So would a repo of this Mac saved for "no workspace named" while Orca cannot say whether a remote server is paired.
+    const unsure = key === UNNAMED && repo.kind === 'local' && serversUnread(await look.remote())
+    if (key === null || unsure) return resolve(readPins(), { picked: repo })
+    return resolve(writePins({ ...rawPins(), [key]: repo }))
+  }
+
+  orca.panels.handle('repo.pin', async (input) => pin(repoOf(input?.repo)))
+
+  orca.panels.handle('hosts.add', async (input): Promise<Connected> => {
+    const typed = typeof input?.host === 'string' ? tidyLogin(input.host) : ''
+    const fault = (fault: ConnectFault, more: { said?: string; folder?: string } = {}): Connected => ({ ok: false, fault, login: typed, ...more })
+    const login = sshHostOf(typed)
+    if (!login) return fault(typed ? 'not-a-login' : 'empty')
+    const dir = input.dir === undefined ? undefined : remoteDirOf(input.dir)
+    if (dir === null) return fault('folder-not-path')
+    const replaces = input.replaces === undefined ? undefined : hostOf(input.replaces)
+    // Where a pick goes is settled now: the person may focus another workspace while ssh connects.
+    const [focus, before] = [await focusPinKey(orca, look), readPins()]
+    const old = focus.key === null ? undefined : before[focus.key]
+    // A changed login is asked for the folder of this workspace's repo, so the pick can move to it.
+    const moved = old?.kind === 'ssh' && old.host === replaces ? old.dir : undefined
+    // Orca's servers are asked meanwhile, so the answer below waits for ssh once.
+    const [found] = await Promise.all([look.host(login, dir ?? moved, true), look.remote().catch(() => undefined)])
+    if (found instanceof Error) {
+      if (found.code === 'swamp_not_found') return fault('swamp-missing')
+      return found.ssh ? fault(found.ssh.cause, { said: found.ssh.said }) : refuse(found.message)
+    }
+    if (dir && !found.at) {
+      // The login answered, so it is kept; the folder is the one thing to put right.
+      saveSettings({ sshHosts: [...new Set([...readSettings().sshHosts, login])] })
+      return fault('folder-no-repo', { folder: dir })
+    }
+    const logins = [...new Set([...readSettings().sshHosts.filter((h) => h !== replaces), login])]
+    const raw = rawPins()
+    let repinned = false
+    if (replaces && replaces !== login) {
+      // Picks on the old login move to the same folder on the new one when it has that repo, and are dropped when not.
+      for (const [key, repo] of Object.entries(parsePins(raw))) {
+        if (repo.kind !== 'ssh' || repo.host !== replaces) continue
+        repinned = true
+        if (found.choices.some((c) => c.repo.dir === repo.dir)) raw[key] = { ...repo, host: login }
+        else delete raw[key]
+      }
+      look.forget(replaces)
+    }
+    let answer = await resolve(parsePins(raw), { added: logins })
+    // A repo is picked for the person when they named its folder, or when the login has one repo and the workspace
+    // has none and its own key: under the key all unnamed remote workspaces share, the person picks.
+    const only = found.choices.length === 1 && focus.key !== UNNAMED && !answer.repo ? found.choices[0].repo : undefined
+    const pick = dir ? found.at : only
+    const still = (await focusPinKey(orca, look)).key === focus.key
+    if (pick && focus.unlisted && (dir || still)) {
+      if (focus.key !== null) [raw[focus.key], repinned] = [pick, true]
+      if (still) answer = { ...answer, repo: pick }
+    }
+    // Saved last, in one step: an add that failed anywhere above saved nothing.
+    saveSettings({ sshHosts: logins })
+    if (repinned) writePins(raw)
+    return { ok: true, login, resolution: answer }
   })
 
-  orca.panels.handle('repo.pin', async (input) => {
-    const repo = repoOf(input?.repo)
-    const key = await focusPinKey(orca, look)
-    // With several workspaces of this name and nothing to tell them apart, a saved pick would follow the person to all of them.
-    if (key === null) return resolveRepo(orca, registry(), readPins(), { picked: repo, look })
-    const pins = { ...readPins(), [key]: repo }
-    mkdirSync(dirname(pinsFile()), { recursive: true })
-    writeFileSync(pinsFile(), JSON.stringify(pins, null, 2))
-    return resolveRepo(orca, registry(), pins, { look })
+  orca.panels.handle('hosts.remove', async (input) => {
+    const host = hostOf(input?.host)
+    const logins = readSettings().sshHosts
+    const raw = rawPins()
+    // A server Orca itself reaches over SSH through this host still uses it, so its picks stay. They also stay while
+    // Orca's server list cannot be read, when that cannot be told.
+    const remote = await look.remote()
+    const mine = logins.includes(host) && !serversUnread(remote) && !remote.hosts.includes(host)
+    const gone = mine ? Object.entries(parsePins(raw)).flatMap(([key, repo]) => (repo.kind === 'ssh' && repo.host === host ? [key] : [])) : []
+    for (const key of gone) delete raw[key]
+    if (gone.length) writePins(raw)
+    saveSettings({ sshHosts: logins.filter((h) => h !== host) })
+    look.forget(host)
+    return { resolution: await resolve(parsePins(raw)), unpicked: gone.length }
   })
 
   orca.panels.handle('workflows.list', async (input) => {

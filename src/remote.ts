@@ -3,7 +3,7 @@
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join, posix } from 'node:path'
-import { SwampFailure, type SshHost } from './domain'
+import { addressOf, SwampFailure, sshHostOf, type SshHost } from './domain'
 
 export type RemoteWorkspace = {
   name: string
@@ -22,14 +22,26 @@ const rows = (raw: unknown, key: string): Json[] => {
 }
 const str = (v: unknown): string | null => (typeof v === 'string' && v ? v : null)
 
-/** The servers to ask: each saved environment's name, with the ssh host Orca reached it through. */
-export function parseServers(environments: unknown, hosts: unknown): { server: string; host: SshHost | null }[] {
-  // ssh treats a destination that starts with "-" as an option.
-  const sshName = new Map(rows(hosts, 'hosts').flatMap((h) => (h.kind === 'ssh' && str(h.id) && str(h.name) && !String(h.name).startsWith('-') ? [[h.id as string, h.name as SshHost]] : [])))
-  return rows(environments, 'environments').flatMap((e) => {
+/**
+ * A saved Orca server. `host` is the SSH host Orca deployed it through. A server paired with a code has none, and
+ * carries `code`, with the address Orca connects to when ssh could try it. `unusable` is an SSH host of Orca's whose
+ * name is not one the panel hands to ssh.
+ */
+export type Server = { server: string; host: SshHost | null; code?: { address?: SshHost }; unusable?: string }
+
+export function parseServers(environments: unknown, hosts: unknown): Server[] {
+  const sshName = new Map(rows(hosts, 'hosts').flatMap((h): [string, string][] => (h.kind === 'ssh' && str(h.id) && str(h.name) ? [[h.id as string, h.name as string]] : [])))
+  return rows(environments, 'environments').flatMap((e): Server[] => {
     const server = str(e.name)
+    if (!server) return []
     const target = str((e.orcadDeployment as Json | undefined)?.sshTargetId)
-    return server ? [{ server, host: (target && sshName.get(target)) || null }] : []
+    if (!target) {
+      const address = (Array.isArray(e.endpoints) ? e.endpoints : []).flatMap((p: Json | null) => addressOf(p?.endpoint) ?? [])[0]
+      return [{ server, host: null, code: { ...(address && { address }) } }]
+    }
+    const name = sshName.get(target)
+    const host = sshHostOf(name)
+    return [{ server, host, ...(name && !host && { unusable: name }) }]
   })
 }
 
@@ -71,19 +83,19 @@ function orcaCli(args: string[]): Promise<unknown> {
   })
 }
 
-export type Server = { server: string; host: SshHost | null }
-
 /** Every saved remote Orca server, every workspace on those that answer, and why the others did not. */
 export async function remoteWorkspaces(): Promise<{ servers: Server[]; workspaces: RemoteWorkspace[]; failures: (Server & { error: SwampFailure })[] }> {
   const [environments, hosts] = await Promise.all([orcaCli(['environment', 'list']), orcaCli(['host', 'list'])])
   const servers = parseServers(environments, hosts)
-  const failures: (Server & { error: SwampFailure })[] = []
+  const failures: (Server & { error: SwampFailure })[] = servers.flatMap((s) =>
+    s.unusable === undefined ? [] : [{ ...s, error: new SwampFailure('swamp_error', `Orca reaches the server ${s.server} through an SSH host named '${s.unusable}', which Swampling cannot use: an SSH name may hold letters, digits and . _ - @ : % + only.`) }]
+  )
   const lists = await Promise.all(
     servers.map((s) =>
       orcaCli(['worktree', 'list', '--environment', s.server]).then(
         (w) => parseServerWorkspaces(w, s.server, s.host),
         (e: SwampFailure) => {
-          failures.push({ ...s, error: new SwampFailure(e.code ?? 'swamp_error', `Could not list the workspaces on Orca server ${s.server}: ${e.message}`) })
+          failures.push({ ...s, error: new SwampFailure('server_unreachable', `Could not list the workspaces on Orca server ${s.server}: ${e.message}`) })
           return []
         }
       )

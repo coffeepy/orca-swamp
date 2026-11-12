@@ -20,7 +20,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # The tests need Orca's own test files, which a runner does not have: scripts/release.sh runs them.
+      # The tests and the type check (scripts/typecheck.sh) need files only Orca ships, which a runner does not have.
+      # docs/releasing.md has them as steps to run by hand before a merge.
       - name: Manifest version and changelog agree
         run: scripts/version-check.sh
       - name: Shell scripts are valid

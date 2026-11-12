@@ -2,8 +2,9 @@ import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { accessSync, closeSync, constants, existsSync, fstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, statSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { SwampFailure, type Repo, type RepoDir, type RunId, type SshHost, type Vitals } from './domain'
+import { sshCause, sshSaid, SwampFailure, type Repo, type RepoDir, type RunId, type SshHost, type Vitals } from './domain'
 import type { LogRead, ReadLog } from './log'
+import { FAULT_SAYS, sayPlain } from './present'
 import { studioUrl, WORK_ITEM_TYPE, type Expected } from './stagecraft'
 
 // swamp's installer puts it in ~/.local/bin, which Orca's worker PATH may lack; otherwise PATH finds it.
@@ -137,7 +138,8 @@ export function remoteCommand(dir: string, args: string[], mode: 'run' | 'detach
     // Waits up to 10 s, so a run or resume that fails at once exits with its error; one still running is left to finish.
     detach: `${FIND_SWAMP}; ${CD}; shift; e=$(mktemp); nohup "$s" "$@" >/dev/null 2>"$e" </dev/null & p=$!; i=0; while kill -0 $p 2>/dev/null && [ $i -lt 10 ]; do sleep 1; i=$((i+1)); done; if kill -0 $p 2>/dev/null; then rm -f "$e"; exit 0; fi; wait $p; c=$?; cat "$e" >&2; rm -f "$e"; exit $c`,
     // For each folder, one line naming the repo at or above it as swamp finds it; then swamp's workspace registry.
-    probe: `for d; do while [ ! -f "$d/.swamp.yaml" ]; do [ "$d" = / ] && { d=; break; }; d=$(dirname -- "$d"); done; printf '%s\\n' "$d"; done; ${FIND_SWAMP}; cd && "$s" workspace list --json --no-color`
+    // A folder under ~ is put under $HOME by the script itself, as a quoted word; one that is not a full path finds nothing.
+    probe: `for d; do case "$d" in "~") d=$HOME ;; "~/"*) d=$HOME/\${d#"~/"} ;; esac; case "$d" in /*) ;; *) d=/ ;; esac; while [ ! -f "$d/.swamp.yaml" ]; do [ "$d" = / ] && { d=; break; }; d=$(dirname -- "$d"); done; printf '%s\\n' "$d"; done; ${FIND_SWAMP}; cd && "$s" workspace list --json --no-color`
   }[mode]
   return `set -- ${[dir, ...args].map(shq).join(' ')}\n${body}\n`
 }
@@ -158,8 +160,15 @@ function sshOptions(): string[] {
   return [...options, '-o', 'ControlMaster=auto', '-o', `ControlPath=${dir}/%C`, '-o', 'ControlPersist=60']
 }
 
-/** The exact command a person can run in a terminal to see why ssh failed. */
-export const sshTryCommand = (host: SshHost): string => `ssh -o BatchMode=yes -- ${/^[\w.@:%+=-]+$/.test(host) ? host : shq(host)} true`
+/** ssh itself failed: the failure carries why, and says it in the words the panel has for that cause. */
+function sshFailure(login: SshHost, stderr: string, killed: boolean, timeout: number): SwampFailure {
+  const cause = sshCause(stderr, { killed })
+  const said = killed ? '' : sshSaid(stderr)
+  // A command stopped at its time limit may be a slow swamp on a host that answers; only the connect form reads it as the connection.
+  const failure = killed ? new SwampFailure('timeout', `swamp on ${login} took longer than ${timeout / 1000} s`) : new SwampFailure('host_unreachable', sayPlain(FAULT_SAYS[cause]({ login }), said))
+  failure.ssh = { login, cause, said }
+  return failure
+}
 
 // Printed before the script runs, so lines the remote login shell's startup files print can be dropped.
 const MARK = 'swampling:output'
@@ -177,11 +186,7 @@ function sshExec(host: SshHost, script: string, timeout: number, encoding: 'utf8
       const at = rawStdout.indexOf(`${MARK}\n`)
       const stdout = at < 0 ? rawStdout : rawStdout.slice(at + MARK.length + 1)
       const code = (error as { code?: unknown } | null)?.code
-      if (error?.killed) return reject(new SwampFailure('timeout', `swamp on ${host} took longer than ${timeout / 1000} s`))
-      if (code === 255) {
-        const why = stderr.trim().split('\n').at(-1) || 'ssh failed'
-        return reject(new SwampFailure('host_unreachable', `Could not reach ${host} over SSH: ${why}. The panel connects without a password or key prompt; run \`${sshTryCommand(host)}\` in a terminal to see why.`))
-      }
+      if (error?.killed || code === 255) return reject(sshFailure(host, stderr, !!error?.killed, timeout))
       const ours = stderr.split('\n').find((l) => l.startsWith('swampling: '))?.slice('swampling: '.length)
       if (code === 127 && ours?.startsWith('swamp is not installed')) return reject(new SwampFailure('swamp_not_found', ours))
       if (code === 1 && ours?.startsWith('no folder')) return reject(new SwampFailure('not_a_swamp_repo', `Not a swamp repository: ${ours}`))

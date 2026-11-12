@@ -1,6 +1,6 @@
-import { repoKey, type RecentRun, type Repo, type RepoDir, type Run, type RunAction, type RunId, type RunStatus, type SshHost, type Step } from './domain'
+import { repoKey, sshHostOf, type RecentRun, type Repo, type RepoDir, type Run, type RunAction, type RunId, type RunStatus, type SshCause, type SshFault, type SshHost, type Step } from './domain'
 import type { InboxItem } from './inbox'
-import type { RepoChoice, Resolution } from './repo'
+import type { CodeServer, RepoChoice, Resolution } from './repo'
 import type { Pace } from './pace'
 import type { Dispatch, Product, Reason, Stage, TicketStatus, WorkItem } from './stagecraft'
 
@@ -308,7 +308,108 @@ function parseResolution(raw: unknown): Resolution | null {
   })
   const w = (r.workspace ?? {}) as Record<string, unknown>
   const workspace = typeof w.name === 'string' ? { name: w.name, listed: w.listed === true, ...(typeof w.sharedName === 'number' && { sharedName: w.sharedName }) } : undefined
-  return { repo, candidates, ...(workspace && { workspace }), ...(isStrings(r.remoteHosts) && { remoteHosts: r.remoteHosts as SshHost[] }) }
+  const logins = (list: unknown): SshHost[] => (Array.isArray(list) ? list.flatMap((h) => sshHostOf(h) ?? []) : [])
+  const sshless = (Array.isArray(r.sshless) ? r.sshless : []).flatMap((x: { name?: unknown; address?: unknown } | null): CodeServer[] => {
+    const address = sshHostOf(x?.address)
+    return typeof x?.name === 'string' ? [{ name: x.name, ...(address && { address }) }] : []
+  })
+  return {
+    repo,
+    candidates,
+    ...(workspace && { workspace }),
+    ...(isStrings(r.remoteHosts) && { remoteHosts: logins(r.remoteHosts) }),
+    ...(logins(r.logins).length && { logins: logins(r.logins) }),
+    ...(sshless.length && { sshless }),
+    ...(typeof r.sshUser === 'string' && { sshUser: r.sshUser })
+  }
+}
+
+/** What went wrong, in a few words, by failure code. */
+export const PROBLEM_TITLE: Record<string, string> = {
+  host_unreachable: 'cannot connect over SSH',
+  orca_cli_missing: 'orca command not found',
+  server_unreachable: 'an Orca server did not answer',
+  swamp_not_found: 'swamp is not installed there',
+  timeout: 'swamp timed out'
+}
+
+/** What can come between a Connect press and a repo on screen. */
+export type ConnectFault = SshCause | 'empty' | 'not-a-login' | 'swamp-missing' | 'folder-not-path' | 'folder-no-repo'
+
+/** What a fault's words may name: the login as typed, the address Orca connects to the server at, the folder typed. */
+export type FaultFacts = { login: string; address?: string; folder?: string }
+
+/** A fault in plain words: the sentence, the command to run when there is one, and whether the steps that set up a key follow. */
+export type Saying = { text: string; run?: string; keys?: true }
+
+const serverOf = (login: string): string => login.slice(login.lastIndexOf('@') + 1)
+
+export const FAULT_SAYS: Record<ConnectFault, (f: FaultFacts) => Saying> = {
+  'asks-password': ({ login }) => ({ text: `${login} asked for a password, and Swampling cannot type one. This Mac needs an SSH key on ${login}.`, keys: true }),
+  'host-key-unknown': ({ login }) => ({
+    text: `This Mac has never connected to ${login}, so ssh wants you to confirm it first. Run this in a terminal, answer yes, then press Connect again:`,
+    run: `ssh ${login} true`
+  }),
+  'host-key-changed': ({ login }) => ({ text: `${login} looks different from the last time this Mac connected. Check with whoever runs the server before going on.` }),
+  'unknown-name': ({ login, address }) => ({
+    text: `No server named ${serverOf(login)} was found. Check the spelling${address && address !== serverOf(login) ? `, or use the address Orca connects to: ${address}` : ''}.`
+  }),
+  'no-answer': ({ login }) => ({ text: `${login} did not answer on the SSH port. Check that the server is on, that you are on its network or VPN, and that SSH is turned on there.` }),
+  'timed-out': ({ login }) => ({ text: `${login} accepted the connection but did not finish in 20 seconds. Try again.` }),
+  other: ({ login }) => ({ text: `ssh could not connect to ${login}.` }),
+  empty: ({ address }) => ({ text: `Type an SSH login first, such as dev@${address ?? 'server.example'}.` }),
+  'not-a-login': ({ address }) => ({
+    text: `That is not an SSH login. Use a server name or address with letters, digits and . _ - : only, and put a user name in front if you need one, such as dev@${address ?? 'server.example'}.`
+  }),
+  'swamp-missing': ({ login }) => ({
+    text: `Connected to ${login}, but swamp is not installed for that user there. Install swamp on the server so it is in ~/.local/bin or on the PATH, then press Connect again.`
+  }),
+  'folder-not-path': () => ({ text: 'Type the full path of the folder, starting with / or ~/, such as /srv/factory.' }),
+  'folder-no-repo': ({ login, folder }) => ({ text: `Connected to ${login}, but no swamp repo is at or above ${folder} there. A swamp repo is a folder that holds a .swamp.yaml file.` })
+}
+
+/** A fault as one line of text, with ssh's own words last. */
+export const sayPlain = (s: Saying, said?: string): string => [s.text, s.run, said && `ssh said: ${said}`].filter(Boolean).join(' ')
+
+/** How a Mac with no SSH key gets one onto the server, in the order that works. */
+export const keySteps = (login: string): { say: string; run: string }[] => [
+  { say: 'Make a key, if this Mac has none. Press Enter at each question. If it says a key already exists, answer n.', run: 'ssh-keygen -t ed25519' },
+  { say: 'Copy the key to the server. It asks for your password there one time.', run: `ssh-copy-id ${login}` },
+  { say: 'Connect one time, and answer yes if it asks about a fingerprint.', run: `ssh ${login} true` }
+]
+
+/**
+ * The one card over the repo picker. `connect` leads when a server is paired without SSH and no login can be asked:
+ * it is what the person can act on, and that server being offline is one line in it. `connected` is passed in by the
+ * panel right after a Connect press worked.
+ */
+export type PickerNotice =
+  | { kind: 'connect'; servers: CodeServer[]; workspace?: string; offline?: string }
+  | { kind: 'connected'; login: SshHost }
+  | { kind: 'no-repos'; login: SshHost; connected: boolean }
+  | { kind: 'login-down'; fault: SshFault }
+  | { kind: 'problem'; title: string; message: string }
+  | { kind: 'remote'; hosts: SshHost[]; workspace?: string }
+  | { kind: 'shared'; name: string; count: number }
+  | { kind: 'unlisted'; name: string }
+
+export function pickerNotice(res: Resolution, connected?: SshHost): PickerNotice | null {
+  const hosts = res.remoteHosts ?? []
+  const logins = res.logins ?? []
+  const { workspace, problem } = res
+  if (res.sshless?.length && !hosts.length) {
+    return { kind: 'connect', servers: res.sshless, ...(workspace && { workspace: workspace.name }), ...(problem?.code === 'server_unreachable' && { offline: problem.server ?? '' }) }
+  }
+  if (problem?.ssh && logins.includes(problem.ssh.login)) return { kind: 'login-down', fault: problem.ssh }
+  if (problem) return { kind: 'problem', title: PROBLEM_TITLE[problem.code] ?? 'swamp failed', message: problem.message }
+  const on = (login: SshHost) => res.candidates.some((c) => c.repo.kind === 'ssh' && c.repo.host === login)
+  if (connected && hosts.includes(connected)) return on(connected) ? { kind: 'connected', login: connected } : { kind: 'no-repos', login: connected, connected: true }
+  const bare = res.remoteHosts && !res.candidates.length ? logins[0] : undefined
+  if (bare) return { kind: 'no-repos', login: bare, connected: false }
+  if (!workspace) return hosts.length ? { kind: 'remote', hosts } : null
+  if (workspace.sharedName) return { kind: 'shared', name: workspace.name, count: workspace.sharedName }
+  if (workspace.listed) return null
+  return hosts.length ? { kind: 'remote', hosts, workspace: workspace.name } : { kind: 'unlisted', name: workspace.name }
 }
 
 /** Remembered resolutions read back from storage; anything malformed is dropped. */

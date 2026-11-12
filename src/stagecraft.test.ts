@@ -228,7 +228,7 @@ test('a working ticket whose dispatch recorded nothing for longer than the thres
   const why = whyHere(i, Date.parse(now))
   assert.equal(why.text, 'The work for write has shown no activity for 3d.')
   assert.match(why.next, /still open .* may have stopped/)
-  assert.doesNotMatch(why.text + why.next, /failed/)
+  assert.ok(!/failed/.test(why.text + why.next))
 })
 
 test('the threshold is counted from the last journal event of the stage entry, not from the dispatch', () => {

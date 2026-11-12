@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { assert, test } from 'orca/testing'
@@ -12,8 +12,25 @@ const fx = (name: string): unknown => JSON.parse(readFileSync(new URL(`./fixture
 test('each saved Orca server is reached through the ssh host Orca deployed it with, or not at all', () => {
   assert.deepEqual(parseServers(fx('orca.environment-list'), fx('orca.host-list')), [
     { server: 'jarvis', host: 'jarvis' },
-    { server: 'cloudbox', host: null }
+    { server: 'cloudbox', host: null, code: {} }
   ])
+})
+
+const paired = (name: string, endpoints: string[], more: object = {}) => ({ name, endpoints: endpoints.map((endpoint) => ({ kind: 'websocket', endpoint })), ...more })
+const orcaSays = (environments: unknown[], hosts: unknown[] = []) => parseServers({ result: { environments } }, { result: { hosts } })
+
+test('a server paired with a code carries the address Orca connects to, as the SSH login to try', () => {
+  assert.deepEqual(orcaSays([paired('lab', ['ws://203.0.113.7:6768'])]), [{ server: 'lab', host: null, code: { address: '203.0.113.7' } }])
+  assert.deepEqual(orcaSays([paired('lab', ['ws://127.0.0.1:6768', 'ws://lab.example.com:6768/'])]), [{ server: 'lab', host: null, code: { address: 'lab.example.com' } }], 'a loopback endpoint is skipped')
+  assert.deepEqual(orcaSays([paired('lab', ['ws://localhost:6768'])]), [{ server: 'lab', host: null, code: {} }])
+  assert.deepEqual(orcaSays([paired('lab', ['ws://-oProxyCommand=id:6768', 'ws://$(id):1'])]), [{ server: 'lab', host: null, code: {} }], 'an address that is no SSH login is not offered')
+})
+
+test("a server Orca reaches over SSH is not one paired with a code, even when its SSH host's name cannot be used", () => {
+  const viaSsh = paired('lab', ['ws://127.0.0.1:57274/'], { orcadDeployment: { sshTargetId: 't1' } })
+  assert.deepEqual(orcaSays([viaSsh], [{ kind: 'ssh', id: 't1', name: 'lab-box' }]), [{ server: 'lab', host: 'lab-box' }])
+  assert.deepEqual(orcaSays([viaSsh], [{ kind: 'ssh', id: 't1', name: 'lab box' }]), [{ server: 'lab', host: null, unusable: 'lab box' }])
+  assert.deepEqual(orcaSays([viaSsh], [{ kind: 'ssh', id: 't1', name: '-oProxyCommand=id' }]), [{ server: 'lab', host: null, unusable: '-oProxyCommand=id' }])
 })
 
 test("a server's workspaces carry their name, branch and path on that server", () => {
@@ -75,6 +92,17 @@ test('the probe names the repo at or above the folder, then the registry', () =>
   const [first, ...rest] = out.split('\n')
   assert.equal(first, repo)
   assert.deepEqual(JSON.parse(rest.join('\n')).args, ['workspace', 'list', '--json', '--no-color'])
+})
+
+test('the probe finds a folder under ~ in the home folder, and nothing for a folder that is no full path', () => {
+  const home = fakeHome()
+  mkdirSync(join(home, 'code/factory/deep'), { recursive: true })
+  writeFileSync(join(home, 'code/factory/.swamp.yaml'), 'swampVersion: test\n')
+  const marker = join(home, 'ran')
+  const dirs = ['~/code/factory/deep', '~', 'code/factory', `~/$(touch ${marker})`, '~root/x']
+  const out = execFileSync('sh', ['-c', remoteCommand(dirs[0], dirs.slice(1), 'probe')], { env: { ...process.env, HOME: home }, encoding: 'utf8', timeout: 10_000 })
+  assert.deepEqual(out.split('\n').slice(0, dirs.length), [join(home, 'code/factory'), '', '', '', ''])
+  assert.ok(!existsSync(marker), 'a folder name is never run as shell text')
 })
 
 test('a resume that fails on the host within its first seconds exits with its error, and one still running exits 0', () => {
